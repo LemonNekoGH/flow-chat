@@ -4,3 +4,8 @@ export interface Message {
   role: 'user' | 'assistant' | 'system'
   parentMessageId: string | null
 }
+
+export interface MessageForAPI {
+  content: string
+  role: 'user' | 'assistant' | 'system'
+}

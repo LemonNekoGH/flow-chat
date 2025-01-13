@@ -16,6 +16,9 @@ importers:
       '@dagrejs/dagre':
         specifier: ^1.1.4
         version: 1.1.4
+      '@guiiai/logg':
+        specifier: ^1.0.6
+        version: 1.0.6
       '@unhead/vue':
         specifier: ^1.11.15
         version: 1.11.15(vue@3.5.13(typescript@5.7.3))
@@ -1345,6 +1348,9 @@ packages:
 
   '@floating-ui/vue@1.1.6':
     resolution: {integrity: sha512-XFlUzGHGv12zbgHNk5FN2mUB7ROul3oG2ENdTpWdE+qMFxyNxWSRmsoyhiEnpmabNm6WnUvR1OvJfUfN4ojC1A==}
+
+  '@guiiai/logg@1.0.6':
+    resolution: {integrity: sha512-x2dibX7Nr3sTCCJTsA3wgFSrZCtFA2k0vbg2fy+eG+fCAHKXjiSUNLAD94PpXcM7Jqbo4cJqzkOeCAgFZSjT0w==}
 
   '@humanfs/core@0.19.1':
     resolution: {integrity: sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA==}
@@ -3014,6 +3020,9 @@ packages:
   data-urls@5.0.0:
     resolution: {integrity: sha512-ZYP5VBHshaDAiVZxjbRVcFJpc+4xGgT0bK3vzy1HLN8jTO975HEbuYzZJcHoQEY5K1a0z8YayJkyVETa08eNTg==}
     engines: {node: '>=18'}
+
+  date-fns@4.1.0:
+    resolution: {integrity: sha512-Ukq0owbQXxa/U3EGtsdVBkR1w7KOQ5gIBqdH2hkvknzZPYvBxb/aa6E8L7tmjFtkwZBu3UXBbjIgPo/Ez4xaNg==}
 
   dayjs@1.11.7:
     resolution: {integrity: sha512-+Yw9U6YO5TQohxLcIkrXBeY73WP3ejHWVvx8XCk3gxvQDCTEmS48ZrSZCKciI7Bhl/uCMyxYtE9UqRILmFphkQ==}
@@ -7492,6 +7501,11 @@ snapshots:
       - '@vue/composition-api'
       - vue
 
+  '@guiiai/logg@1.0.6':
+    dependencies:
+      chalk: 5.4.1
+      date-fns: 4.1.0
+
   '@humanfs/core@0.19.1': {}
 
   '@humanfs/node@0.16.6':
@@ -9560,6 +9574,8 @@ snapshots:
     dependencies:
       whatwg-mimetype: 4.0.0
       whatwg-url: 14.0.0
+
+  date-fns@4.1.0: {}
 
   dayjs@1.11.7: {}
 

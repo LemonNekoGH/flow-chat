@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Message, MessageForAPI } from '~/types/messages'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { useVueFlow, VueFlow } from '@vue-flow/core'
@@ -20,10 +21,27 @@ flow.onNodeClick((event) => {
   selectedMessageId.value = event.node.id
 })
 
+const currentBranchMessages = computed(() => {
+  const messages: MessageForAPI[] = []
+  let parentMessageId: string | null = selectedMessageId.value
+  while (parentMessageId) {
+    const message = messagesStore.messages.find(message => message.id === parentMessageId)
+    if (!message) {
+      console.error('sendMessage: find message failed')
+      continue
+    }
+    messages.push({
+      content: message.content,
+      role: message.role,
+    })
+    parentMessageId = message.parentMessageId
+  }
+  return messages.reverse()
+})
+
 const nodesAndEdges = computed(() => {
   let nodes = messagesStore.messages.map((message, index) => ({
     id: message.id,
-    type: message.role === 'user' ? 'input' : 'output',
     position: {
       x: index * 100,
       y: 0,
@@ -76,19 +94,14 @@ async function sendMessage() {
   }
 
   const message = messagesStore.newMessage(inputMessage.value, 'user', selectedMessageId.value)
-
   inputMessage.value = ''
-
-  const messages = [{
-    content: message.content,
-    role: 'user',
-  }]
+  selectedMessageId.value = message.id
 
   const textStream = await streamText({
     apiKey: settingsStore.apiKey,
     baseURL: settingsStore.baseURL,
     model: settingsStore.model,
-    messages,
+    messages: currentBranchMessages.value,
   })
 
   const answer = messagesStore.newMessage('', 'assistant', message.id)
