@@ -19,7 +19,6 @@ declare module 'vue' {
     DialogTrigger: typeof import('./components/ui/dialog/DialogTrigger.vue')['default']
     Input: typeof import('./components/ui/input/Input.vue')['default']
     Label: typeof import('./components/ui/label/Label.vue')['default']
-    README: typeof import('./components/README.md')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     Select: typeof import('./components/ui/select/Select.vue')['default']
@@ -33,8 +32,5 @@ declare module 'vue' {
     SelectSeparator: typeof import('./components/ui/select/SelectSeparator.vue')['default']
     SelectTrigger: typeof import('./components/ui/select/SelectTrigger.vue')['default']
     SelectValue: typeof import('./components/ui/select/SelectValue.vue')['default']
-    TheCounter: typeof import('./components/TheCounter.vue')['default']
-    TheFooter: typeof import('./components/TheFooter.vue')['default']
-    TheInput: typeof import('./components/TheInput.vue')['default']
   }
 }
