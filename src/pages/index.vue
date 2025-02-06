@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import type { Message, MessageForAPI } from '~/types/messages'
+import type { MessageForAPI } from '~/types/messages'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { useVueFlow, VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
 import { streamText } from '@xsai/stream-text'
+import { computed, ref } from 'vue'
+import Button from '~/components/ui/button/Button.vue'
+import Input from '~/components/ui/input/Input.vue'
 import { useLayout } from '~/composables/useLayout'
 import { useMessagesStore } from '~/stores/messages'
 import { useSettingsStore } from '~/stores/settings'
@@ -58,6 +61,8 @@ const nodesAndEdges = computed(() => {
     target: message.id,
   }))
 
+  // FIXME: messages are not typed
+  // @ts-expect-error - messages are not typed
   nodes = layout(nodes, edges)
 
   return { nodes, edges }

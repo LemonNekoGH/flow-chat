@@ -2,6 +2,22 @@
 import type { Model } from '@xsai/model'
 import { listModels } from '@xsai/model'
 import { storeToRefs } from 'pinia'
+import { onMounted, ref, watch } from 'vue'
+
+import Button from '~/components/ui/button/Button.vue'
+import Dialog from '~/components/ui/dialog/Dialog.vue'
+import DialogContent from '~/components/ui/dialog/DialogContent.vue'
+import DialogHeader from '~/components/ui/dialog/DialogHeader.vue'
+import DialogTitle from '~/components/ui/dialog/DialogTitle.vue'
+import DialogTrigger from '~/components/ui/dialog/DialogTrigger.vue'
+import Input from '~/components/ui/input/Input.vue'
+import Label from '~/components/ui/label/Label.vue'
+import Select from '~/components/ui/select/Select.vue'
+import SelectContent from '~/components/ui/select/SelectContent.vue'
+import SelectGroup from '~/components/ui/select/SelectGroup.vue'
+import SelectItem from '~/components/ui/select/SelectItem.vue'
+import SelectTrigger from '~/components/ui/select/SelectTrigger.vue'
+
 import { useSettingsStore } from '~/stores/settings'
 
 const settingsStore = useSettingsStore()
@@ -37,7 +53,7 @@ onMounted(async () => {
         Flow Chat
       </div>
       <Dialog>
-        <DialogTrigger as-child>
+        <DialogTrigger>
           <Button>
             Settings
           </Button>

@@ -1,16 +1,17 @@
 <script setup lang="ts">
-import { cn } from '~/utils'
+import type { DialogContentEmits, DialogContentProps } from 'radix-vue'
+import type { HTMLAttributes } from 'vue'
 import { X } from 'lucide-vue-next'
 import {
   DialogClose,
   DialogContent,
-  type DialogContentEmits,
-  type DialogContentProps,
+
   DialogOverlay,
   DialogPortal,
   useForwardPropsEmits,
 } from 'radix-vue'
-import { computed, type HTMLAttributes } from 'vue'
+import { computed } from 'vue'
+import { cn } from '~/utils'
 
 const props = defineProps<DialogContentProps & { class?: HTMLAttributes['class'] }>()
 const emits = defineEmits<DialogContentEmits>()
@@ -27,7 +28,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
 <template>
   <DialogPortal>
     <DialogOverlay
-      class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+      class="fixed inset-0 z-50 grid data-[state=closed]:animate-out data-[state=open]:animate-in place-items-center overflow-y-auto bg-black/80 data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0"
     >
       <DialogContent
         :class="
@@ -48,9 +49,9 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
         <slot />
 
         <DialogClose
-          class="absolute top-3 right-3 p-0.5 transition-colors rounded-md hover:bg-secondary"
+          class="absolute right-3 top-3 rounded-md p-0.5 transition-colors hover:bg-secondary"
         >
-          <X class="w-4 h-4" />
+          <X class="h-4 w-4" />
           <span class="sr-only">Close</span>
         </DialogClose>
       </DialogContent>

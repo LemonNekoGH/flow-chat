@@ -1,5 +1,6 @@
 import type { Message } from '~/types/messages'
 import { defineStore } from 'pinia'
+import { ref } from 'vue'
 
 export const useMessagesStore = defineStore('messages', () => {
   const messages = ref<Message[]>([])
