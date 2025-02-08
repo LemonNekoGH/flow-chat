@@ -112,9 +112,4 @@ export default defineConfig({
     include: ['test/**/*.test.ts'],
     environment: 'jsdom',
   },
-
-  build: {
-    minify: false,
-    sourcemap: true,
-  },
 })
