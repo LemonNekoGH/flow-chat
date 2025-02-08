@@ -48,10 +48,11 @@ onMounted(async () => {
 
 <template>
   <header class="h-16 w-full border-b border-gray-200 bg-white">
-    <div class="h-full flex items-center justify-between px-4">
+    <div class="h-full flex items-center gap-x-4 px-4">
       <div class="text-xl font-bold">
         Flow Chat
       </div>
+      <div class="flex-1" />
       <Dialog>
         <DialogTrigger>
           <Button>
@@ -87,6 +88,9 @@ onMounted(async () => {
           </Select>
         </DialogContent>
       </Dialog>
+      <Button variant="outline" as="a" href="https://github.com/lemonnekogh/flow-chat" class="aspect-square w-10 px-unset">
+        <span class="i-carbon-logo-github" />
+      </Button>
     </div>
   </header>
   <main class="h-full">
