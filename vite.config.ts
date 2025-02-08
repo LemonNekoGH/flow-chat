@@ -4,7 +4,6 @@ import Shiki from '@shikijs/markdown-it'
 import Vue from '@vitejs/plugin-vue'
 import LinkAttributes from 'markdown-it-link-attributes'
 import Unocss from 'unocss/vite'
-import VueMacros from 'unplugin-vue-macros/vite'
 import Markdown from 'unplugin-vue-markdown/vite'
 import VueRouter from 'unplugin-vue-router/vite'
 import { defineConfig } from 'vite'
@@ -21,17 +20,13 @@ export default defineConfig({
   },
 
   plugins: [
-    VueMacros({
-      plugins: {
-        vue: Vue({
-          include: [/\.vue$/, /\.md$/],
-          script: {
-            defineModel: true,
-          },
-          features: {
-            propsDestructure: true,
-          },
-        }),
+    Vue({
+      include: [/\.vue$/, /\.md$/],
+      script: {
+        defineModel: true,
+      },
+      features: {
+        propsDestructure: true,
       },
     }),
 
