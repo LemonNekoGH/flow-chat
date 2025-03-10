@@ -5,7 +5,8 @@ import { Controls } from '@vue-flow/controls'
 import { useVueFlow, VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
 import { streamText } from '@xsai/stream-text'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import NodeContextMenu from '~/components/NodeContextMenu.vue'
 import Button from '~/components/ui/button/Button.vue'
 import Input from '~/components/ui/input/Input.vue'
 import { useLayout } from '~/composables/useLayout'
@@ -42,6 +43,21 @@ const currentBranchMessages = computed(() => {
   return messages.reverse()
 })
 
+const currentBranchNodeIds = computed(() => {
+  const nodeIds = new Set<string>()
+  let parentMessageId: string | null = selectedMessageId.value
+
+  while (parentMessageId) {
+    nodeIds.add(parentMessageId)
+    const message = messagesStore.messages.find(message => message.id === parentMessageId)
+    if (!message)
+      break
+    parentMessageId = message.parentMessageId
+  }
+
+  return nodeIds
+})
+
 const nodesAndEdges = computed(() => {
   let nodes = messagesStore.messages.map((message, index) => ({
     id: message.id,
@@ -53,12 +69,32 @@ const nodesAndEdges = computed(() => {
     data: {
       message,
     },
+    style: {
+      background: message.role === 'user' ? '#e3f2fd' : '#f3e5f5',
+      color: selectedMessageId.value && !currentBranchNodeIds.value.has(message.id) ? '#999' : '#000',
+      border: '1px solid',
+      borderColor: message.role === 'user' ? '#90caf9' : '#ce93d8',
+      borderRadius: '8px',
+      padding: '10px',
+      opacity: selectedMessageId.value && !currentBranchNodeIds.value.has(message.id) ? '0.5' : '1',
+    },
+    class: message.role === 'user' ? 'user-node' : 'assistant-node',
   }))
 
   const edges = messagesStore.messages.filter(message => message.parentMessageId).map(message => ({
     id: `${message.parentMessageId!}-${message.id}`,
     source: message.parentMessageId!,
     target: message.id,
+    style: {
+      stroke: selectedMessageId.value
+        && (currentBranchNodeIds.value.has(message.id) && currentBranchNodeIds.value.has(message.parentMessageId!))
+        ? '#000'
+        : '#ccc',
+      strokeWidth: selectedMessageId.value
+        && (currentBranchNodeIds.value.has(message.id) && currentBranchNodeIds.value.has(message.parentMessageId!))
+        ? '2'
+        : '1',
+    },
   }))
 
   // FIXME: messages are not typed
@@ -89,8 +125,41 @@ async function* asyncIteratorFromReadableStream<T, F = Uint8Array>(res: Readable
   }
 }
 
-async function sendMessage() {
-  if (!inputMessage.value) {
+const contextMenu = ref({
+  show: false,
+  x: 0,
+  y: 0,
+  nodeId: '',
+})
+
+flow.onNodeContextMenu((event) => {
+  event.event.preventDefault()
+  const node = event.node
+  if (node.data.message.role === 'user') {
+    contextMenu.value = {
+      show: true,
+      x: event.event.clientX,
+      y: event.event.clientY,
+      nodeId: node.id,
+    }
+  }
+})
+
+onMounted(() => {
+  document.addEventListener('click', () => {
+    contextMenu.value.show = false
+  })
+})
+
+async function generateAnotherResponse() {
+  selectedMessageId.value = contextMenu.value.nodeId
+  await sendMessage(true)
+  contextMenu.value.show = false
+}
+
+async function sendMessage(skipUserMessage = false) {
+  // TODO: needs refactor! extract the generate response part and call different functions for `sendMessage` and `generateAnotherResponse`
+  if (!skipUserMessage && !inputMessage.value) {
     return
   }
 
@@ -98,9 +167,12 @@ async function sendMessage() {
     return
   }
 
-  const message = messagesStore.newMessage(inputMessage.value, 'user', selectedMessageId.value)
-  inputMessage.value = ''
-  selectedMessageId.value = message.id
+  let parentId = selectedMessageId.value
+  if (!skipUserMessage) {
+    const message = messagesStore.newMessage(inputMessage.value, 'user', selectedMessageId.value)
+    inputMessage.value = ''
+    parentId = selectedMessageId.value = message.id
+  }
 
   const textStream = await streamText({
     apiKey: settingsStore.apiKey,
@@ -109,10 +181,11 @@ async function sendMessage() {
     messages: currentBranchMessages.value,
   })
 
-  const answer = messagesStore.newMessage('', 'assistant', message.id)
+  const answer = messagesStore.newMessage('', 'assistant', parentId)
 
   for await (const textPart of asyncIteratorFromReadableStream(textStream.textStream, async v => v)) {
-    messagesStore.updateMessage(answer.id, textPart)
+    // textPart might be `undefined` in some cases
+    textPart && messagesStore.updateMessage(answer.id, textPart)
   }
 
   // auto select the answer
@@ -125,10 +198,16 @@ async function sendMessage() {
     <Background />
     <Controls />
     <MiniMap />
+    <NodeContextMenu
+      :show="contextMenu.show"
+      :x="contextMenu.x"
+      :y="contextMenu.y"
+      @generate="generateAnotherResponse"
+    />
   </VueFlow>
   <div class="absolute bottom-0 w-full flex gap-2 p-4" bg="white dark:gray-900" shadow="lg current">
     <Input v-model="inputMessage" />
-    <Button class="h-10" @click="sendMessage">
+    <Button class="h-10" @click="sendMessage(false)">
       Send
     </Button>
   </div>
