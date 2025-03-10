@@ -27,11 +27,19 @@ export const useMessagesStore = defineStore('messages', () => {
     message.content += text
   }
 
+  function deleteMessages(ids: string[]) {
+    if (!ids.length)
+      return
+
+    messages.value = messages.value.filter(message => !ids.includes(message.id))
+  }
+
   return {
     messages,
 
     newMessage,
     updateMessage,
+    deleteMessages,
   }
 }, {
   persist: true,

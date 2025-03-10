@@ -4,8 +4,9 @@ import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { useVueFlow, VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
+import { useEventListener } from '@vueuse/core'
 import { streamText } from '@xsai/stream-text'
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import NodeContextMenu from '~/components/NodeContextMenu.vue'
 import Button from '~/components/ui/button/Button.vue'
 import Input from '~/components/ui/input/Input.vue'
@@ -20,9 +21,16 @@ const { layout } = useLayout()
 const flow = useVueFlow()
 
 const selectedMessageId = ref<string | null>(null)
+const selectedMessage = computed(() => {
+  return messagesStore.messages.find(message => message.id === selectedMessageId.value)
+})
 
 flow.onNodeClick((event) => {
   selectedMessageId.value = event.node.id
+})
+
+flow.onPaneClick((_) => {
+  selectedMessageId.value = null
 })
 
 const currentBranchMessages = computed(() => {
@@ -129,30 +137,71 @@ const contextMenu = ref({
   show: false,
   x: 0,
   y: 0,
-  nodeId: '',
 })
 
 flow.onNodeContextMenu((event) => {
   event.event.preventDefault()
-  const node = event.node
-  if (node.data.message.role === 'user') {
-    contextMenu.value = {
-      show: true,
-      x: event.event.clientX,
-      y: event.event.clientY,
-      nodeId: node.id,
+  selectedMessageId.value = event.node.id
+  const mouseEvent = event.event as MouseEvent
+  contextMenu.value = {
+    show: true,
+    x: mouseEvent.clientX || 0,
+    y: mouseEvent.clientY || 0,
+  }
+})
+
+useEventListener('click', () => {
+  contextMenu.value.show = false
+})
+
+useEventListener('keydown', (event) => {
+  if ((event.key === 'Backspace' || event.key === 'Delete') && selectedMessageId.value) {
+    const activeElement = document.activeElement
+    const isInputActive = activeElement && (
+      activeElement.tagName === 'INPUT'
+      || activeElement.tagName === 'TEXTAREA'
+      || (activeElement as HTMLElement).isContentEditable
+    )
+
+    if (!isInputActive) {
+      deleteSelectedNode(selectedMessageId.value)
     }
   }
 })
 
-onMounted(() => {
-  document.addEventListener('click', () => {
-    contextMenu.value.show = false
-  })
-})
+// delete the current selected node
+function deleteSelectedNode(nodeId: string) {
+  // delete the node and all its children
+  const nodesToDelete = new Set<string>()
+
+  // find all children
+  function findChildNodes(parentId: string) {
+    nodesToDelete.add(parentId)
+    const childNodes = messagesStore.messages.filter(message => message.parentMessageId === parentId)
+    for (const child of childNodes) {
+      findChildNodes(child.id)
+    }
+  }
+
+  findChildNodes(nodeId)
+
+  // delete nodes from store
+  messagesStore.deleteMessages(Array.from(nodesToDelete))
+
+  // cancel selection
+  selectedMessageId.value = null
+}
+
+function handleContextMenuDelete() {
+  if (!selectedMessageId.value)
+    return
+
+  deleteSelectedNode(selectedMessageId.value)
+
+  contextMenu.value.show = false
+}
 
 async function generateAnotherResponse() {
-  selectedMessageId.value = contextMenu.value.nodeId
   await sendMessage(true)
   contextMenu.value.show = false
 }
@@ -163,7 +212,8 @@ async function sendMessage(skipUserMessage = false) {
     return
   }
 
-  if (!settingsStore.apiKey || !settingsStore.baseURL || !settingsStore.model) {
+  if (!settingsStore.baseURL || !settingsStore.model) {
+    settingsStore.showSettingsDialog = true
     return
   }
 
@@ -202,7 +252,9 @@ async function sendMessage(skipUserMessage = false) {
       :show="contextMenu.show"
       :x="contextMenu.x"
       :y="contextMenu.y"
+      :role="selectedMessage?.role"
       @generate="generateAnotherResponse"
+      @delete="handleContextMenuDelete"
     />
   </VueFlow>
   <div class="absolute bottom-0 w-full flex gap-2 p-4" bg="white dark:gray-900" shadow="lg current">

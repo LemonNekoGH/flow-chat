@@ -6,9 +6,12 @@ export const useSettingsStore = defineStore('settings', () => {
   const baseURL = ref('')
   const model = ref('')
 
+  const showSettingsDialog = ref(false)
+
   return {
     apiKey,
     baseURL,
     model,
+    showSettingsDialog,
   }
 }, { persist: true })

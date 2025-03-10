@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import type { Model } from '@xsai/model'
+import { watchDebounced } from '@vueuse/core'
 import { listModels } from '@xsai/model'
 import { storeToRefs } from 'pinia'
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, ref } from 'vue'
 
 import Button from '~/components/ui/button/Button.vue'
 import Dialog from '~/components/ui/dialog/Dialog.vue'
@@ -27,7 +28,7 @@ const { apiKey, baseURL, model } = storeToRefs(settingsStore)
 const models = ref<Model[]>([])
 
 async function fetchModels() {
-  if (!apiKey.value || !baseURL.value) {
+  if (!baseURL.value) {
     return
   }
 
@@ -37,9 +38,9 @@ async function fetchModels() {
   })
 }
 
-watch([apiKey, baseURL], async () => {
+watchDebounced([apiKey, baseURL], async () => {
   await fetchModels()
-})
+}, { debounce: 500 })
 
 onMounted(async () => {
   await fetchModels()
@@ -53,7 +54,7 @@ onMounted(async () => {
         Flow Chat
       </div>
       <div class="flex-1" />
-      <Dialog>
+      <Dialog v-model:open="settingsStore.showSettingsDialog">
         <DialogTrigger>
           <Button>
             Settings
