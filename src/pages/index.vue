@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import type { NodeMouseEvent } from '@vue-flow/core'
 import type { MessageForAPI } from '~/types/messages'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
-import { useVueFlow, VueFlow } from '@vue-flow/core'
+import { VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
 import { useEventListener } from '@vueuse/core'
 import { streamText } from '@xsai/stream-text'
@@ -18,20 +19,37 @@ const settingsStore = useSettingsStore()
 const messagesStore = useMessagesStore()
 const { layout } = useLayout()
 
-const flow = useVueFlow()
-
 const selectedMessageId = ref<string | null>(null)
 const selectedMessage = computed(() => {
   return messagesStore.messages.find(message => message.id === selectedMessageId.value)
 })
 
-flow.onNodeClick((event) => {
-  selectedMessageId.value = event.node.id
+// #region vue flow event handlers
+const contextMenu = ref({
+  show: false,
+  x: 0,
+  y: 0,
 })
 
-flow.onPaneClick((_) => {
+function handleNodeClick(event: NodeMouseEvent) {
+  selectedMessageId.value = event.node.id
+}
+
+function handlePaneClick() {
   selectedMessageId.value = null
-})
+}
+
+function handleNodeContextMenu(event: NodeMouseEvent) {
+  event.event.preventDefault()
+  selectedMessageId.value = event.node.id
+  const mouseEvent = event.event as MouseEvent
+  contextMenu.value = {
+    show: true,
+    x: mouseEvent.clientX || 0,
+    y: mouseEvent.clientY || 0,
+  }
+}
+// #endregion
 
 const currentBranchMessages = computed(() => {
   const messages: MessageForAPI[] = []
@@ -133,23 +151,6 @@ async function* asyncIteratorFromReadableStream<T, F = Uint8Array>(res: Readable
   }
 }
 
-const contextMenu = ref({
-  show: false,
-  x: 0,
-  y: 0,
-})
-
-flow.onNodeContextMenu((event) => {
-  event.event.preventDefault()
-  selectedMessageId.value = event.node.id
-  const mouseEvent = event.event as MouseEvent
-  contextMenu.value = {
-    show: true,
-    x: mouseEvent.clientX || 0,
-    y: mouseEvent.clientY || 0,
-  }
-})
-
 useEventListener('click', () => {
   contextMenu.value.show = false
 })
@@ -244,7 +245,13 @@ async function sendMessage(skipUserMessage = false) {
 </script>
 
 <template>
-  <VueFlow :nodes="nodesAndEdges.nodes" :edges="nodesAndEdges.edges">
+  <VueFlow
+    :nodes="nodesAndEdges.nodes"
+    :edges="nodesAndEdges.edges"
+    @node-click="handleNodeClick"
+    @pane-click="handlePaneClick"
+    @node-context-menu="handleNodeContextMenu"
+  >
     <Background />
     <Controls />
     <MiniMap />
@@ -264,3 +271,14 @@ async function sendMessage(skipUserMessage = false) {
     </Button>
   </div>
 </template>
+
+<style scoped>
+.vue-flow {
+  &:deep(.vue-flow__minimap) {
+    bottom: 9rem;
+  }
+  &:deep(.vue-flow__controls) {
+    bottom: 9rem;
+  }
+}
+</style>
