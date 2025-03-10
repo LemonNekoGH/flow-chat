@@ -43,6 +43,21 @@ const currentBranchMessages = computed(() => {
   return messages.reverse()
 })
 
+const currentBranchNodeIds = computed(() => {
+  const nodeIds = new Set<string>()
+  let parentMessageId: string | null = selectedMessageId.value
+
+  while (parentMessageId) {
+    nodeIds.add(parentMessageId)
+    const message = messagesStore.messages.find(message => message.id === parentMessageId)
+    if (!message)
+      break
+    parentMessageId = message.parentMessageId
+  }
+
+  return nodeIds
+})
+
 const nodesAndEdges = computed(() => {
   let nodes = messagesStore.messages.map((message, index) => ({
     id: message.id,
@@ -56,11 +71,12 @@ const nodesAndEdges = computed(() => {
     },
     style: {
       background: message.role === 'user' ? '#e3f2fd' : '#f3e5f5',
-      color: '#000',
+      color: selectedMessageId.value && !currentBranchNodeIds.value.has(message.id) ? '#999' : '#000',
       border: '1px solid',
       borderColor: message.role === 'user' ? '#90caf9' : '#ce93d8',
       borderRadius: '8px',
       padding: '10px',
+      opacity: selectedMessageId.value && !currentBranchNodeIds.value.has(message.id) ? '0.5' : '1',
     },
     class: message.role === 'user' ? 'user-node' : 'assistant-node',
   }))
@@ -69,6 +85,16 @@ const nodesAndEdges = computed(() => {
     id: `${message.parentMessageId!}-${message.id}`,
     source: message.parentMessageId!,
     target: message.id,
+    style: {
+      stroke: selectedMessageId.value
+        && (currentBranchNodeIds.value.has(message.id) && currentBranchNodeIds.value.has(message.parentMessageId!))
+        ? '#000'
+        : '#ccc',
+      strokeWidth: selectedMessageId.value
+        && (currentBranchNodeIds.value.has(message.id) && currentBranchNodeIds.value.has(message.parentMessageId!))
+        ? '2'
+        : '1',
+    },
   }))
 
   // FIXME: messages are not typed
