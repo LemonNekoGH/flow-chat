@@ -1,4 +1,4 @@
-import type { BaseMessage, Message, MessageRole } from '~/types/messages'
+import type { Message, MessageRole } from '~/types/messages'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
@@ -34,6 +34,10 @@ export const useMessagesStore = defineStore('messages', () => {
     messages.value = messages.value.filter(message => !ids.includes(message.id))
   }
 
+  function deleteSubtree(id: string) {
+    deleteMessages(getSubtreeById(id))
+  }
+
   function getMessageById(id?: string | null) {
     return messages.value.find(message => message.id === id)
   }
@@ -42,15 +46,29 @@ export const useMessagesStore = defineStore('messages', () => {
     return getMessageById(msg.parentMessageId)
   }
 
+  function getChildMessagesById(id?: string | null) {
+    return messages.value.filter(message => message.parentMessageId === id)
+  }
+
   function getBranchById(id?: string | null) {
-    const baseMessages: BaseMessage[] = []
+    const messages: Message[] = []
     const ids = new Set<string>()
     for (let message = getMessageById(id); message; message = getParentMessage(message)) {
-      const { id, content, role } = message
-      baseMessages.push({ content, role })
-      ids.add(id)
+      messages.push(message)
+      ids.add(message.id)
     }
-    return { messages: baseMessages.reverse(), ids } as const
+    return { messages: messages.reverse(), ids } as const
+  }
+
+  function getSubtreeById(id: string) {
+    // use BFS to get all message IDs in the subtree
+    //  1. to avoid DFS's recursion, which will be a little bit better for performance
+    //  2. we can simply return the BFS queue, for free!
+    const descendants = [id]
+    for (let i = 0; i < descendants.length; i++) {
+      for (const { id } of getChildMessagesById(descendants[i])) descendants.push(id)
+    }
+    return descendants
   }
 
   return {
@@ -59,10 +77,13 @@ export const useMessagesStore = defineStore('messages', () => {
     newMessage,
     updateMessage,
     deleteMessages,
+    deleteSubtree,
 
     getMessageById,
     getParentMessage,
+    getChildMessagesById,
     getBranchById,
+    getSubtreeById,
   }
 }, {
   persist: true,

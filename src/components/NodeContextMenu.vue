@@ -30,7 +30,7 @@ defineEmits<{
       class="cursor-pointer px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
       @click="$emit('focusIn')"
     >
-      Foucs In
+      Focus In
     </div>
     <div
       class="cursor-pointer px-4 py-2 text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700"
