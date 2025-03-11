@@ -19,9 +19,11 @@ import SelectGroup from '~/components/ui/select/SelectGroup.vue'
 import SelectItem from '~/components/ui/select/SelectItem.vue'
 import SelectTrigger from '~/components/ui/select/SelectTrigger.vue'
 
+import { ChatMode, useModeStore } from '~/stores/mode'
 import { useSettingsStore } from '~/stores/settings'
 
 const settingsStore = useSettingsStore()
+const { currentMode } = storeToRefs(useModeStore())
 
 const { apiKey, baseURL, model } = storeToRefs(settingsStore)
 
@@ -54,6 +56,13 @@ onMounted(async () => {
         Flow Chat
       </div>
       <div class="flex-1" />
+      <Button
+        v-if="currentMode === ChatMode.CONVERSATION"
+        variant="outline"
+        @click="currentMode = ChatMode.FLOW"
+      >
+        Jump Out
+      </Button>
       <Dialog v-model:open="settingsStore.showSettingsDialog">
         <DialogTrigger>
           <Button>
@@ -94,7 +103,15 @@ onMounted(async () => {
       </Button>
     </div>
   </header>
-  <main class="h-full">
+  <main class="flex flex-1 flex-col">
     <RouterView />
   </main>
 </template>
+
+<style>
+#app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+</style>

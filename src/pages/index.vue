@@ -1,23 +1,26 @@
 <script setup lang="ts">
 import type { NodeMouseEvent } from '@vue-flow/core'
-import type { MessageForAPI } from '~/types/messages'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
 import { useEventListener } from '@vueuse/core'
 import { streamText } from '@xsai/stream-text'
+import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
+import ConversationView from '~/components/ConversationView.vue'
 import NodeContextMenu from '~/components/NodeContextMenu.vue'
 import Button from '~/components/ui/button/Button.vue'
 import Input from '~/components/ui/input/Input.vue'
 import { useLayout } from '~/composables/useLayout'
 import { useMessagesStore } from '~/stores/messages'
+import { ChatMode, useModeStore } from '~/stores/mode'
 import { useSettingsStore } from '~/stores/settings'
 
 const settingsStore = useSettingsStore()
 const messagesStore = useMessagesStore()
 const { layout } = useLayout()
+const { currentMode } = storeToRefs(useModeStore())
 
 const selectedMessageId = ref<string | null>(null)
 const selectedMessage = computed(() => {
@@ -40,9 +43,9 @@ function handlePaneClick() {
 }
 
 function handleNodeContextMenu(event: NodeMouseEvent) {
-  event.event.preventDefault()
   selectedMessageId.value = event.node.id
   const mouseEvent = event.event as MouseEvent
+  mouseEvent.preventDefault()
   contextMenu.value = {
     show: true,
     x: mouseEvent.clientX || 0,
@@ -51,37 +54,8 @@ function handleNodeContextMenu(event: NodeMouseEvent) {
 }
 // #endregion
 
-const currentBranchMessages = computed(() => {
-  const messages: MessageForAPI[] = []
-  let parentMessageId: string | null = selectedMessageId.value
-  while (parentMessageId) {
-    const message = messagesStore.messages.find(message => message.id === parentMessageId)
-    if (!message) {
-      console.error('sendMessage: find message failed')
-      continue
-    }
-    messages.push({
-      content: message.content,
-      role: message.role,
-    })
-    parentMessageId = message.parentMessageId
-  }
-  return messages.reverse()
-})
-
-const currentBranchNodeIds = computed(() => {
-  const nodeIds = new Set<string>()
-  let parentMessageId: string | null = selectedMessageId.value
-
-  while (parentMessageId) {
-    nodeIds.add(parentMessageId)
-    const message = messagesStore.messages.find(message => message.id === parentMessageId)
-    if (!message)
-      break
-    parentMessageId = message.parentMessageId
-  }
-
-  return nodeIds
+const currentBranch = computed(() => {
+  return messagesStore.getBranchById(selectedMessageId.value)
 })
 
 const nodesAndEdges = computed(() => {
@@ -95,33 +69,26 @@ const nodesAndEdges = computed(() => {
     data: {
       message,
     },
-    style: {
-      background: message.role === 'user' ? '#e3f2fd' : '#f3e5f5',
-      color: selectedMessageId.value && !currentBranchNodeIds.value.has(message.id) ? '#999' : '#000',
-      border: '1px solid',
-      borderColor: message.role === 'user' ? '#90caf9' : '#ce93d8',
-      borderRadius: '8px',
-      padding: '10px',
-      opacity: selectedMessageId.value && !currentBranchNodeIds.value.has(message.id) ? '0.5' : '1',
-    },
-    class: message.role === 'user' ? 'user-node' : 'assistant-node',
+    class: [message.role, selectedMessageId.value && !currentBranch.value.ids.has(message.id) ? 'inactive' : ''],
   }))
 
-  const edges = messagesStore.messages.filter(message => message.parentMessageId).map(message => ({
-    id: `${message.parentMessageId!}-${message.id}`,
-    source: message.parentMessageId!,
-    target: message.id,
-    style: {
-      stroke: selectedMessageId.value
-        && (currentBranchNodeIds.value.has(message.id) && currentBranchNodeIds.value.has(message.parentMessageId!))
-        ? '#000'
-        : '#ccc',
-      strokeWidth: selectedMessageId.value
-        && (currentBranchNodeIds.value.has(message.id) && currentBranchNodeIds.value.has(message.parentMessageId!))
-        ? '2'
-        : '1',
-    },
-  }))
+  const edges = messagesStore.messages
+    .filter(message => message.parentMessageId)
+    .map(message => ({
+      id: `${message.parentMessageId!}-${message.id}`,
+      source: message.parentMessageId!,
+      target: message.id,
+      style: {
+        stroke:
+          selectedMessageId.value && currentBranch.value.ids.has(message.id)
+            ? '#000'
+            : '#ccc',
+        strokeWidth:
+          selectedMessageId.value && currentBranch.value.ids.has(message.id)
+            ? '2'
+            : '1',
+      },
+    }))
 
   // FIXME: messages are not typed
   // @ts-expect-error - messages are not typed
@@ -132,7 +99,10 @@ const nodesAndEdges = computed(() => {
 
 const inputMessage = ref('')
 
-async function* asyncIteratorFromReadableStream<T, F = Uint8Array>(res: ReadableStream<F>, func: (value: F) => Promise<T>): AsyncGenerator<T, void, unknown> {
+async function* asyncIteratorFromReadableStream<T, F = Uint8Array>(
+  res: ReadableStream<F>,
+  func: (value: F) => Promise<T>,
+): AsyncGenerator<T, void, unknown> {
   // react js - TS2504: Type 'ReadableStream<Uint8Array>' must have a '[Symbol.asyncIterator]()' method that returns an async iterator - Stack Overflow
   // https://stackoverflow.com/questions/76700924/ts2504-type-readablestreamuint8array-must-have-a-symbol-asynciterator
   const reader = res.getReader()
@@ -158,11 +128,9 @@ useEventListener('click', () => {
 useEventListener('keydown', (event) => {
   if ((event.key === 'Backspace' || event.key === 'Delete') && selectedMessageId.value) {
     const activeElement = document.activeElement
-    const isInputActive = activeElement && (
-      activeElement.tagName === 'INPUT'
-      || activeElement.tagName === 'TEXTAREA'
-      || (activeElement as HTMLElement).isContentEditable
-    )
+    const isInputActive
+      = activeElement
+        && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || (activeElement as HTMLElement).isContentEditable)
 
     if (!isInputActive) {
       deleteSelectedNode(selectedMessageId.value)
@@ -229,7 +197,7 @@ async function sendMessage(skipUserMessage = false) {
     apiKey: settingsStore.apiKey,
     baseURL: settingsStore.baseURL,
     model: settingsStore.model,
-    messages: currentBranchMessages.value,
+    messages: currentBranch.value.messages,
   })
 
   const answer = messagesStore.newMessage('', 'assistant', parentId)
@@ -242,10 +210,22 @@ async function sendMessage(skipUserMessage = false) {
   // auto select the answer
   selectedMessageId.value = answer.id
 }
+
+function handleContextMenuFocusIn() {
+  currentMode.value = ChatMode.CONVERSATION
+}
+
+function handleMessageInputKeydown(e: KeyboardEvent) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault()
+    sendMessage(false)
+  }
+}
 </script>
 
 <template>
   <VueFlow
+    v-if="currentMode === ChatMode.FLOW"
     :nodes="nodesAndEdges.nodes"
     :edges="nodesAndEdges.edges"
     @node-click="handleNodeClick"
@@ -256,16 +236,22 @@ async function sendMessage(skipUserMessage = false) {
     <Controls />
     <MiniMap />
     <NodeContextMenu
-      :show="contextMenu.show"
+      v-if="contextMenu.show"
       :x="contextMenu.x"
       :y="contextMenu.y"
       :role="selectedMessage?.role"
       @generate="generateAnotherResponse"
       @delete="handleContextMenuDelete"
+      @focus-in="handleContextMenuFocusIn"
     />
   </VueFlow>
-  <div class="absolute bottom-0 w-full flex gap-2 p-4" bg="white dark:gray-900" shadow="lg current">
-    <Input v-model="inputMessage" />
+  <ConversationView
+    v-if="currentMode === ChatMode.CONVERSATION"
+    :messages="messagesStore.messages"
+    :selected-message-id="selectedMessageId!"
+  />
+  <div class="flex gap-2 p-4" bg="white dark:gray-900" shadow="lg current">
+    <Input v-model="inputMessage" placeholder="Press Enter to send message" @keydown="handleMessageInputKeydown" />
     <Button class="h-10" @click="sendMessage(false)">
       Send
     </Button>
@@ -274,11 +260,25 @@ async function sendMessage(skipUserMessage = false) {
 
 <style scoped>
 .vue-flow {
-  &:deep(.vue-flow__minimap) {
-    bottom: 9rem;
+  flex: 1;
+}
+
+:deep(.vue-flow__node) {
+  border-radius: 8px;
+
+  &.user {
+    background: #e3f2fd;
+    border-color: #90caf9;
   }
-  &:deep(.vue-flow__controls) {
-    bottom: 9rem;
+
+  &.assistant {
+    background: #f3e5f5;
+    border-color: #ce93d8;
+  }
+
+  &.inactive {
+    opacity: 0.5;
+    color: #999;
   }
 }
 </style>

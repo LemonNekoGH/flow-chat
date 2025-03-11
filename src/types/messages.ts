@@ -1,11 +1,11 @@
-export interface Message {
-  id: string
+export type MessageRole = 'user' | 'assistant' | 'system'
+
+export interface BaseMessage {
   content: string
-  role: 'user' | 'assistant' | 'system'
-  parentMessageId: string | null
+  role: MessageRole
 }
 
-export interface MessageForAPI {
-  content: string
-  role: 'user' | 'assistant' | 'system'
+export interface Message extends BaseMessage {
+  id: string
+  parentMessageId: string | null
 }
