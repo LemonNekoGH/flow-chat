@@ -183,13 +183,6 @@ async function sendMessage() {
 function handleContextMenuFocusIn() {
   currentMode.value = ChatMode.CONVERSATION
 }
-
-function handleMessageInputKeydown(e: KeyboardEvent) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault()
-    sendMessage()
-  }
-}
 </script>
 
 <template>
@@ -218,17 +211,17 @@ function handleMessageInputKeydown(e: KeyboardEvent) {
     v-if="currentMode === ChatMode.CONVERSATION"
     :messages="currentBranch.messages"
   />
-  <div class="flex gap-2 p-4" bg="white dark:gray-900" shadow="lg current">
+  <div class="relative flex p-2" bg="white dark:gray-900" shadow="lg current">
     <BasicTextarea
       v-model="inputMessage"
       placeholder="Press Enter to send message, press Shift+Enter to create a new line"
-      w-full p-2
+      max-h-60vh w-full resize-none p-2
       border="1 solid rounded-lg"
       outline="transparent 2 offset-4 focus:primary"
       transition="all duration-200 ease-in-out"
-      @keydown="handleMessageInputKeydown"
+      @submit="sendMessage"
     />
-    <Button class="h-10" min-h="[calc(3lh+0.25rem)]" @click="sendMessage(false)">
+    <Button class="absolute bottom-3 right-3" @click="sendMessage">
       Send
     </Button>
   </div>
