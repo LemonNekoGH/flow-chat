@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Model } from 'xsai'
 import { storeToRefs } from 'pinia'
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watchEffect } from 'vue'
 import { toast, Toaster } from 'vue-sonner'
 import { listModels } from 'xsai'
 import Button from '~/components/ui/button/Button.vue'
@@ -19,7 +19,7 @@ import SelectItem from '~/components/ui/select/SelectItem.vue'
 import SelectLabel from '~/components/ui/select/SelectLabel.vue'
 import SelectTrigger from '~/components/ui/select/SelectTrigger.vue'
 import SelectValue from '~/components/ui/select/SelectValue.vue'
-
+import { toggleTheme, watchSystemTheme } from '~/composables/AutoCheckMode'
 import { useMessagesStore } from '~/stores/messages'
 import { ChatMode, useModeStore } from '~/stores/mode'
 import { useSettingsStore } from '~/stores/settings'
@@ -31,6 +31,8 @@ const { apiKey, baseURL, model } = storeToRefs(settingsStore)
 const messagesStore = useMessagesStore()
 
 const models = ref<Model[]>([])
+
+const isDark = ref(false)
 
 async function fetchModels() {
   if (!baseURL.value) {
@@ -53,6 +55,21 @@ async function fetchModels() {
 
 onMounted(async () => {
   await fetchModels()
+})
+
+onMounted(() => {
+  watchSystemTheme((dark) => {
+    isDark.value = dark
+  })
+})
+
+function handleToggle() {
+  isDark.value = !isDark.value
+  toggleTheme(isDark.value)
+}
+
+watchEffect(() => {
+  toggleTheme(isDark.value)
 })
 </script>
 
@@ -113,9 +130,13 @@ onMounted(async () => {
           </Button>
         </DialogContent>
       </Dialog>
+      <Button class="rounded-md bg-white hover:bg-accent" @click="handleToggle">
+        <i v-if="isDark" class="i-carbon-moon text-xl text-gray-800" />
+        <i v-else class="i-carbon-sun bg-yellow-500 text-xl" />
+      </Button>
       <Button
         variant="outline" as="a" href="https://github.com/lemonnekogh/flow-chat"
-        class="aspect-square w-10 px-unset dark:bg-white"
+        class="aspect-square w-10 px-unset dark:bg-white dark:hover:bg-primary/90"
       >
         <span class="i-carbon-logo-github" />
       </Button>
