@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { Model } from '@xsai/model'
+import type { Model } from 'xsai'
 import { watchDebounced } from '@vueuse/core'
-import { listModels } from '@xsai/model'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref } from 'vue'
+import { listModels } from 'xsai'
 
 import Button from '~/components/ui/button/Button.vue'
 import Dialog from '~/components/ui/dialog/Dialog.vue'

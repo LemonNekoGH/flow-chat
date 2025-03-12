@@ -75,8 +75,8 @@ importers:
         specifier: ^7.3.0
         version: 7.3.0
       xsai:
-        specifier: ^0.0.31
-        version: 0.0.31
+        specifier: ^0.1.2
+        version: 0.1.2
     devDependencies:
       '@antfu/eslint-config':
         specifier: ^4.1.1
@@ -2252,10 +2252,6 @@ packages:
   '@xsai/model@0.1.2':
     resolution: {integrity: sha512-cP2B0zudyfEzPi/fUHZ8wJtJonMOSkSUnodwT7VwntRIVOy0u90IhGmqB3eyyAUftupTNzXlGc/bJs+3hLXUvA==}
 
-  '@xsai/providers@0.1.0-beta.5':
-    resolution: {integrity: sha512-jx630mUblMSUcDcXa+BNiFB7deQy1lp0XcJHQokfo/+QvYOpgaPrIRH6oUcjwLio0+8gJXqQmQfEY3+fl9Tjew==}
-    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
-
   '@xsai/shared-chat@0.1.2':
     resolution: {integrity: sha512-jR+McjnvK1Crp8Sdnt6/4yRZV11E5kDvxui3I3HRYxA8si4dboL0fravXu2cYLScXWNMO/ZK1XPDp3oVAju/uA==}
 
@@ -2270,6 +2266,12 @@ packages:
 
   '@xsai/tool@0.1.2':
     resolution: {integrity: sha512-bsc32oWVXYFhiM1lD/IFsYiVjT94pkgrfpMIdKl9lNfQH9IAatxod+mwbDrJZPHoaCYq47mZzGdCCDVnLrIr7A==}
+
+  '@xsai/utils-chat@0.1.2':
+    resolution: {integrity: sha512-lwXTDNN88QeoDuiDAAsfkXaeyessB89PM9FRolejjLlwthRAlNOSWXGOsOPzpJGWF9q7fKwxoy+ENWdQ8NJnDg==}
+
+  '@xsai/utils-stream@0.1.2':
+    resolution: {integrity: sha512-rqzMCgF7C2oSGPwzXy4a+LhDv7UcOg3OdrPOLp+slB4Z+QDkPpJvyCAcoF/x0oFCv1jVIcPzIQj4D1QXkxJWZg==}
 
   abbrev@1.1.1:
     resolution: {integrity: sha512-nne9/IiQ/hzIhY6pdDnbBtz7DjPTKrY00P/zvPSm5pOFkl6xuGrGnXn/VtTNNfNtAfZ9/1RtehkszU9qcTii0Q==}
@@ -5562,8 +5564,8 @@ packages:
   xmlchars@2.2.0:
     resolution: {integrity: sha512-JZnDKK8B0RCDw84FNdDAIpZK+JuJw+s7Lz8nksI7SIuU3UXJJslUthsi+uWBUYOwPFwW7W7PRLRfUKpxjtjFCw==}
 
-  xsai@0.0.31:
-    resolution: {integrity: sha512-vdt5CFQvPf9BJRbEKO2+uwFen3ubUqKE/h3meR1tO0zpRuEPqipyt3p+9tCqKLaWt/q2gT2kM5exlRO2hfKbsQ==}
+  xsai@0.1.2:
+    resolution: {integrity: sha512-iNb99HHp2ZSD/ZNPpyQY7KLBdKoCQln/nJrIHDmv40iVDUChKya+4Tn8IfEFTe4aHPv03Dw1g7LErQ1GlPqe1w==}
 
   xsschema@0.1.2:
     resolution: {integrity: sha512-BCu09Hu3cVQkRG1Kjp6GH3lgg+04z0x1X6oSomVotHVewhrW6tKT7J/Xe1EsJETOQfbdvt7J5m8Pxd5Sn9ib3w==}
@@ -8040,10 +8042,6 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.1.2
 
-  '@xsai/providers@0.1.0-beta.5':
-    dependencies:
-      '@xsai/shared': 0.1.2
-
   '@xsai/shared-chat@0.1.2':
     dependencies:
       '@xsai/shared': 0.1.2
@@ -8072,6 +8070,12 @@ snapshots:
       - '@valibot/to-json-schema'
       - arktype
       - zod-to-json-schema
+
+  '@xsai/utils-chat@0.1.2':
+    dependencies:
+      '@xsai/shared-chat': 0.1.2
+
+  '@xsai/utils-stream@0.1.2': {}
 
   abbrev@1.1.1: {}
 
@@ -12030,7 +12034,7 @@ snapshots:
   xmlchars@2.2.0:
     optional: true
 
-  xsai@0.0.31:
+  xsai@0.1.2:
     dependencies:
       '@xsai/embed': 0.1.2
       '@xsai/generate-object': 0.1.2
@@ -12038,11 +12042,12 @@ snapshots:
       '@xsai/generate-text': 0.1.2
       '@xsai/generate-transcription': 0.1.2
       '@xsai/model': 0.1.2
-      '@xsai/providers': 0.1.0-beta.5
       '@xsai/shared-chat': 0.1.2
       '@xsai/stream-object': 0.1.2
       '@xsai/stream-text': 0.1.2
       '@xsai/tool': 0.1.2
+      '@xsai/utils-chat': 0.1.2
+      '@xsai/utils-stream': 0.1.2
     transitivePeerDependencies:
       - '@valibot/to-json-schema'
       - arktype
