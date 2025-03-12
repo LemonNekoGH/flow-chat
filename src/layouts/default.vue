@@ -17,7 +17,9 @@ import Select from '~/components/ui/select/Select.vue'
 import SelectContent from '~/components/ui/select/SelectContent.vue'
 import SelectGroup from '~/components/ui/select/SelectGroup.vue'
 import SelectItem from '~/components/ui/select/SelectItem.vue'
+import SelectLabel from '~/components/ui/select/SelectLabel.vue'
 import SelectTrigger from '~/components/ui/select/SelectTrigger.vue'
+import SelectValue from '~/components/ui/select/SelectValue.vue'
 
 import { ChatMode, useModeStore } from '~/stores/mode'
 import { useSettingsStore } from '~/stores/settings'
@@ -56,11 +58,7 @@ onMounted(async () => {
         Flow Chat
       </div>
       <div class="flex-1" />
-      <Button
-        v-if="currentMode === ChatMode.CONVERSATION"
-        variant="outline"
-        @click="currentMode = ChatMode.FLOW"
-      >
+      <Button v-if="currentMode === ChatMode.CONVERSATION" variant="outline" @click="currentMode = ChatMode.FLOW">
         Jump Out
       </Button>
       <Dialog v-model:open="settingsStore.showSettingsDialog">
@@ -90,6 +88,9 @@ onMounted(async () => {
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
+                <SelectLabel>
+                  Model
+                </SelectLabel>
                 <SelectItem v-for="m in models" :key="m.id" :value="m.id">
                   {{ m.id }}
                 </SelectItem>
@@ -98,7 +99,10 @@ onMounted(async () => {
           </Select>
         </DialogContent>
       </Dialog>
-      <Button variant="outline" as="a" href="https://github.com/lemonnekogh/flow-chat" class="aspect-square w-10 px-unset">
+      <Button
+        variant="outline" as="a" href="https://github.com/lemonnekogh/flow-chat"
+        class="aspect-square w-10 px-unset"
+      >
         <span class="i-carbon-logo-github" />
       </Button>
     </div>
