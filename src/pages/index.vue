@@ -221,7 +221,7 @@ function handleContextMenuFocusIn() {
       placeholder="Press Enter to send message, press Shift+Enter to create a new line"
 
       outline="none"
-      max-h-60vh w-full resize-none border-gray-300 rounded-lg p-2 px-3 py-2 dark:bg-dark-50 focus:ring-2 focus:ring-white
+      max-h-60vh w-full resize-none border-gray-300 rounded-lg p-2 px-3 py-2 dark:bg-dark-50 focus:ring-2 focus:ring-black dark:focus:ring-white
       transition="all duration-200 ease-in-out"
       @submit="sendMessage"
     />
@@ -256,13 +256,13 @@ function handleContextMenuFocusIn() {
 }
 
 :deep(.vue-flow__minimap) {
-  @apply bg-white dark:bg-dark-500;
+  @apply dark:bg-dark-500;
 }
 :deep(.vue-flow__controls-button) {
-  @apply bg-white dark:bg-dark-50 dark:b-b-gray-800;
+  @apply dark:bg-dark-50 dark:b-b-gray-800;
 }
 
 :deep(.vue-flow__controls-button) svg {
-  @apply fill-white;
+  @apply dark:fill-white;
 }
 </style>
