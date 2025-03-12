@@ -3,6 +3,7 @@ import type { Model } from 'xsai'
 import { watchDebounced } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref } from 'vue'
+import { toast, Toaster } from 'vue-sonner'
 import { listModels } from 'xsai'
 
 import Button from '~/components/ui/button/Button.vue'
@@ -33,13 +34,21 @@ const models = ref<Model[]>([])
 
 async function fetchModels() {
   if (!baseURL.value) {
+    toast.error('No base URL provided')
     return
   }
 
-  models.value = await listModels({
-    apiKey: apiKey.value,
-    baseURL: baseURL.value,
-  })
+  try {
+    models.value = await listModels({
+      apiKey: apiKey.value,
+      baseURL: baseURL.value,
+    })
+  }
+  catch (error) {
+    toast.error('Failed to fetch models', {
+      description: (error as Error).message,
+    })
+  }
 }
 
 watchDebounced([apiKey, baseURL], async () => {
@@ -53,6 +62,7 @@ onMounted(async () => {
 
 <template>
   <header class="h-16 w-full border-b border-gray-200 bg-white">
+    <Toaster position="top-right" rich-colors />
     <div class="h-full flex items-center gap-x-4 px-4">
       <div class="text-xl font-bold">
         Flow Chat
@@ -82,21 +92,26 @@ onMounted(async () => {
           <Label for="model">
             Model
           </Label>
-          <Select id="model" v-model="model">
-            <SelectTrigger>
-              <SelectValue placeholder="Select a model" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectLabel>
-                  Model
-                </SelectLabel>
-                <SelectItem v-for="m in models" :key="m.id" :value="m.id">
-                  {{ m.id }}
-                </SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+          <div class="flex gap-2">
+            <Select id="model" v-model="model">
+              <SelectTrigger>
+                <SelectValue placeholder="Select a model" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectLabel>
+                    Model
+                  </SelectLabel>
+                  <SelectItem v-for="m in models" :key="m.id" :value="m.id">
+                    {{ m.id }}
+                  </SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" class="h-full" @click="fetchModels">
+              Reload
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
       <Button
