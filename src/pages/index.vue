@@ -9,10 +9,10 @@ import { useEventListener } from '@vueuse/core'
 import { streamText } from '@xsai/stream-text'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
+import BasicTextarea from '~/components/basic/Textarea.vue'
 import ConversationView from '~/components/ConversationView.vue'
 import NodeContextMenu from '~/components/NodeContextMenu.vue'
 import Button from '~/components/ui/button/Button.vue'
-import Input from '~/components/ui/input/Input.vue'
 import { useLayout } from '~/composables/useLayout'
 import { useMessagesStore } from '~/stores/messages'
 import { ChatMode, useModeStore } from '~/stores/mode'
@@ -219,8 +219,16 @@ function handleMessageInputKeydown(e: KeyboardEvent) {
     :messages="currentBranch.messages"
   />
   <div class="flex gap-2 p-4" bg="white dark:gray-900" shadow="lg current">
-    <Input v-model="inputMessage" placeholder="Press Enter to send message" @keydown="handleMessageInputKeydown" />
-    <Button class="h-10" @click="sendMessage">
+    <BasicTextarea
+      v-model="inputMessage"
+      placeholder="Press Enter to send message, press Shift+Enter to create a new line"
+      w-full p-2
+      border="1 solid rounded-lg"
+      outline="transparent 2 offset-4 focus:primary"
+      transition="all duration-200 ease-in-out"
+      @keydown="handleMessageInputKeydown"
+    />
+    <Button class="h-10" min-h="[calc(3lh+0.25rem)]" @click="sendMessage(false)">
       Send
     </Button>
   </div>
