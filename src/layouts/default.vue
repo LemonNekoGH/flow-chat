@@ -4,7 +4,6 @@ import { storeToRefs } from 'pinia'
 import { onMounted, ref } from 'vue'
 import { toast, Toaster } from 'vue-sonner'
 import { listModels } from 'xsai'
-
 import Button from '~/components/ui/button/Button.vue'
 import Dialog from '~/components/ui/dialog/Dialog.vue'
 import DialogContent from '~/components/ui/dialog/DialogContent.vue'
@@ -58,7 +57,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <header class="h-16 w-full border-b border-gray-200 bg-white">
+  <header class="h-16 w-full border-b border-gray-200 bg-white dark:border-gray-900 dark:bg-dark-500">
     <Toaster position="top-right" rich-colors />
     <div class="h-full flex items-center gap-x-4 px-4">
       <div class="text-xl font-bold">
@@ -116,7 +115,7 @@ onMounted(async () => {
       </Dialog>
       <Button
         variant="outline" as="a" href="https://github.com/lemonnekogh/flow-chat"
-        class="aspect-square w-10 px-unset"
+        class="aspect-square w-10 px-unset dark:bg-white"
       >
         <span class="i-carbon-logo-github" />
       </Button>
@@ -132,5 +131,8 @@ onMounted(async () => {
   height: 100vh;
   display: flex;
   flex-direction: column;
+}
+.i-carbon-logo-github {
+  @apply dark:bg-black;
 }
 </style>

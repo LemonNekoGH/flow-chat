@@ -225,17 +225,17 @@ onMounted(() => {
     v-if="currentMode === ChatMode.CONVERSATION"
     :messages="currentBranch.messages"
   />
-  <div class="relative flex p-2" bg="white dark:gray-900" shadow="lg current">
+  <div class="relative flex bg-white p-2 dark:bg-dark" shadow="lg current">
     <BasicTextarea
       v-model="inputMessage"
       placeholder="Press Enter to send message, press Shift+Enter to create a new line"
-      max-h-60vh w-full resize-none p-2
-      border="1 solid rounded-lg"
-      outline="transparent 2 offset-4 focus:primary"
+
+      outline="none"
+      max-h-60vh w-full resize-none border-gray-300 rounded-lg p-2 px-3 py-2 dark:bg-dark-50 focus:ring-2 focus:ring-black dark:focus:ring-white
       transition="all duration-200 ease-in-out"
       @submit="sendMessage"
     />
-    <Button class="absolute bottom-3 right-3" @click="sendMessage">
+    <Button class="absolute bottom-3 right-3 dark:bg-black dark:text-white dark:shadow-none dark:hover:bg-dark/60 dark:hover:c-white" @click="sendMessage">
       Send
     </Button>
   </div>
@@ -263,5 +263,16 @@ onMounted(() => {
     opacity: 0.5;
     color: #999;
   }
+}
+
+:deep(.vue-flow__minimap) {
+  @apply dark:bg-dark-500;
+}
+:deep(.vue-flow__controls-button) {
+  @apply dark:bg-dark-50 dark:b-b-gray-800;
+}
+
+:deep(.vue-flow__controls-button) svg {
+  @apply dark:fill-white;
 }
 </style>
