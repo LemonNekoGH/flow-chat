@@ -26,7 +26,7 @@ watch(() => props.messages, () => {
       <div
         v-for="message in messages"
         :key="message.id"
-        class="max-w-[80%] w-fit rounded-lg p-4"
+        class="max-w-[80%] w-fit whitespace-pre-wrap rounded-lg p-4"
         :class="{
           'bg-blue-50 dark:bg-blue-900/20 ml-auto': message.role === 'user',
           'bg-purple-50 dark:bg-purple-900/20': message.role === 'assistant',
