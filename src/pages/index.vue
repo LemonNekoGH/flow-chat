@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { NodeMouseEvent } from '@vue-flow/core'
+import type { Node, NodeMouseEvent } from '@vue-flow/core'
+import type { BaseMessage } from '~/types/messages'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { VueFlow } from '@vue-flow/core'
@@ -59,6 +60,10 @@ const currentBranch = computed(() => {
 })
 
 const nodesAndEdges = computed(() => {
+  const { ids } = currentBranch.value
+  // TODO: use for-loops below for a little bit performance improvement
+  // as we only need to iterate over `messagesStore.messages` once,
+  // but currently thrice (two `map`s and one `filter`)
   let nodes = messagesStore.messages.map((message, index) => ({
     id: message.id,
     position: {
@@ -69,8 +74,8 @@ const nodesAndEdges = computed(() => {
     data: {
       message,
     },
-    class: [message.role, selectedMessageId.value && !currentBranch.value.ids.has(message.id) ? 'inactive' : ''],
-  }))
+    class: [message.role, selectedMessageId.value && !ids.has(message.id) ? 'inactive' : ''],
+  } as Node))
 
   const edges = messagesStore.messages
     .filter(message => message.parentMessageId)
@@ -78,20 +83,9 @@ const nodesAndEdges = computed(() => {
       id: `${message.parentMessageId!}-${message.id}`,
       source: message.parentMessageId!,
       target: message.id,
-      style: {
-        stroke:
-          selectedMessageId.value && currentBranch.value.ids.has(message.id)
-            ? '#000'
-            : '#ccc',
-        strokeWidth:
-          selectedMessageId.value && currentBranch.value.ids.has(message.id)
-            ? '2'
-            : '1',
-      },
+      style: ids.has(message.id) ? { stroke: '#000', strokeWidth: '2' } : {},
     }))
 
-  // FIXME: messages are not typed
-  // @ts-expect-error - messages are not typed
   nodes = layout(nodes, edges)
 
   return { nodes, edges }
@@ -140,75 +134,50 @@ useEventListener('keydown', (event) => {
 
 // delete the current selected node
 function deleteSelectedNode(nodeId: string) {
-  // delete the node and all its children
-  const nodesToDelete = new Set<string>()
-
-  // find all children
-  function findChildNodes(parentId: string) {
-    nodesToDelete.add(parentId)
-    const childNodes = messagesStore.messages.filter(message => message.parentMessageId === parentId)
-    for (const child of childNodes) {
-      findChildNodes(child.id)
-    }
-  }
-
-  findChildNodes(nodeId)
-
-  // delete nodes from store
-  messagesStore.deleteMessages(Array.from(nodesToDelete))
+  // delete the node and all its descendants from store
+  messagesStore.deleteSubtree(nodeId)
 
   // cancel selection
   selectedMessageId.value = null
 }
 
 function handleContextMenuDelete() {
-  if (!selectedMessageId.value)
-    return
-
-  deleteSelectedNode(selectedMessageId.value)
-
-  contextMenu.value.show = false
+  selectedMessageId.value && deleteSelectedNode(selectedMessageId.value)
 }
 
-async function generateAnotherResponse() {
-  await sendMessage(true)
-  contextMenu.value.show = false
-}
-
-async function sendMessage(skipUserMessage = false) {
-  // TODO: needs refactor! extract the generate response part and call different functions for `sendMessage` and `generateAnotherResponse`
-  if (!skipUserMessage && !inputMessage.value) {
-    return
-  }
-
+async function generateResponse(parentId: string | null) {
   if (!settingsStore.baseURL || !settingsStore.model) {
     settingsStore.showSettingsDialog = true
     return
   }
 
-  let parentId = selectedMessageId.value
-  if (!skipUserMessage) {
-    const message = messagesStore.newMessage(inputMessage.value, 'user', selectedMessageId.value)
-    inputMessage.value = ''
-    parentId = selectedMessageId.value = message.id
-  }
-
-  const textStream = await streamText({
+  const { textStream } = await streamText({
     apiKey: settingsStore.apiKey,
     baseURL: settingsStore.baseURL,
     model: settingsStore.model,
-    messages: currentBranch.value.messages,
+    messages: currentBranch.value.messages.map(({ content, role }): BaseMessage => ({ content, role })),
   })
 
-  const answer = messagesStore.newMessage('', 'assistant', parentId)
+  const { id } = messagesStore.newMessage('', 'assistant', parentId)
 
-  for await (const textPart of asyncIteratorFromReadableStream(textStream.textStream, async v => v)) {
+  for await (const textPart of asyncIteratorFromReadableStream(textStream, async v => v)) {
     // textPart might be `undefined` in some cases
-    textPart && messagesStore.updateMessage(answer.id, textPart)
+    textPart && messagesStore.updateMessage(id, textPart)
   }
 
   // auto select the answer
-  selectedMessageId.value = answer.id
+  selectedMessageId.value = id
+}
+
+async function sendMessage() {
+  if (!inputMessage.value) {
+    return
+  }
+
+  const { id } = messagesStore.newMessage(inputMessage.value, 'user', selectedMessageId.value)
+  inputMessage.value = ''
+  selectedMessageId.value = id
+  await generateResponse(id)
 }
 
 function handleContextMenuFocusIn() {
@@ -218,7 +187,7 @@ function handleContextMenuFocusIn() {
 function handleMessageInputKeydown(e: KeyboardEvent) {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault()
-    sendMessage(false)
+    sendMessage()
   }
 }
 </script>
@@ -240,19 +209,18 @@ function handleMessageInputKeydown(e: KeyboardEvent) {
       :x="contextMenu.x"
       :y="contextMenu.y"
       :role="selectedMessage?.role"
-      @generate="generateAnotherResponse"
-      @delete="handleContextMenuDelete"
+      @generate="generateResponse(selectedMessageId)"
       @focus-in="handleContextMenuFocusIn"
+      @delete="handleContextMenuDelete"
     />
   </VueFlow>
   <ConversationView
     v-if="currentMode === ChatMode.CONVERSATION"
-    :messages="messagesStore.messages"
-    :selected-message-id="selectedMessageId!"
+    :messages="currentBranch.messages"
   />
   <div class="flex gap-2 p-4" bg="white dark:gray-900" shadow="lg current">
     <Input v-model="inputMessage" placeholder="Press Enter to send message" @keydown="handleMessageInputKeydown" />
-    <Button class="h-10" @click="sendMessage(false)">
+    <Button class="h-10" @click="sendMessage">
       Send
     </Button>
   </div>
