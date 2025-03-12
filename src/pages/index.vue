@@ -7,7 +7,7 @@ import { VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
 import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, h, ref } from 'vue'
 import { streamText } from 'xsai'
 import ConversationView from '~/components/ConversationView.vue'
 import NodeContextMenu from '~/components/NodeContextMenu.vue'
@@ -65,7 +65,7 @@ const nodesAndEdges = computed(() => {
   const nodes: Node[] = [{
     id: 'root',
     position: { x, y: 0 },
-    label: 'Hello! How can I assist you today?',
+    label: h('div', { class: 'text-xl font-bold' }, 'Hello! How can I assist you today?'),
     style: { pointerEvents: 'none' },
     class: ['assistant'],
   }]
@@ -80,7 +80,7 @@ const nodesAndEdges = computed(() => {
       position: { x, y: 0 },
       label: content,
       data: { message },
-      class: [role, selectedMessageId.value && !active ? 'inactive' : ''],
+      class: [role, 'text-left', 'whitespace-pre-wrap', selectedMessageId.value && !active ? 'inactive' : ''],
     })
 
     const source = parentMessageId || 'root'
