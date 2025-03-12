@@ -12,6 +12,7 @@ export const useMessagesStore = defineStore('messages', () => {
       content: text,
       role,
       parentMessageId,
+      timestamp: Date.now(),
     }
 
     messages.value.push(message)

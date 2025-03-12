@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Node, NodeMouseEvent } from '@vue-flow/core'
+import type { Edge, Node, NodeMouseEvent } from '@vue-flow/core'
 import type { BaseMessage } from '~/types/messages'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
@@ -7,12 +7,12 @@ import { VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
 import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, h, ref } from 'vue'
 import { streamText } from 'xsai'
-import BasicTextarea from '~/components/basic/Textarea.vue'
 import ConversationView from '~/components/ConversationView.vue'
 import NodeContextMenu from '~/components/NodeContextMenu.vue'
 import Button from '~/components/ui/button/Button.vue'
+import BasicTextarea from '~/components/ui/input/Textarea.vue'
 import { useLayout } from '~/composables/useLayout'
 import { useMessagesStore } from '~/stores/messages'
 import { ChatMode, useModeStore } from '~/stores/mode'
@@ -61,34 +61,38 @@ const currentBranch = computed(() => {
 
 const nodesAndEdges = computed(() => {
   const { ids } = currentBranch.value
-  // TODO: use for-loops below for a little bit performance improvement
-  // as we only need to iterate over `messagesStore.messages` once,
-  // but currently thrice (two `map`s and one `filter`)
-  let nodes = messagesStore.messages.map((message, index) => ({
-    id: message.id,
-    position: {
-      x: index * 100,
-      y: 0,
-    },
-    label: message.content,
-    data: {
-      message,
-    },
-    class: [message.role, selectedMessageId.value && !ids.has(message.id) ? 'inactive' : ''],
-  } as Node))
+  let x = 0
+  const nodes: Node[] = [{
+    id: 'root',
+    position: { x, y: 0 },
+    label: h('div', { class: 'text-xl font-bold' }, 'Hello! How can I assist you today?'),
+    style: { pointerEvents: 'none' },
+    class: ['assistant'],
+  }]
+  const edges: Edge[] = []
 
-  const edges = messagesStore.messages
-    .filter(message => message.parentMessageId)
-    .map(message => ({
-      id: `${message.parentMessageId!}-${message.id}`,
-      source: message.parentMessageId!,
-      target: message.id,
-      style: ids.has(message.id) ? { stroke: '#000', strokeWidth: '2' } : {},
-    }))
+  for (const message of messagesStore.messages) {
+    const { id, parentMessageId, content, role } = message
+    const active = ids.has(id)
+    x += 100
+    nodes.push({
+      id,
+      position: { x, y: 0 },
+      label: content,
+      data: { message },
+      class: [role, 'text-left', 'whitespace-pre-wrap', selectedMessageId.value && !active ? 'inactive' : ''],
+    })
 
-  nodes = layout(nodes, edges)
+    const source = parentMessageId || 'root'
+    edges.push({
+      id: `${source}-${id}`,
+      source,
+      target: id,
+      style: active ? { stroke: '#000', strokeWidth: '2' } : {},
+    })
+  }
 
-  return { nodes, edges }
+  return { nodes: layout(nodes, edges), edges }
 })
 
 const inputMessage = ref('')
