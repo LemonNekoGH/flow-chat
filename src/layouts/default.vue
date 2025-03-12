@@ -21,6 +21,7 @@ import SelectLabel from '~/components/ui/select/SelectLabel.vue'
 import SelectTrigger from '~/components/ui/select/SelectTrigger.vue'
 import SelectValue from '~/components/ui/select/SelectValue.vue'
 
+import { useMessagesStore } from '~/stores/messages'
 import { ChatMode, useModeStore } from '~/stores/mode'
 import { useSettingsStore } from '~/stores/settings'
 
@@ -28,6 +29,7 @@ const settingsStore = useSettingsStore()
 const { currentMode } = storeToRefs(useModeStore())
 
 const { apiKey, baseURL, model } = storeToRefs(settingsStore)
+const messagesStore = useMessagesStore()
 
 const models = ref<Model[]>([])
 
@@ -107,6 +109,9 @@ onMounted(async () => {
               Reload
             </Button>
           </div>
+          <Button variant="outline" @click="messagesStore.restoreTutorial">
+            Restore Tutorial
+          </Button>
         </DialogContent>
       </Dialog>
       <Button

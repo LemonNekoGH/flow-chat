@@ -7,10 +7,11 @@ import { VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
 import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, h, ref } from 'vue'
+import { computed, markRaw, onMounted, ref } from 'vue'
 import { streamText } from 'xsai'
 import ConversationView from '~/components/ConversationView.vue'
 import NodeContextMenu from '~/components/NodeContextMenu.vue'
+import SystemNode from '~/components/SystemNode.vue'
 import Button from '~/components/ui/button/Button.vue'
 import BasicTextarea from '~/components/ui/input/Textarea.vue'
 import { useLayout } from '~/composables/useLayout'
@@ -27,6 +28,10 @@ const selectedMessageId = ref<string | null>(null)
 const selectedMessage = computed(() => {
   return messagesStore.messages.find(message => message.id === selectedMessageId.value)
 })
+
+const nodeTypes = {
+  system: markRaw(SystemNode),
+}
 
 // #region vue flow event handlers
 const contextMenu = ref({
@@ -62,23 +67,21 @@ const currentBranch = computed(() => {
 const nodesAndEdges = computed(() => {
   const { ids } = currentBranch.value
   let x = 0
-  const nodes: Node[] = [{
-    id: 'root',
-    position: { x, y: 0 },
-    label: h('div', { class: 'text-xl font-bold' }, 'Hello! How can I assist you today?'),
-    style: { pointerEvents: 'none' },
-    class: ['assistant'],
-  }]
+  const nodes: Node[] = []
   const edges: Edge[] = []
 
   for (const message of messagesStore.messages) {
     const { id, parentMessageId, content, role } = message
     const active = ids.has(id)
     x += 100
+
+    const nodeType = role === 'system' ? 'system' : undefined
+
     nodes.push({
       id,
       position: { x, y: 0 },
       label: content,
+      type: nodeType,
       data: { message },
       class: [role, 'text-left', 'whitespace-pre-wrap', selectedMessageId.value && !active ? 'inactive' : ''],
     })
@@ -187,6 +190,12 @@ async function sendMessage() {
 function handleContextMenuFocusIn() {
   currentMode.value = ChatMode.CONVERSATION
 }
+
+onMounted(() => {
+  if (messagesStore.messages.length === 0) {
+    messagesStore.restoreTutorial()
+  }
+})
 </script>
 
 <template>
@@ -194,6 +203,7 @@ function handleContextMenuFocusIn() {
     v-if="currentMode === ChatMode.FLOW"
     :nodes="nodesAndEdges.nodes"
     :edges="nodesAndEdges.edges"
+    :node-types="nodeTypes"
     @node-click="handleNodeClick"
     @pane-click="handlePaneClick"
     @node-context-menu="handleNodeContextMenu"
