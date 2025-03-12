@@ -1,7 +1,7 @@
 {
   "type": "module",
   "private": true,
-  "packageManager": "pnpm@10.2.0+sha1.5d36c5a1aae9a628a924ee9982f013ad202e1051",
+  "packageManager": "pnpm@10.2.0",
   "scripts": {
     "build": "vite build",
     "dev": "vite --port 3333",
@@ -9,7 +9,6 @@
     "preview": "vite preview",
     "preview-https": "serve dist",
     "test": "vitest",
-    "test:e2e": "cypress open",
     "test:unit": "vitest",
     "typecheck": "vue-tsc --noEmit",
     "up": "taze major -I",
@@ -34,8 +33,6 @@
     "pinia": "^2.3.1",
     "pinia-plugin-persistedstate": "^4.2.0",
     "radix-vue": "^1.9.13",
-    "tailwind-merge": "^3.0.1",
-    "tailwindcss-animate": "^1.0.7",
     "vue": "^3.5.13",
     "vue-demi": "^0.14.10",
     "vue-i18n": "^11.1.0",
@@ -55,10 +52,7 @@
     "@vue-macros/volar": "^0.30.14",
     "@vue/test-utils": "^2.4.6",
     "cross-env": "^7.0.3",
-    "cypress": "^14.0.2",
-    "cypress-vite": "^1.6.0",
     "eslint": "^9.19.0",
-    "eslint-plugin-cypress": "^4.1.0",
     "eslint-plugin-format": "^1.0.1",
     "https-localhost": "^4.7.1",
     "lint-staged": "^15.4.3",
@@ -67,6 +61,7 @@
     "rollup": "^4.34.4",
     "shiki": "^2.3.2",
     "simple-git-hooks": "^2.11.1",
+    "tailwind-merge": "^3.0.2",
     "taze": "^18.4.0",
     "typescript": "^5.7.3",
     "unocss": "^65.4.3",
@@ -82,12 +77,7 @@
     "vite-plugin-vue-devtools": "^7.7.1",
     "vite-plugin-vue-layouts": "^0.11.0",
     "vitest": "^3.0.5",
-    "vue-tsc": "^2.2.0"
-  },
-  "resolutions": {
-    "unplugin": "^2.1.2",
-    "vite": "^6.1.0",
-    "vite-plugin-inspect": "^10.1.0"
+    "vue-tsc": "^2.1.0"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged"
