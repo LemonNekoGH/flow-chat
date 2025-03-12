@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { Model } from 'xsai'
-import { watchDebounced } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref } from 'vue'
 import { toast, Toaster } from 'vue-sonner'
@@ -50,10 +49,6 @@ async function fetchModels() {
     })
   }
 }
-
-watchDebounced([apiKey, baseURL], async () => {
-  await fetchModels()
-}, { debounce: 500 })
 
 onMounted(async () => {
   await fetchModels()
