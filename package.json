@@ -38,7 +38,7 @@
     "vue-i18n": "^11.1.0",
     "vue-router": "^4.5.0",
     "workbox-build": "^7.3.0",
-    "xsai": "^0.0.31"
+    "xsai": "^0.1.2"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^4.1.1",
