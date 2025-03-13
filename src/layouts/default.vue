@@ -115,13 +115,6 @@ const toggleTheme = inject('toggleTheme', () => {})
         </DialogContent>
       </Dialog>
       <Button
-        class="border border-gray-300 rounded-md bg-white transition-colors duration-200 dark:border-gray-500 dark:bg-white hover:bg-gray-200 dark:hover:bg-gray-300"
-        @click="handleToggle"
-      >
-        <i v-if="isDark" class="i-carbon-moon text-xl text-gray-800" />
-        <i v-else class="i-carbon-sun text-xl text-yellow-500" />
-      </Button>
-      <Button
         class="border border-gray-300 rounded-md bg-white px-2 transition-colors duration-200 dark:border-gray-500 dark:bg-white hover:bg-gray-200 dark:hover:bg-gray-300"
         @click="toggleTheme"
       >
