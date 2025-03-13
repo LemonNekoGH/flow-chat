@@ -19,7 +19,7 @@ import SelectItem from '~/components/ui/select/SelectItem.vue'
 import SelectLabel from '~/components/ui/select/SelectLabel.vue'
 import SelectTrigger from '~/components/ui/select/SelectTrigger.vue'
 import SelectValue from '~/components/ui/select/SelectValue.vue'
-
+import { toggleTheme, watchSystemTheme } from '~/composables/AutoCheckMode'
 import { useMessagesStore } from '~/stores/messages'
 import { ChatMode, useModeStore } from '~/stores/mode'
 import { useSettingsStore } from '~/stores/settings'
@@ -31,6 +31,8 @@ const { apiKey, baseURL, model } = storeToRefs(settingsStore)
 const messagesStore = useMessagesStore()
 
 const models = ref<Model[]>([])
+
+const isDark = ref(false)
 
 async function fetchModels() {
   if (!baseURL.value) {
