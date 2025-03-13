@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Model } from 'xsai'
 import { storeToRefs } from 'pinia'
-import { onMounted, ref, watchEffect } from 'vue'
+import { inject, onMounted, ref } from 'vue'
 import { toast, Toaster } from 'vue-sonner'
 import { listModels } from 'xsai'
 import Button from '~/components/ui/button/Button.vue'
@@ -19,7 +19,7 @@ import SelectItem from '~/components/ui/select/SelectItem.vue'
 import SelectLabel from '~/components/ui/select/SelectLabel.vue'
 import SelectTrigger from '~/components/ui/select/SelectTrigger.vue'
 import SelectValue from '~/components/ui/select/SelectValue.vue'
-import { toggleTheme, watchSystemTheme } from '~/composables/AutoCheckMode'
+
 import { useMessagesStore } from '~/stores/messages'
 import { ChatMode, useModeStore } from '~/stores/mode'
 import { useSettingsStore } from '~/stores/settings'
@@ -31,8 +31,6 @@ const { apiKey, baseURL, model } = storeToRefs(settingsStore)
 const messagesStore = useMessagesStore()
 
 const models = ref<Model[]>([])
-
-const isDark = ref(false)
 
 async function fetchModels() {
   if (!baseURL.value) {
@@ -56,21 +54,8 @@ async function fetchModels() {
 onMounted(async () => {
   await fetchModels()
 })
-
-onMounted(() => {
-  watchSystemTheme((dark) => {
-    isDark.value = dark
-  })
-})
-
-function handleToggle() {
-  isDark.value = !isDark.value
-  toggleTheme(isDark.value)
-}
-
-watchEffect(() => {
-  toggleTheme(isDark.value)
-})
+const isDark = inject('isDark')
+const toggleTheme = inject('toggleTheme', () => {})
 </script>
 
 <template>
@@ -131,18 +116,11 @@ watchEffect(() => {
         </DialogContent>
       </Dialog>
       <Button
-        class="border border-gray-300 rounded-md bg-white transition-colors duration-200 dark:border-gray-500 dark:bg-white hover:bg-gray-200 dark:hover:bg-gray-300"
-        @click="handleToggle"
+        class="border border-gray-300 rounded-md bg-white px-2 transition-colors duration-200 dark:border-gray-500 dark:bg-white hover:bg-gray-200 dark:hover:bg-gray-300"
+        @click="toggleTheme"
       >
         <i v-if="isDark" class="i-carbon-moon text-xl text-gray-800" />
-        <i v-else class="i-carbon-sun text-xl text-yellow-500" />
-      </Button>
-      <Button
-        class="border border-gray-300 rounded-md bg-white transition-colors duration-200 dark:border-gray-500 dark:bg-white hover:bg-gray-200 dark:hover:bg-gray-300"
-        @click="handleToggle"
-      >
-        <i v-if="isDark" class="i-carbon-moon text-xl text-gray-800" />
-        <i v-else class="i-carbon-sun text-xl text-yellow-500" />
+        <i v-else class="i-carbon-sun text-xl text-gray-800" />
       </Button>
       <Button
         variant="outline" as="a" href="https://github.com/lemonnekogh/flow-chat"

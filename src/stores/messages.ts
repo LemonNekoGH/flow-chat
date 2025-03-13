@@ -49,7 +49,7 @@ export const useMessagesStore = defineStore('messages', () => {
       },
       {
         id: 'tutorial-2-1-2',
-        content: 'Right-click on previous message and select "Regenerate Another Response"',
+        content: 'Right-click on previous message and select "Generate Another Response"',
         role: 'assistant',
         parentMessageId: 'tutorial-2-1',
         timestamp: Date.now(),

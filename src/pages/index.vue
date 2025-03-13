@@ -7,7 +7,7 @@ import { VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
 import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, markRaw, onMounted, ref } from 'vue'
+import { computed, inject, markRaw, onMounted, ref } from 'vue'
 import { streamText } from 'xsai'
 import ConversationView from '~/components/ConversationView.vue'
 import NodeContextMenu from '~/components/NodeContextMenu.vue'
@@ -23,7 +23,10 @@ const settingsStore = useSettingsStore()
 const messagesStore = useMessagesStore()
 const { layout } = useLayout()
 const { currentMode } = storeToRefs(useModeStore())
-
+const defaultColor = 'rgb(240, 242, 243, 0.7)'
+const darkColor = 'rgb(34,34,34,0.7)'
+const isDark = inject('isDark', { value: false })
+const strokeColor = computed(() => (isDark?.value ? darkColor : defaultColor))
 const selectedMessageId = ref<string | null>(null)
 const selectedMessage = computed(() => {
   return messagesStore.messages.find(message => message.id === selectedMessageId.value)
@@ -91,7 +94,7 @@ const nodesAndEdges = computed(() => {
       id: `${source}-${id}`,
       source,
       target: id,
-      style: active ? { stroke: '#000', strokeWidth: '2' } : {},
+      style: active ? { stroke: isDark?.value ? '#fff' : '#000', strokeWidth: '2' } : {},
     })
   }
 
@@ -210,7 +213,7 @@ onMounted(() => {
   >
     <Background />
     <Controls />
-    <MiniMap />
+    <MiniMap :mask-color="strokeColor" />
     <NodeContextMenu
       v-if="contextMenu.show"
       :x="contextMenu.x"
@@ -266,7 +269,10 @@ onMounted(() => {
 }
 
 :deep(.vue-flow__minimap) {
-  @apply dark:bg-dark-500;
+  @apply dark:bg-black;
+}
+:deep(.vue-flow__minimap) svg {
+  @apply dark:bg-black;
 }
 :deep(.vue-flow__controls-button) {
   @apply dark:bg-dark-50 dark:b-b-gray-800;
