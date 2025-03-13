@@ -7,13 +7,14 @@ import { VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
 import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, inject, markRaw, onMounted, ref } from 'vue'
+import { computed, markRaw, onMounted, ref } from 'vue'
 import { streamText } from 'xsai'
 import ConversationView from '~/components/ConversationView.vue'
 import NodeContextMenu from '~/components/NodeContextMenu.vue'
 import SystemNode from '~/components/SystemNode.vue'
 import Button from '~/components/ui/button/Button.vue'
 import BasicTextarea from '~/components/ui/input/Textarea.vue'
+import { isDark } from '~/composables/dark'
 import { useLayout } from '~/composables/useLayout'
 import { useMessagesStore } from '~/stores/messages'
 import { ChatMode, useModeStore } from '~/stores/mode'
@@ -25,8 +26,7 @@ const { layout } = useLayout()
 const { currentMode } = storeToRefs(useModeStore())
 const defaultColor = 'rgb(240, 242, 243, 0.7)'
 const darkColor = 'rgb(34,34,34,0.7)'
-const isDark = inject('isDark', { value: false })
-const strokeColor = computed(() => (isDark?.value ? darkColor : defaultColor))
+const strokeColor = computed(() => (isDark.value ? darkColor : defaultColor))
 const selectedMessageId = ref<string | null>(null)
 const selectedMessage = computed(() => {
   return messagesStore.messages.find(message => message.id === selectedMessageId.value)
