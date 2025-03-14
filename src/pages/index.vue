@@ -194,6 +194,19 @@ function handleContextMenuFocusIn() {
   currentMode.value = ChatMode.CONVERSATION
 }
 
+const { copy } = useClipboard()
+async function handleContextMenuCopy() {
+  const { model, message } = parseMessage(inputMessage.value)
+  try {
+    await copy(`model=${model} ${message}`)
+    toast.success('Copied to clipboard')
+  }
+  catch (error) {
+    console.error(error)
+    toast.error('Failed to copy')
+  }
+}
+
 onMounted(() => {
   if (messagesStore.messages.length === 0) {
     messagesStore.restoreTutorial()
@@ -222,6 +235,7 @@ onMounted(() => {
       @fork="generateResponse(selectedMessageId)"
       @focus-in="handleContextMenuFocusIn"
       @delete="handleContextMenuDelete"
+      @copy="handleContextMenuCopy"
     />
   </VueFlow>
   <ConversationView
