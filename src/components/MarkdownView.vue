@@ -5,11 +5,12 @@ import 'highlight.js/styles/github.css'
 
 defineProps<{
   content: string
+  model?: string
 }>()
 </script>
 
 <template>
-  <VueMarkdown class="overflow-auto" style="word-break: break-word;" :markdown="content" :rehype-plugins="[rehypeHighlight]" />
+  <VueMarkdown class="overflow-auto" style="word-break: break-word;" :markdown="(model ? `@${model} ` : '') + content" :rehype-plugins="[rehypeHighlight]" />
 </template>
 
 <style>

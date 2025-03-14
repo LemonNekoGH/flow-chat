@@ -5,14 +5,16 @@ import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
-import { useEventListener } from '@vueuse/core'
+import { useClipboard, useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, h, markRaw, onMounted, ref } from 'vue'
+import { computed, markRaw, onMounted, ref, watch } from 'vue'
+import { toast } from 'vue-sonner'
 import { streamText } from 'xsai'
 import ConversationView from '~/components/ConversationView.vue'
-import MarkdownView from '~/components/MarkdownView.vue'
 import NodeContextMenu from '~/components/NodeContextMenu.vue'
-import SystemNode from '~/components/SystemNode.vue'
+import AssistantNode from '~/components/nodes/AssistantNode.vue'
+import SystemNode from '~/components/nodes/SystemNode.vue'
+import UserNode from '~/components/nodes/UserNode.vue'
 import Button from '~/components/ui/button/Button.vue'
 import BasicTextarea from '~/components/ui/input/Textarea.vue'
 import { isDark } from '~/composables/dark'
@@ -20,6 +22,7 @@ import { useLayout } from '~/composables/useLayout'
 import { useMessagesStore } from '~/stores/messages'
 import { ChatMode, useModeStore } from '~/stores/mode'
 import { useSettingsStore } from '~/stores/settings'
+import { parseMessage } from '~/utils/chat'
 
 const settingsStore = useSettingsStore()
 const messagesStore = useMessagesStore()
@@ -33,8 +36,52 @@ const selectedMessage = computed(() => {
   return messagesStore.messages.find(message => message.id === selectedMessageId.value)
 })
 
+const inputMessage = ref('')
+
+// Model selection
+const showModelSelector = ref(false)
+const selectedModel = ref('')
+const modelSelectorRef = ref<HTMLDivElement | null>(null)
+const isLoadingModels = ref(false)
+
+// Close model selector when clicking outside
+useEventListener('click', (event) => {
+  if (showModelSelector.value && modelSelectorRef.value && !modelSelectorRef.value.contains(event.target as globalThis.Node)) {
+    showModelSelector.value = false
+  }
+})
+
+// Watch for "model=" in the input
+watch(inputMessage, (newValue) => {
+  // Only show if input start with model and not contains blank character
+  if (newValue.startsWith('model=') && !newValue.match(/model=(\S+) /)) { // FIXME: test this
+    showModelSelector.value = true
+    // Fetch models if we haven't already
+    if (settingsStore.models.length === 0) {
+      settingsStore.fetchModels()
+    }
+  }
+  else if (newValue === '') {
+    // Reset but don't hide immediately to prevent flickering when selecting a model
+    selectedModel.value = ''
+  }
+  else {
+    // Hide selector for any other input
+    showModelSelector.value = false
+  }
+}, { immediate: true })
+
+// Handle model selection
+function selectModel(model: string) {
+  selectedModel.value = model
+  inputMessage.value = `model=${model}`
+  showModelSelector.value = false
+}
+
 const nodeTypes = {
   system: markRaw(SystemNode),
+  user: markRaw(UserNode),
+  assistant: markRaw(AssistantNode),
 }
 
 // #region vue flow event handlers
@@ -70,24 +117,18 @@ const currentBranch = computed(() => {
 
 const nodesAndEdges = computed(() => {
   const { ids } = currentBranch.value
-  let x = 0
   const nodes: Node[] = []
   const edges: Edge[] = []
 
   for (const message of messagesStore.messages) {
-    const { id, parentMessageId, content, role } = message
+    const { id, parentMessageId, role } = message
     const active = ids.has(id)
-    x += 100
-
-    const nodeType = role === 'system' ? 'system' : undefined
 
     nodes.push({
       id,
-      position: { x, y: 0 },
-      label: h(MarkdownView, { content }),
-      type: nodeType,
-      data: { message },
-      class: [role, 'text-left', selectedMessageId.value && !active ? 'inactive' : ''],
+      type: role,
+      position: { x: 0, y: 0 },
+      data: { message, selected: selectedMessageId.value === id, inactive: selectedMessageId.value && !active },
     })
 
     const source = parentMessageId || 'root'
@@ -101,8 +142,6 @@ const nodesAndEdges = computed(() => {
 
   return { nodes: layout(nodes, edges), edges }
 })
-
-const inputMessage = ref('')
 
 async function* asyncIteratorFromReadableStream<T, F = Uint8Array>(
   res: ReadableStream<F>,
@@ -156,8 +195,14 @@ function handleContextMenuDelete() {
   selectedMessageId.value && deleteSelectedNode(selectedMessageId.value)
 }
 
-async function generateResponse(parentId: string | null) {
-  if (!settingsStore.baseURL || !settingsStore.model) {
+async function generateResponse(parentId: string | null, model: string | null = null) {
+  const usingModel = model ?? settingsStore.model
+  if (!usingModel) {
+    settingsStore.showSettingsDialog = true
+    return
+  }
+
+  if (!settingsStore.baseURL) {
     settingsStore.showSettingsDialog = true
     return
   }
@@ -165,11 +210,11 @@ async function generateResponse(parentId: string | null) {
   const { textStream } = await streamText({
     apiKey: settingsStore.apiKey,
     baseURL: settingsStore.baseURL,
-    model: settingsStore.model,
+    model: usingModel,
     messages: currentBranch.value.messages.map(({ content, role }): BaseMessage => ({ content, role })),
   })
 
-  const { id } = messagesStore.newMessage('', 'assistant', parentId)
+  const { id } = messagesStore.newMessage('', 'assistant', parentId, usingModel)
   // auto select the answer
   selectedMessageId.value = id
 
@@ -179,19 +224,50 @@ async function generateResponse(parentId: string | null) {
   }
 }
 
-async function sendMessage() {
+async function handleSendButton() {
   if (!inputMessage.value) {
     return
   }
 
-  const { id } = messagesStore.newMessage(inputMessage.value, 'user', selectedMessageId.value)
-  inputMessage.value = ''
+  const { model, message } = parseMessage(inputMessage.value) // TODO: repeat
+
+  const { id } = messagesStore.newMessage(message, 'user', selectedMessageId.value, model)
+  inputMessage.value = model ? `model=${model} ` : ''
   selectedMessageId.value = id
-  await generateResponse(id)
+
+  try {
+    await generateResponse(id, model)
+  }
+  catch (error) {
+    console.error(error)
+    toast.error('Failed to generate response')
+  }
 }
 
 function handleContextMenuFocusIn() {
   currentMode.value = ChatMode.CONVERSATION
+}
+
+const { copy } = useClipboard()
+async function handleContextMenuCopy() {
+  const content = selectedMessage.value?.content
+  const model = selectedMessage.value?.model
+  const role = selectedMessage.value?.role
+  if (!content) {
+    toast.warning('No content to copy')
+    return
+  }
+
+  const text = model && role === 'user' ? `model=${model} ${content}` : content
+
+  try {
+    await copy(text)
+    toast.success('Copied to clipboard')
+  }
+  catch (error) {
+    console.error(error)
+    toast.error('Failed to copy')
+  }
 }
 
 onMounted(() => {
@@ -222,6 +298,7 @@ onMounted(() => {
       @fork="generateResponse(selectedMessageId)"
       @focus-in="handleContextMenuFocusIn"
       @delete="handleContextMenuDelete"
+      @copy="handleContextMenuCopy"
     />
   </VueFlow>
   <ConversationView
@@ -235,9 +312,37 @@ onMounted(() => {
       outline="none"
       max-h-60vh w-full resize-none border-gray-300 rounded-lg p-2 px-3 py-2 dark:bg-dark-50 focus:ring-2 focus:ring-black dark:focus:ring-white
       transition="all duration-200 ease-in-out"
-      @submit="sendMessage"
+      @submit="handleSendButton"
     />
-    <Button class="absolute bottom-3 right-3 dark:bg-black dark:text-white dark:shadow-none dark:hover:bg-dark/60 dark:hover:c-white" @click="sendMessage">
+    <div
+      v-if="showModelSelector"
+      ref="modelSelectorRef"
+      class="absolute bottom-full left-0 z-10 mb-2 max-h-60 w-full overflow-y-auto border border-gray-300 rounded-lg bg-white dark:border-gray-700 dark:bg-dark-50"
+      style="max-height: 300px;"
+    >
+      <div class="sticky top-0 border-b border-gray-200 bg-white p-2 text-sm font-medium dark:border-gray-700 dark:bg-dark-50">
+        Select a model
+      </div>
+      <div class="overflow-y-auto p-2" style="max-height: 250px;">
+        <div v-if="isLoadingModels" class="p-2 text-center text-gray-500 dark:text-gray-400">
+          Loading models...
+        </div>
+        <div v-else-if="settingsStore.models.length === 0" class="p-2 text-center text-gray-500 dark:text-gray-400">
+          No models available
+        </div>
+        <template v-else>
+          <div
+            v-for="model in settingsStore.models.filter(m => m.id.includes(inputMessage.substring(6)))"
+            :key="model.id"
+            class="cursor-pointer rounded-md p-2 text-sm transition-colors hover:bg-gray-100 dark:hover:bg-dark-700"
+            @click="selectModel(model.id)"
+          >
+            {{ model.id }}
+          </div>
+        </template>
+      </div>
+    </div>
+    <Button class="absolute bottom-3 right-3 dark:bg-black dark:text-white dark:shadow-none dark:hover:bg-dark/60 dark:hover:c-white" @click="handleSendButton">
       Send
     </Button>
   </div>
@@ -246,25 +351,6 @@ onMounted(() => {
 <style scoped>
 .vue-flow {
   flex: 1;
-}
-
-:deep(.vue-flow__node) {
-  border-radius: 8px;
-
-  &.user {
-    background: #e3f2fd;
-    border-color: #90caf9;
-  }
-
-  &.assistant {
-    background: #f3e5f5;
-    border-color: #ce93d8;
-  }
-
-  &.inactive {
-    opacity: 0.5;
-    color: #999;
-  }
 }
 
 :deep(.vue-flow__minimap) {
@@ -276,7 +362,6 @@ onMounted(() => {
 :deep(.vue-flow__controls-button) {
   @apply dark:bg-dark-50 dark:b-b-gray-800;
 }
-
 :deep(.vue-flow__controls-button) svg {
   @apply dark:fill-white;
 }
