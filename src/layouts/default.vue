@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import type { Model } from 'xsai'
 import { storeToRefs } from 'pinia'
-import { onMounted, ref } from 'vue'
-import { toast, Toaster } from 'vue-sonner'
-import { listModels } from 'xsai'
+import { onMounted } from 'vue'
+import { Toaster } from 'vue-sonner'
 import Button from '~/components/ui/button/Button.vue'
 import Dialog from '~/components/ui/dialog/Dialog.vue'
 import DialogContent from '~/components/ui/dialog/DialogContent.vue'
@@ -30,35 +28,14 @@ const { currentMode } = storeToRefs(useModeStore())
 const { apiKey, baseURL, model } = storeToRefs(settingsStore)
 const messagesStore = useMessagesStore()
 
-const models = ref<Model[]>([])
-
-async function fetchModels() {
-  if (!baseURL.value) {
-    toast.error('No base URL provided')
-    return
-  }
-
-  try {
-    models.value = await listModels({
-      apiKey: apiKey.value,
-      baseURL: baseURL.value,
-    })
-  }
-  catch (error) {
-    toast.error('Failed to fetch models', {
-      description: (error as Error).message,
-    })
-  }
-}
-
 onMounted(async () => {
-  await fetchModels()
+  await settingsStore.fetchModels()
 })
 </script>
 
 <template>
   <header class="h-16 w-full border-b border-gray-200 bg-white dark:border-gray-900 dark:bg-dark-500">
-    <Toaster position="top-right" rich-colors />
+    <Toaster position="top-right" rich-colors close-button />
     <div class="h-full flex items-center gap-x-4 px-4">
       <div class="text-xl font-bold">
         Flow Chat
@@ -98,13 +75,13 @@ onMounted(async () => {
                   <SelectLabel>
                     Model
                   </SelectLabel>
-                  <SelectItem v-for="m in models" :key="m.id" :value="m.id">
+                  <SelectItem v-for="m in settingsStore.models" :key="m.id" :value="m.id">
                     {{ m.id }}
                   </SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
-            <Button variant="outline" class="h-full" @click="fetchModels">
+            <Button variant="outline" class="h-full" @click="settingsStore.fetchModels">
               Reload
             </Button>
           </div>

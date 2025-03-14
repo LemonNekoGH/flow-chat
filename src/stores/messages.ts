@@ -25,6 +25,7 @@ export const useMessagesStore = defineStore('messages', () => {
         role: 'user',
         parentMessageId: 'tutorial-root',
         timestamp: Date.now(),
+        model: 'openai/chatgpt-4o-latest',
       },
       {
         id: 'tutorial-2',
@@ -32,6 +33,7 @@ export const useMessagesStore = defineStore('messages', () => {
         role: 'assistant',
         parentMessageId: 'tutorial-1',
         timestamp: Date.now(),
+        model: 'openai/chatgpt-4o-latest',
       },
       {
         id: 'tutorial-2-1',
@@ -39,6 +41,7 @@ export const useMessagesStore = defineStore('messages', () => {
         role: 'user',
         parentMessageId: 'tutorial-2',
         timestamp: Date.now(),
+        model: 'openai/chatgpt-4o-latest',
       },
       {
         id: 'tutorial-2-1-1',
@@ -46,6 +49,7 @@ export const useMessagesStore = defineStore('messages', () => {
         role: 'assistant',
         parentMessageId: 'tutorial-2-1',
         timestamp: Date.now(),
+        model: 'openai/chatgpt-4o-latest',
       },
       {
         id: 'tutorial-2-1-2',
@@ -53,6 +57,7 @@ export const useMessagesStore = defineStore('messages', () => {
         role: 'assistant',
         parentMessageId: 'tutorial-2-1',
         timestamp: Date.now(),
+        model: 'openai/chatgpt-4o-latest',
       },
       {
         id: 'tutorial-2-2',
@@ -60,6 +65,7 @@ export const useMessagesStore = defineStore('messages', () => {
         role: 'user',
         parentMessageId: 'tutorial-2',
         timestamp: Date.now(),
+        model: 'openai/chatgpt-4o-latest',
       },
       {
         id: 'tutorial-2-2-1',
@@ -67,6 +73,7 @@ export const useMessagesStore = defineStore('messages', () => {
         role: 'assistant',
         parentMessageId: 'tutorial-2-2',
         timestamp: Date.now(),
+        model: 'openai/chatgpt-4o-latest',
       },
       {
         id: 'tutorial-2-2-2',
@@ -74,6 +81,7 @@ export const useMessagesStore = defineStore('messages', () => {
         role: 'user',
         parentMessageId: 'tutorial-2-2-1',
         timestamp: Date.now(),
+        model: 'openai/chatgpt-4o-latest',
       },
       {
         id: 'tutorial-2-2-3',
@@ -81,6 +89,7 @@ export const useMessagesStore = defineStore('messages', () => {
         role: 'assistant',
         parentMessageId: 'tutorial-2-2-2',
         timestamp: Date.now(),
+        model: 'openai/chatgpt-4o-latest',
       },
       {
         id: 'tutorial-2-3',
@@ -88,13 +97,23 @@ export const useMessagesStore = defineStore('messages', () => {
         role: 'user',
         parentMessageId: 'tutorial-2',
         timestamp: Date.now(),
+        model: 'openai/chatgpt-4o-latest',
       },
       {
         id: 'tutorial-2-3-1',
-        content: 'Right-click on the message and select "Delete", or press "Delete" on your keyboard, all messages under this message will be deleted',
+        content: 'Right-click on the message and select "Delete"',
         role: 'assistant',
         parentMessageId: 'tutorial-2-3',
         timestamp: Date.now(),
+        model: 'openai/chatgpt-4o-latest',
+      },
+      {
+        id: 'tutorial-2-3-2',
+        content: 'Press "Delete" on your keyboard, all messages under this message will be deleted',
+        role: 'assistant',
+        parentMessageId: 'tutorial-2-3',
+        timestamp: Date.now(),
+        model: 'openai/chatgpt-4o-latest',
       },
       {
         id: 'tutorial-2-4',
@@ -102,6 +121,7 @@ export const useMessagesStore = defineStore('messages', () => {
         role: 'user',
         parentMessageId: 'tutorial-2',
         timestamp: Date.now(),
+        model: 'openai/chatgpt-4o-latest',
       },
       {
         id: 'tutorial-2-4-1',
@@ -109,39 +129,75 @@ export const useMessagesStore = defineStore('messages', () => {
         role: 'assistant',
         parentMessageId: 'tutorial-2-4',
         timestamp: Date.now(),
+        model: 'openai/chatgpt-4o-latest',
       },
       {
         id: 'tutorial-2-5',
-        content: 'Where is the source code?',
+        content: 'How do I change the model for next messages?',
         role: 'user',
         parentMessageId: 'tutorial-2',
         timestamp: Date.now(),
+        model: 'openai/chatgpt-4o-latest',
       },
       {
         id: 'tutorial-2-5-1',
-        content: 'The source code is available on [GitHub](https://github.com/LemonNekoGH/flow-chat)',
+        content: 'input `model=openai/gpt-3.5-turbo` in the input box, then press "Enter"',
         role: 'assistant',
         parentMessageId: 'tutorial-2-5',
         timestamp: Date.now(),
       },
       {
+        id: 'tutorial-2-5-2',
+        content: 'Repeat it',
+        role: 'user',
+        parentMessageId: 'tutorial-2-5-1',
+        timestamp: Date.now(),
+        model: 'openai/gpt-3.5-turbo',
+      },
+      {
+        id: 'tutorial-2-5-3',
+        content: 'input `model=openai/gpt-4o-latest` in the input box, then press "Enter"',
+        role: 'assistant',
+        parentMessageId: 'tutorial-2-5-2',
+        timestamp: Date.now(),
+        model: 'openai/gpt-3.5-turbo',
+      },
+      {
         id: 'tutorial-2-6',
+        content: 'I think this app is great! How can I support this project?',
+        role: 'user',
+        parentMessageId: 'tutorial-2',
+        timestamp: Date.now(),
+        model: 'openai/chatgpt-4o-latest',
+      },
+      {
+        id: 'tutorial-2-6-1',
+        content: 'Starring the repo on [GitHub](https://github.com/LemonNekoGH/flow-chat)',
+        role: 'assistant',
+        parentMessageId: 'tutorial-2-6',
+        timestamp: Date.now(),
+        model: 'openai/chatgpt-4o-latest',
+      },
+      {
+        id: 'tutorial-2-7',
         content: 'How do I restore this tutorial?',
         role: 'user',
         parentMessageId: 'tutorial-2',
         timestamp: Date.now(),
+        model: 'openai/chatgpt-4o-latest',
       },
       {
-        id: 'tutorial-2-6-1',
+        id: 'tutorial-2-7-1',
         content: 'Click the "Restore Tutorial" button in the settings dialog',
         role: 'assistant',
-        parentMessageId: 'tutorial-2-6',
+        parentMessageId: 'tutorial-2-7',
         timestamp: Date.now(),
+        model: 'openai/chatgpt-4o-latest',
       },
     )
   }
 
-  function newMessage(text: string, role: MessageRole, parentMessageId: string | null = null) {
+  function newMessage(text: string, role: MessageRole, parentMessageId: string | null = null, model?: string) {
     const id = crypto.randomUUID()
     const message: Message = {
       id,
@@ -149,6 +205,7 @@ export const useMessagesStore = defineStore('messages', () => {
       role,
       parentMessageId,
       timestamp: Date.now(),
+      model,
     }
 
     messages.value.push(message)
