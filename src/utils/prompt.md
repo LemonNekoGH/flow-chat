@@ -20,7 +20,7 @@ This app is a **chat interface with a flowchart-like conversation structure**. U
 4. **Creating a New Branch**
 
    - **By User**: Select a message, type in your input, and press **Enter**.
-   - **By Assistant**: Select a message, right-click, and choose **"Regenerate Another Response"** to explore an alternative reply.
+   - **By Assistant**: Select a message, right-click, and choose **"Fork"** to explore an alternative reply.
    - Each message can have **multiple child nodes**, forming a tree-like conversation structure.
 
 5. **Focusing on a Branch (Focus Mode)**
@@ -38,7 +38,7 @@ This app is a **chat interface with a flowchart-like conversation structure**. U
 ```
 User: How do I create a new branch?
 Assistant: You can create a new branch by selecting a message, entering text, and pressing "Enter."
-Alternatively, you can right-click on a message and select "Regenerate Another Response" to let me create a new branch for you.
+Alternatively, you can right-click on a message and select "Fork" to let me create a new branch for you.
 ```
 
 ### 🔹 **Additional Notes**

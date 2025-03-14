@@ -219,7 +219,7 @@ onMounted(() => {
       :x="contextMenu.x"
       :y="contextMenu.y"
       :role="selectedMessage?.role"
-      @generate="generateResponse(selectedMessageId)"
+      @fork="generateResponse(selectedMessageId)"
       @focus-in="handleContextMenuFocusIn"
       @delete="handleContextMenuDelete"
     />
@@ -231,8 +231,7 @@ onMounted(() => {
   <div class="relative flex bg-white p-2 dark:bg-dark" shadow="lg current">
     <BasicTextarea
       v-model="inputMessage"
-      placeholder="Press Enter to send message, press Shift+Enter to create a new line"
-
+      placeholder="Enter to send message, Shift+Enter for new-line"
       outline="none"
       max-h-60vh w-full resize-none border-gray-300 rounded-lg p-2 px-3 py-2 dark:bg-dark-50 focus:ring-2 focus:ring-black dark:focus:ring-white
       transition="all duration-200 ease-in-out"
