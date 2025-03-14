@@ -28,7 +28,7 @@ export const useMessagesStore = defineStore('messages', () => {
       },
       {
         id: 'tutorial-2',
-        content: 'This app is a chat ui that uses a flowchart to represent the conversation, users don\'t need to delete messages then regenerate another response, they can just create a new branch.',
+        content: 'This App is a chat UI that uses a flow-chart to represent the conversation. Users don\'t need to delete messages and regenerate responses, instead, just create a new branch!',
         role: 'assistant',
         parentMessageId: 'tutorial-1',
         timestamp: Date.now(),
@@ -49,7 +49,7 @@ export const useMessagesStore = defineStore('messages', () => {
       },
       {
         id: 'tutorial-2-1-2',
-        content: 'Right-click on previous message and select "Generate Another Response"',
+        content: 'Right-click on previous message and select "Fork"',
         role: 'assistant',
         parentMessageId: 'tutorial-2-1',
         timestamp: Date.now(),
@@ -77,7 +77,7 @@ export const useMessagesStore = defineStore('messages', () => {
       },
       {
         id: 'tutorial-2-2-3',
-        content: 'Click the "Jump Out" button in the top-right corner or use the right-click menu',
+        content: 'Click the "Jump Out" button in the top-right corner',
         role: 'assistant',
         parentMessageId: 'tutorial-2-2-2',
         timestamp: Date.now(),

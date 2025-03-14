@@ -7,9 +7,10 @@ import { VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
 import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, markRaw, onMounted, ref } from 'vue'
+import { computed, h, markRaw, onMounted, ref } from 'vue'
 import { streamText } from 'xsai'
 import ConversationView from '~/components/ConversationView.vue'
+import MarkdownView from '~/components/MarkdownView.vue'
 import NodeContextMenu from '~/components/NodeContextMenu.vue'
 import SystemNode from '~/components/SystemNode.vue'
 import Button from '~/components/ui/button/Button.vue'
@@ -83,10 +84,10 @@ const nodesAndEdges = computed(() => {
     nodes.push({
       id,
       position: { x, y: 0 },
-      label: content,
+      label: h(MarkdownView, { content }),
       type: nodeType,
       data: { message },
-      class: [role, 'text-left', 'whitespace-pre-wrap', selectedMessageId.value && !active ? 'inactive' : ''],
+      class: [role, 'text-left', selectedMessageId.value && !active ? 'inactive' : ''],
     })
 
     const source = parentMessageId || 'root'
@@ -169,14 +170,13 @@ async function generateResponse(parentId: string | null) {
   })
 
   const { id } = messagesStore.newMessage('', 'assistant', parentId)
+  // auto select the answer
+  selectedMessageId.value = id
 
   for await (const textPart of asyncIteratorFromReadableStream(textStream, async v => v)) {
     // textPart might be `undefined` in some cases
     textPart && messagesStore.updateMessage(id, textPart)
   }
-
-  // auto select the answer
-  selectedMessageId.value = id
 }
 
 async function sendMessage() {
@@ -219,7 +219,7 @@ onMounted(() => {
       :x="contextMenu.x"
       :y="contextMenu.y"
       :role="selectedMessage?.role"
-      @generate="generateResponse(selectedMessageId)"
+      @fork="generateResponse(selectedMessageId)"
       @focus-in="handleContextMenuFocusIn"
       @delete="handleContextMenuDelete"
     />
@@ -231,8 +231,7 @@ onMounted(() => {
   <div class="relative flex bg-white p-2 dark:bg-dark" shadow="lg current">
     <BasicTextarea
       v-model="inputMessage"
-      placeholder="Press Enter to send message, press Shift+Enter to create a new line"
-
+      placeholder="Enter to send message, Shift+Enter for new-line"
       outline="none"
       max-h-60vh w-full resize-none border-gray-300 rounded-lg p-2 px-3 py-2 dark:bg-dark-50 focus:ring-2 focus:ring-black dark:focus:ring-white
       transition="all duration-200 ease-in-out"

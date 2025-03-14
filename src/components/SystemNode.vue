@@ -2,8 +2,9 @@
 import type { NodeProps } from '@vue-flow/core'
 import { Handle, Position } from '@vue-flow/core'
 import { ref } from 'vue'
+import MarkdownView from './MarkdownView.vue'
 
-const props = defineProps<NodeProps>()
+defineProps<NodeProps>()
 
 const isExpanded = ref(false)
 
@@ -14,7 +15,7 @@ function toggleExpand() {
 
 <template>
   <div
-    class="system-node text-12px"
+    class="system-node overflow-auto text-12px"
     :class="{ expanded: isExpanded }"
   >
     <Handle type="target" :position="Position.Left" />
@@ -28,7 +29,7 @@ function toggleExpand() {
       </div>
 
       <div v-if="isExpanded" class="node-body">
-        {{ props.data.message.content }}
+        <MarkdownView :content="data.message.content" />
       </div>
       <div v-else class="node-body-collapsed" @click="toggleExpand">
         (Click to expand)

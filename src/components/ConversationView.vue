@@ -1,31 +1,20 @@
 <script setup lang="ts">
-// TODO: support text stream in conversation mode
 import type { Message } from '~/types/messages'
 import { ref, watch } from 'vue'
+import { scrollToBottom, setToggle } from '../utils/index'
+import MarkdownView from './MarkdownView.vue'
 
 const props = defineProps<{
   messages: Message[]
 }>()
 
-const containerRef = ref<HTMLElement>()
 // Track which system messages are expanded
-const expandedSystemMessages = ref<Set<string>>(new Set())
+const expandedSystemMessages = ref(new Set<string>())
 
-// Toggle the expanded state of a system message
-function toggleSystemMessage(messageId: string) {
-  if (expandedSystemMessages.value.has(messageId)) {
-    expandedSystemMessages.value.delete(messageId)
-  }
-  else {
-    expandedSystemMessages.value.add(messageId)
-  }
-}
-
-watch(() => props.messages, () => {
+const containerRef = ref<HTMLElement>()
+watch(() => [props.messages, props.messages.at(-1)!.content], () => {
   requestAnimationFrame(() => {
-    if (containerRef.value) {
-      containerRef.value.scrollTop = containerRef.value.scrollHeight
-    }
+    scrollToBottom(containerRef.value)
   })
 }, { immediate: true })
 </script>
@@ -44,11 +33,9 @@ watch(() => props.messages, () => {
           'bg-blue-50 dark:bg-blue-900/20 ml-auto': message.role === 'user',
           'bg-purple-50 dark:bg-purple-900/20': message.role === 'assistant',
           'bg-gray-50 dark:bg-gray-900/20 system-message': message.role === 'system',
-          'cursor-pointer': message.role === 'system',
         }"
-        @click="message.role === 'system' && toggleSystemMessage(message.id)"
       >
-        <div v-if="message.role === 'system'" class="flex items-center">
+        <div v-if="message.role === 'system'" class="flex cursor-pointer items-center" @click="setToggle(expandedSystemMessages, message.id)">
           <div class="font-medium">
             System Prompt
           </div>
@@ -57,7 +44,7 @@ watch(() => props.messages, () => {
           </div>
         </div>
         <div v-if="message.role !== 'system' || expandedSystemMessages.has(message.id)">
-          {{ message.content }}
+          <MarkdownView :content="message.content" />
         </div>
         <div v-else class="text-sm text-gray-500 italic">
           System prompt is collapsed

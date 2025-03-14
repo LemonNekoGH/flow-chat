@@ -8,9 +8,9 @@ defineProps<{
 }>()
 
 defineEmits<{
-  (e: 'generate'): void
-  (e: 'delete'): void
+  (e: 'fork'): void
   (e: 'focusIn'): void
+  (e: 'delete'): void
 }>()
 </script>
 
@@ -22,9 +22,9 @@ defineEmits<{
     <div
       v-if="role === 'user'"
       class="cursor-pointer px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
-      @click="$emit('generate')"
+      @click="$emit('fork')"
     >
-      Generate Another Response
+      Fork
     </div>
     <div
       class="cursor-pointer px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
