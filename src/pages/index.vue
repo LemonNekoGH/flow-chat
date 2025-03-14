@@ -196,9 +196,14 @@ function handleContextMenuFocusIn() {
 
 const { copy } = useClipboard()
 async function handleContextMenuCopy() {
-  const { model, message } = parseMessage(inputMessage.value)
+  const content = selectedMessage.value?.content
+  if (!content) {
+    toast.warning('No content to copy')
+    return
+  }
+
   try {
-    await copy(`model=${model} ${message}`)
+    await copy(content)
     toast.success('Copied to clipboard')
   }
   catch (error) {
