@@ -232,7 +232,7 @@ async function handleSendButton() {
   const { model, message } = parseMessage(inputMessage.value) // TODO: repeat
 
   const { id } = messagesStore.newMessage(message, 'user', selectedMessageId.value, model)
-  inputMessage.value = model ? `model=${model}` : ''
+  inputMessage.value = model ? `model=${model} ` : ''
   selectedMessageId.value = id
 
   try {
