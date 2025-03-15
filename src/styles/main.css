@@ -1,4 +1,8 @@
 html,
+body {
+  overscroll-behavior: none;
+}
+html,
 body,
 #app {
   @apply h-full;
