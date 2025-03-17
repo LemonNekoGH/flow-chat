@@ -105,7 +105,7 @@ onMounted(async () => {
       </Button>
     </div>
   </header>
-  <main class="flex flex-1 flex-col">
+  <main class="flex flex-1 flex-col place-items-center">
     <RouterView />
   </main>
 </template>

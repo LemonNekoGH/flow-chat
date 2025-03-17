@@ -305,7 +305,7 @@ onMounted(() => {
     v-if="currentMode === ChatMode.CONVERSATION"
     :messages="currentBranch.messages"
   />
-  <div class="relative flex bg-neutral-100 p-2 dark:bg-neutral-900" shadow="lg" mx-auto w-full max-w-screen-md rounded-lg>
+  <div class="relative flex bg-neutral-100 p-2 dark:bg-neutral-900" shadow="lg" w-full max-w-screen-md rounded-lg>
     <BasicTextarea
       v-model="inputMessage"
       placeholder="Enter to send message, Shift+Enter for new-line" outline="none" w-full
