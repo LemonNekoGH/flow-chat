@@ -28,7 +28,7 @@ watch(() => [props.messages, props.messages.at(-1)!.content], () => {
   <div class="relative flex-1 overflow-hidden">
     <div
       ref="containerRef"
-      class="absolute inset-0 overflow-y-auto p-4 space-y-4"
+      class="absolute inset-0 mx-auto max-w-screen-lg overflow-y-auto p-4 space-y-4"
     >
       <template v-for="message in messages" :key="message.id">
         <div

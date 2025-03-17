@@ -305,18 +305,15 @@ onMounted(() => {
     v-if="currentMode === ChatMode.CONVERSATION"
     :messages="currentBranch.messages"
   />
-  <div class="relative flex bg-white p-2 dark:bg-dark" shadow="lg current">
+  <div class="relative flex bg-neutral-100 p-2 dark:bg-neutral-900" shadow="lg" mx-auto w-full max-w-screen-md rounded-lg>
     <BasicTextarea
       v-model="inputMessage"
-      placeholder="Enter to send message, Shift+Enter for new-line"
-      outline="none"
-      max-h-60vh w-full resize-none border-gray-300 rounded-lg p-2 px-3 py-2 dark:bg-dark-50 focus:ring-2 focus:ring-black dark:focus:ring-white
-      transition="all duration-200 ease-in-out"
-      @submit="handleSendButton"
+      placeholder="Enter to send message, Shift+Enter for new-line" outline="none" w-full
+      resize-none border-gray-300 rounded-sm p-2 px-3 py-2 dark:bg-neutral-800 focus:ring-2
+      focus:ring-black dark:focus:ring-white transition="all duration-200 ease-in-out" @submit="handleSendButton"
     />
     <div
-      v-if="showModelSelector"
-      ref="modelSelectorRef"
+      v-if="showModelSelector" ref="modelSelectorRef"
       class="absolute bottom-full left-0 z-10 mb-2 max-h-60 w-full overflow-y-auto border border-gray-300 rounded-lg bg-white dark:border-gray-700 dark:bg-dark-50"
       style="max-height: 300px;"
     >
