@@ -11,6 +11,7 @@ import { computed, markRaw, onMounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { streamText } from 'xsai'
 import ConversationView from '~/components/ConversationView.vue'
+import ModelSelector from '~/components/ModelSelector.vue'
 import NodeContextMenu from '~/components/NodeContextMenu.vue'
 import AssistantNode from '~/components/nodes/AssistantNode.vue'
 import SystemNode from '~/components/nodes/SystemNode.vue'
@@ -41,15 +42,6 @@ const inputMessage = ref('')
 // Model selection
 const showModelSelector = ref(false)
 const selectedModel = ref('')
-const modelSelectorRef = ref<HTMLDivElement | null>(null)
-const isLoadingModels = ref(false)
-
-// Close model selector when clicking outside
-useEventListener('click', (event) => {
-  if (showModelSelector.value && modelSelectorRef.value && !modelSelectorRef.value.contains(event.target as globalThis.Node)) {
-    showModelSelector.value = false
-  }
-})
 
 // Watch for "model=" in the input
 watch(inputMessage, (newValue) => {
@@ -71,11 +63,10 @@ watch(inputMessage, (newValue) => {
   }
 }, { immediate: true })
 
-// Handle model selection
-function selectModel(model: string) {
+// Handle model selection from the component
+function handleModelSelect(model: string) {
   selectedModel.value = model
-  inputMessage.value = `model=${model}`
-  showModelSelector.value = false
+  inputMessage.value = `model=${model} `
 }
 
 const nodeTypes = {
@@ -312,33 +303,12 @@ onMounted(() => {
       resize-none border-gray-300 rounded-sm p-2 px-3 py-2 dark:bg-neutral-800 focus:ring-2
       focus:ring-black dark:focus:ring-white transition="all duration-200 ease-in-out" @submit="handleSendButton"
     />
-    <div
-      v-if="showModelSelector" ref="modelSelectorRef"
-      class="absolute bottom-full left-0 z-10 mb-2 max-h-60 w-full overflow-y-auto border border-gray-300 rounded-lg bg-white dark:border-gray-700 dark:bg-dark-50"
-      style="max-height: 300px;"
-    >
-      <div class="sticky top-0 border-b border-gray-200 bg-white p-2 text-sm font-medium dark:border-gray-700 dark:bg-dark-50">
-        Select a model
-      </div>
-      <div class="overflow-y-auto p-2" style="max-height: 250px;">
-        <div v-if="isLoadingModels" class="p-2 text-center text-gray-500 dark:text-gray-400">
-          Loading models...
-        </div>
-        <div v-else-if="settingsStore.models.length === 0" class="p-2 text-center text-gray-500 dark:text-gray-400">
-          No models available
-        </div>
-        <template v-else>
-          <div
-            v-for="model in settingsStore.models.filter(m => m.id.includes(inputMessage.substring(6)))"
-            :key="model.id"
-            class="cursor-pointer rounded-md p-2 text-sm transition-colors hover:bg-gray-100 dark:hover:bg-dark-700"
-            @click="selectModel(model.id)"
-          >
-            {{ model.id }}
-          </div>
-        </template>
-      </div>
-    </div>
+    <ModelSelector
+      v-if="showModelSelector"
+      v-model:show-model-selector="showModelSelector"
+      :search-term="inputMessage.substring(6)"
+      @select-model="handleModelSelect"
+    />
     <Button class="absolute bottom-3 right-3 dark:bg-black dark:text-white dark:shadow-none dark:hover:bg-dark/60 dark:hover:c-white" @click="handleSendButton">
       Send
     </Button>
