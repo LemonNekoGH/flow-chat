@@ -9,6 +9,7 @@ defineProps<{
 
 defineEmits<{
   (e: 'fork'): void
+  (e: 'forkWith'): void
   (e: 'focusIn'): void
   (e: 'delete'): void
   (e: 'copy'): void
@@ -32,6 +33,13 @@ defineEmits<{
       @click="$emit('fork')"
     >
       Fork
+    </div>
+    <div
+      v-if="role === 'user'"
+      class="cursor-pointer px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+      @click="$emit('forkWith')"
+    >
+      Fork With...
     </div>
     <div
       class="cursor-pointer px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"

@@ -17,7 +17,13 @@ import AssistantNode from '~/components/nodes/AssistantNode.vue'
 import SystemNode from '~/components/nodes/SystemNode.vue'
 import UserNode from '~/components/nodes/UserNode.vue'
 import Button from '~/components/ui/button/Button.vue'
+import Dialog from '~/components/ui/dialog/Dialog.vue'
+import DialogContent from '~/components/ui/dialog/DialogContent.vue'
+import DialogHeader from '~/components/ui/dialog/DialogHeader.vue'
+import DialogTitle from '~/components/ui/dialog/DialogTitle.vue'
+import Input from '~/components/ui/input/Input.vue'
 import BasicTextarea from '~/components/ui/input/Textarea.vue'
+import Label from '~/components/ui/label/Label.vue'
 import { isDark } from '~/composables/dark'
 import { useLayout } from '~/composables/useLayout'
 import { useMessagesStore } from '~/stores/messages'
@@ -261,6 +267,22 @@ async function handleContextMenuCopy() {
   }
 }
 
+const forkWithModel = ref('')
+const showForkWithModelDialog = ref(false)
+const showForkWithModelSelector = ref(false)
+
+function handleContextMenuForkWith() {
+  showForkWithModelDialog.value = true
+  showForkWithModelSelector.value = true
+  forkWithModel.value = ''
+}
+
+function handleForkWith() {
+  showForkWithModelDialog.value = false
+  showForkWithModelSelector.value = false
+  generateResponse(selectedMessageId.value, forkWithModel.value)
+}
+
 onMounted(() => {
   if (messagesStore.messages.length === 0) {
     messagesStore.restoreTutorial()
@@ -290,6 +312,7 @@ onMounted(() => {
       @focus-in="handleContextMenuFocusIn"
       @delete="handleContextMenuDelete"
       @copy="handleContextMenuCopy"
+      @fork-with="handleContextMenuForkWith"
     />
   </VueFlow>
   <ConversationView
@@ -312,6 +335,26 @@ onMounted(() => {
     <Button class="absolute bottom-3 right-3 dark:bg-black dark:text-white dark:shadow-none dark:hover:bg-dark/60 dark:hover:c-white" @click="handleSendButton">
       Send
     </Button>
+    <Dialog v-model:open="showForkWithModelDialog">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Fork With</DialogTitle>
+        </DialogHeader>
+        <Label>
+          Model
+        </Label>
+        <Input id="model" v-model="forkWithModel" @click.stop="showForkWithModelSelector = true" />
+        <ModelSelector
+          v-if="showForkWithModelSelector"
+          v-model:show-model-selector="showForkWithModelSelector"
+          :search-term="forkWithModel"
+          @select-model="forkWithModel = $event"
+        />
+        <Button class="dark:bg-black dark:text-white dark:shadow-none dark:hover:bg-dark/60 dark:hover:c-white" @click="handleForkWith">
+          Fork
+        </Button>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
