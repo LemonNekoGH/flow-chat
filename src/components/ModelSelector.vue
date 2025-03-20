@@ -52,13 +52,12 @@ watch(() => props.showModelSelector, (show) => {
 <template>
   <div
     ref="modelSelectorRef"
-    class="absolute bottom-full left-0 z-10 mb-2 max-h-60 w-full overflow-y-auto border border-gray-300 rounded-lg bg-white dark:border-gray-700 dark:bg-dark-50"
-    style="max-height: 300px;"
+    class="absolute bottom-full left-0 z-10 mb-2 max-h-80 w-full overflow-y-auto border border-gray-300 rounded-lg bg-white dark:border-gray-700 dark:bg-dark-50"
   >
     <div class="sticky top-0 border-b border-gray-200 bg-white p-2 text-sm font-medium dark:border-gray-700 dark:bg-dark-50">
       Select a model
     </div>
-    <div class="overflow-y-auto p-2" style="max-height: 250px;">
+    <div class="overflow-y-auto p-2">
       <div v-if="isLoadingModels" class="p-2 text-center text-gray-500 dark:text-gray-400">
         Loading models...
       </div>
