@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { Toaster } from 'vue-sonner'
+import ModelSelector from '~/components/ModelSelector.vue'
 import Button from '~/components/ui/button/Button.vue'
 import Dialog from '~/components/ui/dialog/Dialog.vue'
 import DialogContent from '~/components/ui/dialog/DialogContent.vue'
@@ -10,13 +11,6 @@ import DialogTitle from '~/components/ui/dialog/DialogTitle.vue'
 import DialogTrigger from '~/components/ui/dialog/DialogTrigger.vue'
 import Input from '~/components/ui/input/Input.vue'
 import Label from '~/components/ui/label/Label.vue'
-import Select from '~/components/ui/select/Select.vue'
-import SelectContent from '~/components/ui/select/SelectContent.vue'
-import SelectGroup from '~/components/ui/select/SelectGroup.vue'
-import SelectItem from '~/components/ui/select/SelectItem.vue'
-import SelectLabel from '~/components/ui/select/SelectLabel.vue'
-import SelectTrigger from '~/components/ui/select/SelectTrigger.vue'
-import SelectValue from '~/components/ui/select/SelectValue.vue'
 import { isDark, toggleDark } from '~/composables/dark'
 import { useMessagesStore } from '~/stores/messages'
 import { ChatMode, useModeStore } from '~/stores/mode'
@@ -27,6 +21,14 @@ const { currentMode } = storeToRefs(useModeStore())
 
 const { apiKey, baseURL, model } = storeToRefs(settingsStore)
 const messagesStore = useMessagesStore()
+
+// Model selector state
+const showModelSelector = ref(false)
+
+// Handle model selection
+function handleModelSelect(selectedModelValue: string) {
+  model.value = selectedModelValue
+}
 
 onMounted(async () => {
   await settingsStore.fetchModels()
@@ -65,22 +67,14 @@ onMounted(async () => {
           <Label for="model">
             Model
           </Label>
-          <div class="flex gap-2">
-            <Select id="model" v-model="model">
-              <SelectTrigger>
-                <SelectValue placeholder="Select a model" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectLabel>
-                    Model
-                  </SelectLabel>
-                  <SelectItem v-for="m in settingsStore.models" :key="m.id" :value="m.id">
-                    {{ m.id }}
-                  </SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+          <div class="relative flex gap-2">
+            <Input id="model" v-model="model" class="w-full" @click.stop="showModelSelector = true" />
+            <ModelSelector
+              v-if="showModelSelector"
+              v-model:search-term="model"
+              v-model:show-model-selector="showModelSelector"
+              @select-model="handleModelSelect"
+            />
             <Button variant="outline" class="h-full" @click="settingsStore.fetchModels">
               Reload
             </Button>
