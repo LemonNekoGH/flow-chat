@@ -20,7 +20,7 @@ const selectedModel = ref('')
 const isLoadingModels = ref(false)
 
 const filteredModels = computed(() => {
-  const searchTerm = props.searchTerm
+  const searchTerm = props.searchTerm.normalize().replaceAll(/\s/g, '').toLowerCase()
   return settingsStore.models.filter(m => m.id.includes(searchTerm))
 })
 
