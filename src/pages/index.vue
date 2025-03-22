@@ -51,7 +51,7 @@ const selectedModel = ref('')
 
 // Watch for "model=" in the input
 watch(inputMessage, (newValue) => {
-  // Show only if input starts with 'model='' and does not contain white-spaces
+  // Show only if input starts with 'model=' and does not contain white-spaces
   if (newValue.startsWith('model=') && !newValue.match(/\s/)) { // FIXME: test this
     showModelSelector.value = true
     // Fetch models if we haven't already

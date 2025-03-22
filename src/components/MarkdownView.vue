@@ -10,7 +10,11 @@ defineProps<{
 </script>
 
 <template>
-  <VueMarkdown class="overflow-auto" style="word-break: break-word;" :markdown="(model ? `@${model} ` : '') + content" :rehype-plugins="[rehypeHighlight]" />
+  <VueMarkdown
+    of-auto break-words
+    :markdown="(model ? `@${model} ` : '') + content"
+    :rehype-plugins="[rehypeHighlight]"
+  />
 </template>
 
 <style>

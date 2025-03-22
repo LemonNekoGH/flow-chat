@@ -21,7 +21,8 @@ const content = defineModel({ default: '' })
       </DialogHeader>
       <textarea
         v-model="content"
-        class="min-h-40 w-full resize-y border border-gray-300 rounded-md p-2 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+        min-h-40 border border-gray-300 rounded-md p-2
+        dark="border-gray-700 bg-gray-800"
         placeholder="System prompt here..."
       />
     </DialogContent>
