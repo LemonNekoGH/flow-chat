@@ -1,21 +1,17 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 
-const events = defineEmits<{
+const emit = defineEmits<{
   (event: 'submit', message: string): void
 }>()
-
-const input = defineModel<string>({
-  default: '',
-})
-
+const input = defineModel({ default: '' })
 const textareaRef = ref<HTMLTextAreaElement>()
 const textareaHeight = ref('auto')
 
 function onKeyDown(e: KeyboardEvent) {
   if (e.code === 'Enter' && !e.shiftKey) { // just block Enter is enough, Shift+Enter by default generates a newline
     e.preventDefault()
-    events('submit', input.value)
+    emit('submit', input.value)
   }
 }
 

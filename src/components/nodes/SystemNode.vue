@@ -2,15 +2,14 @@
 import type { NodeProps } from '@vue-flow/core'
 import { Handle, Position } from '@vue-flow/core'
 import { ref } from 'vue'
+import { useMessagesStore } from '~/stores/messages'
 import MarkdownView from '../MarkdownView.vue'
+import Editor from '../SystemPromptEdit.vue'
 
 defineProps<NodeProps>()
 
+const messagesStore = useMessagesStore()
 const isExpanded = ref(false)
-
-function toggleExpand() {
-  isExpanded.value = !isExpanded.value
-}
 </script>
 
 <template>
@@ -26,15 +25,23 @@ function toggleExpand() {
   >
     <Handle type="target" :position="Position.Left" />
 
-    <div class="w-full">
-      <div class="flex items-center justify-between">
-        <div>System Prompt</div>
-        <div :class="{ 'i-carbon-chevron-down': !isExpanded, 'i-carbon-chevron-up': isExpanded }" cursor-pointer @click="toggleExpand" />
+    <div w-full>
+      <div flex items-center justify-between>
+        System Prompt
+        <div flex items-center gap-2>
+          <Editor v-model="messagesStore.getMessageById(data.message.id)!.content">
+            <div i-carbon-edit cursor-pointer title="Edit" />
+          </Editor>
+
+          <div
+            cursor-pointer
+            :class="isExpanded ? 'i-carbon-chevron-up' : 'i-carbon-chevron-down'"
+            @click="isExpanded = !isExpanded"
+          />
+        </div>
       </div>
 
-      <div v-if="isExpanded" dark:bt-gray-700 mt-4>
-        <MarkdownView :content="data.message.content" />
-      </div>
+      <MarkdownView v-if="isExpanded" dark:bt-gray-700 mt-2 :content="data.message.content" />
     </div>
 
     <Handle type="source" :position="Position.Right" />
