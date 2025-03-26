@@ -51,8 +51,8 @@ const selectedModel = ref('')
 
 // Watch for "model=" in the input
 watch(inputMessage, (newValue) => {
-  // Only show if input start with model and not contains blank character
-  if (newValue.startsWith('model=') && !newValue.match(/model=(\S+) /)) { // FIXME: test this
+  // Show only if input starts with 'model=' and does not contain white-spaces
+  if (newValue.startsWith('model=') && !newValue.match(/\s/)) { // FIXME: test this
     showModelSelector.value = true
     // Fetch models if we haven't already
     if (settingsStore.models.length === 0) {
@@ -322,9 +322,8 @@ onMounted(() => {
   <div class="relative flex bg-neutral-100 p-2 dark:bg-neutral-900" shadow="lg" w-full max-w-screen-md rounded-lg>
     <BasicTextarea
       v-model="inputMessage"
-      placeholder="Enter to send message, Shift+Enter for new-line" outline="none" w-full
-      resize-none border-gray-300 rounded-sm p-2 px-3 py-2 dark:bg-neutral-800 focus:ring-2
-      focus:ring-black dark:focus:ring-white transition="all duration-200 ease-in-out" @submit="handleSendButton"
+      placeholder="Enter to send message, Shift+Enter for new-line" outline="none"
+      max-h-60vh w-full resize-none border-gray-300 rounded-sm px-3 py-2 dark:bg-neutral-800 focus:ring-2 focus:ring-black dark:focus:ring-white transition="all duration-200 ease-in-out" @submit="handleSendButton"
     />
     <ModelSelector
       v-if="showModelSelector"

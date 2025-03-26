@@ -7,7 +7,7 @@ export const useMessagesStore = defineStore('messages', () => {
   const messages = ref<Message[]>([])
 
   function restoreTutorial() {
-    // remove exists tutorial messages
+    // remove existing tutorial messages
     deleteSubtree('tutorial-root')
 
     // create new tutorial messages

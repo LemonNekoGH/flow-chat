@@ -19,7 +19,6 @@ describe('parseMessage', () => {
       const message = 'model= Hello, world!'
       const result = parseMessage(message)
       expect(result).toEqual({
-        model: null,
         repeat: 1,
         message: 'model= Hello, world!',
       })
@@ -31,7 +30,6 @@ describe('parseMessage', () => {
       const message = 'repeat=2 Hello, world!'
       const result = parseMessage(message)
       expect(result).toEqual({
-        model: null,
         repeat: 2,
         message: 'Hello, world!',
       })
@@ -43,7 +41,6 @@ describe('parseMessage', () => {
       const message = 'repeat= Hello, world!'
       const result = parseMessage(message)
       expect(result).toEqual({
-        model: null,
         repeat: 1,
         message: 'repeat= Hello, world!',
       })
@@ -55,7 +52,6 @@ describe('parseMessage', () => {
       const message = 'repeat=string Hello, world!'
       const result = parseMessage(message)
       expect(result).toEqual({
-        model: null,
         repeat: 1,
         message: 'repeat=string Hello, world!',
       })
@@ -79,7 +75,6 @@ describe('parseMessage', () => {
       const message = 'Hello, world!'
       const result = parseMessage(message)
       expect(result).toEqual({
-        model: null,
         repeat: 1,
         message: 'Hello, world!',
       })
