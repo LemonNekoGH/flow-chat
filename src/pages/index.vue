@@ -23,7 +23,6 @@ import DialogHeader from '~/components/ui/dialog/DialogHeader.vue'
 import DialogTitle from '~/components/ui/dialog/DialogTitle.vue'
 import Input from '~/components/ui/input/Input.vue'
 import BasicTextarea from '~/components/ui/input/Textarea.vue'
-import Label from '~/components/ui/label/Label.vue'
 import { isDark } from '~/composables/dark'
 import { useLayout } from '~/composables/useLayout'
 import { useMessagesStore } from '~/stores/messages'
@@ -273,7 +272,9 @@ const showForkWithModelSelector = ref(false)
 
 function handleContextMenuForkWith() {
   showForkWithModelDialog.value = true
-  showForkWithModelSelector.value = true
+  requestAnimationFrame(() => {
+    showForkWithModelSelector.value = true
+  })
   forkWithModel.value = ''
 }
 
@@ -319,11 +320,13 @@ onMounted(() => {
     v-if="currentMode === ChatMode.CONVERSATION"
     :messages="currentBranch.messages"
   />
-  <div class="relative flex bg-neutral-100 p-2 dark:bg-neutral-900" shadow="lg" w-full max-w-screen-md rounded-lg>
+  <div relative w-full max-w-screen-md flex rounded-lg bg-neutral-100 p-2 shadow-lg dark:bg-neutral-900>
     <BasicTextarea
       v-model="inputMessage"
-      placeholder="Enter to send message, Shift+Enter for new-line" outline="none"
-      max-h-60vh w-full resize-none border-gray-300 rounded-sm px-3 py-2 dark:bg-neutral-800 focus:ring-2 focus:ring-black dark:focus:ring-white transition="all duration-200 ease-in-out" @submit="handleSendButton"
+      placeholder="Enter to send message, Shift+Enter for new-line"
+      max-h-60vh w-full resize-none border-gray-300 rounded-sm px-3 py-2 outline-none dark:bg-neutral-800 focus:ring-2 focus:ring-black dark:focus:ring-white
+      transition="all duration-200 ease-in-out"
+      @submit="handleSendButton"
     />
     <ModelSelector
       v-if="showModelSelector"
@@ -331,7 +334,7 @@ onMounted(() => {
       :search-term="inputMessage.substring(6)"
       @select-model="handleModelSelect"
     />
-    <Button class="absolute bottom-3 right-3 dark:bg-black dark:text-white dark:shadow-none dark:hover:bg-dark/60 dark:hover:c-white" @click="handleSendButton">
+    <Button absolute bottom-3 right-3 @click="handleSendButton">
       Send
     </Button>
     <Dialog v-model:open="showForkWithModelDialog">
@@ -339,17 +342,19 @@ onMounted(() => {
         <DialogHeader>
           <DialogTitle>Fork With</DialogTitle>
         </DialogHeader>
-        <Label>
-          Model
-        </Label>
-        <Input id="model" v-model="forkWithModel" @click.stop="showForkWithModelSelector = true" />
-        <ModelSelector
-          v-if="showForkWithModelSelector"
-          v-model:show-model-selector="showForkWithModelSelector"
-          :search-term="forkWithModel"
-          @select-model="forkWithModel = $event"
-        />
-        <Button class="dark:bg-black dark:text-white dark:shadow-none dark:hover:bg-dark/60 dark:hover:c-white" @click="handleForkWith">
+        <div relative>
+          <Input
+            id="model" v-model="forkWithModel" placeholder="Search models..."
+            @click.stop="showForkWithModelSelector = true"
+          />
+          <ModelSelector
+            v-if="showForkWithModelSelector"
+            v-model:show-model-selector="showForkWithModelSelector"
+            :search-term="forkWithModel"
+            @select-model="forkWithModel = $event"
+          />
+        </div>
+        <Button @click="handleForkWith">
           Fork
         </Button>
       </DialogContent>
