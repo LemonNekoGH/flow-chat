@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { NodeProps } from '@vue-flow/core'
-import { Handle, Position } from '@vue-flow/core'
 import { storeToRefs } from 'pinia'
 import { useSettingsStore } from '~/stores/settings'
 import MarkdownView from '../MarkdownView.vue'
+import Node from './Node.vue'
 
 defineProps<NodeProps>()
 
@@ -11,22 +11,14 @@ const { model } = storeToRefs(useSettingsStore())
 </script>
 
 <template>
-  <div
-    class="w-50 overflow-auto rounded-lg text-xs dark:text-white"
+  <Node
     bg="pink-100 dark:pink-900"
-    b="2 pink-200 dark:pink-700"
-    :class="{
-      'b-pink-300 dark:b-pink-700': data.selected,
-      'opacity-50': data.inactive,
-    }"
+    :inactive="data.inactive"
+    :class="data.selected ? 'b-pink-300 dark:b-pink-700' : 'b-pink-200 dark:b-pink-800'"
   >
-    <Handle type="target" :position="Position.Left" />
-    <div>
-      <div v-if="data.message.model && data.message.model !== model" p-2 bg="pink-200 dark:pink-700">
-        {{ data.message.model }}
-      </div>
-      <MarkdownView p-2 :content="data.message.content" />
+    <div v-if="data.message.model && data.message.model !== model" p-2 bg="pink-200 dark:pink-800">
+      {{ data.message.model }}
     </div>
-    <Handle type="source" :position="Position.Right" />
-  </div>
+    <MarkdownView p-2 :content="data.message.content" />
+  </Node>
 </template>
