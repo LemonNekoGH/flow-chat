@@ -7,25 +7,35 @@ import { VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
 import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, h, ref } from 'vue'
+import { computed, h, onMounted, ref } from 'vue'
+import { toast } from 'vue-sonner'
 import { streamText } from 'xsai'
 import ConversationView from '~/components/ConversationView.vue'
+import HeaderMenu from '~/components/HeaderMenu.vue'
 import NodeContextMenu from '~/components/NodeContextMenu.vue'
+import Sidebar from '~/components/Sidebar.vue'
 import Button from '~/components/ui/button/Button.vue'
 import BasicTextarea from '~/components/ui/input/Textarea.vue'
 import { useLayout } from '~/composables/useLayout'
 import { useMessagesStore } from '~/stores/messages'
 import { ChatMode, useModeStore } from '~/stores/mode'
+import { useRoomsStore } from '~/stores/rooms'
 import { useSettingsStore } from '~/stores/settings'
 
 const settingsStore = useSettingsStore()
 const messagesStore = useMessagesStore()
+const roomsStore = useRoomsStore()
 const { layout } = useLayout()
 const { currentMode } = storeToRefs(useModeStore())
 
+// Initialize default room if needed
+onMounted(() => {
+  roomsStore.initializeDefaultRoom()
+})
+
 const selectedMessageId = ref<string | null>(null)
 const selectedMessage = computed(() => {
-  return messagesStore.messages.find(message => message.id === selectedMessageId.value)
+  return messagesStore.getMessageById(selectedMessageId.value)
 })
 
 // #region vue flow event handlers
@@ -71,7 +81,7 @@ const nodesAndEdges = computed(() => {
   }]
   const edges: Edge[] = []
 
-  for (const message of messagesStore.messages) {
+  for (const message of messagesStore.currentRoomMessages) {
     const { id, parentMessageId, content, role } = message
     const active = ids.has(id)
     x += 100
@@ -80,7 +90,7 @@ const nodesAndEdges = computed(() => {
       position: { x, y: 0 },
       label: content,
       data: { message },
-      class: [role, 'text-left', 'whitespace-pre-wrap', selectedMessageId.value && !active ? 'inactive' : ''],
+      class: [role, 'text-left whitespace-pre-wrap', selectedMessageId.value && !active ? 'op-50' : ''],
     })
 
     const source = parentMessageId || 'root'
@@ -140,6 +150,7 @@ useEventListener('keydown', (event) => {
 function deleteSelectedNode(nodeId: string) {
   // delete the node and all its descendants from store
   messagesStore.deleteSubtree(nodeId)
+  toast.success('Message deleted successfully')
 
   // cancel selection
   selectedMessageId.value = null
@@ -151,7 +162,7 @@ function handleContextMenuDelete() {
 
 async function generateResponse(parentId: string | null) {
   if (!settingsStore.baseURL || !settingsStore.model) {
-    settingsStore.showSettingsDialog = true
+    toast.error('Please configure API settings first')
     return
   }
 
@@ -187,47 +198,79 @@ async function sendMessage() {
 function handleContextMenuFocusIn() {
   currentMode.value = ChatMode.CONVERSATION
 }
+
+// Get active room name for display
+const activeRoomName = computed(() => {
+  const room = roomsStore.getRoomById(roomsStore.activeRoomId)
+  return room?.name || 'Default Chat'
+})
 </script>
 
 <template>
-  <VueFlow
-    v-if="currentMode === ChatMode.FLOW"
-    :nodes="nodesAndEdges.nodes"
-    :edges="nodesAndEdges.edges"
-    @node-click="handleNodeClick"
-    @pane-click="handlePaneClick"
-    @node-context-menu="handleNodeContextMenu"
-  >
-    <Background />
-    <Controls />
-    <MiniMap />
-    <NodeContextMenu
-      v-if="contextMenu.show"
-      :x="contextMenu.x"
-      :y="contextMenu.y"
-      :role="selectedMessage?.role"
-      @generate="generateResponse(selectedMessageId)"
-      @focus-in="handleContextMenuFocusIn"
-      @delete="handleContextMenuDelete"
-    />
-  </VueFlow>
-  <ConversationView
-    v-if="currentMode === ChatMode.CONVERSATION"
-    :messages="currentBranch.messages"
-  />
-  <div class="relative flex p-2" bg="white dark:gray-900" shadow="lg current">
-    <BasicTextarea
-      v-model="inputMessage"
-      placeholder="Press Enter to send message, press Shift+Enter to create a new line"
-      max-h-60vh w-full resize-none p-2
-      border="1 solid rounded-lg"
-      outline="transparent 2 offset-4 focus:primary"
-      transition="all duration-200 ease-in-out"
-      @submit="sendMessage"
-    />
-    <Button class="absolute bottom-3 right-3" @click="sendMessage">
-      Send
-    </Button>
+  <div class="h-screen w-full flex overflow-hidden bg-light-100 dark:bg-dark-900">
+    <Sidebar />
+
+    <div class="h-full flex flex-1 flex-col overflow-hidden">
+      <div class="h-42px flex items-center justify-center border-b border-b-black/10 bg-white dark:border-b-white/10 dark:bg-dark-800">
+        <HeaderMenu />
+      </div>
+
+      <div class="flex flex-1 flex-col overflow-hidden bg-light-100 dark:bg-dark-900">
+        <div class="flex items-center border-b border-b-black/10 bg-white p-14px dark:border-b-white/10 dark:bg-dark-800">
+          <div class="mr-12px h-24px w-24px flex cursor-pointer items-center justify-center text-18px">
+            <i class="i-lucide-chevron-left" />
+          </div>
+          <h1 class="m-0 text-16px font-600">
+            {{ activeRoomName }}
+          </h1>
+        </div>
+
+        <VueFlow
+          v-if="currentMode === ChatMode.FLOW"
+          :nodes="nodesAndEdges.nodes"
+          :edges="nodesAndEdges.edges"
+          @node-click="handleNodeClick"
+          @pane-click="handlePaneClick"
+          @node-context-menu="handleNodeContextMenu"
+        >
+          <Background />
+          <Controls />
+          <MiniMap />
+          <NodeContextMenu
+            v-if="contextMenu.show"
+            :x="contextMenu.x"
+            :y="contextMenu.y"
+            :role="selectedMessage?.role"
+            @generate="generateResponse(selectedMessageId)"
+            @focus-in="handleContextMenuFocusIn"
+            @delete="handleContextMenuDelete"
+          />
+        </VueFlow>
+        <ConversationView
+          v-if="currentMode === ChatMode.CONVERSATION"
+          :messages="currentBranch.messages"
+        />
+      </div>
+
+      <div class="p-12px-16px border-t border-t-black/10 bg-light-100 dark:border-t-white/10 dark:bg-dark-900">
+        <div class="flex rounded-8px bg-white shadow-sm dark:bg-dark-800 dark:shadow-md items-center">
+          <BasicTextarea
+            v-model="inputMessage"
+            placeholder="Type your message here, press Enter to send"
+            class="max-h-150px flex-1 resize-none overflow-y-auto rounded-8px border-none p-12px text-14px leading-normal outline-none dark:bg-dark-800 dark:text-white"
+            @submit="sendMessage"
+          />
+
+          <Button
+            class="flex mr-2 cursor-pointer items-center justify-center rounded-6px border-none bg-blue-500 text-white dark:bg-blue-700 hover:bg-blue-600 dark:hover:bg-blue-800"
+            title="Send message"
+            @click="sendMessage"
+          >
+            <div i-lucide-send class="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -237,21 +280,14 @@ function handleContextMenuFocusIn() {
 }
 
 :deep(.vue-flow__node) {
-  border-radius: 8px;
+  @apply rounded-8px;
 
   &.user {
-    background: #e3f2fd;
-    border-color: #90caf9;
+    @apply bg-blue-50 border-blue-200;
   }
 
   &.assistant {
-    background: #f3e5f5;
-    border-color: #ce93d8;
-  }
-
-  &.inactive {
-    opacity: 0.5;
-    color: #999;
+    @apply bg-purple-50 border-purple-200;
   }
 }
 </style>
