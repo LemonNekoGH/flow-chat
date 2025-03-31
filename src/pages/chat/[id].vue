@@ -12,9 +12,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 import { streamText } from 'xsai'
 import ConversationView from '~/components/ConversationView.vue'
-import HeaderMenu from '~/components/HeaderMenu.vue'
 import NodeContextMenu from '~/components/NodeContextMenu.vue'
-import Sidebar from '~/components/Sidebar.vue'
 import Button from '~/components/ui/button/Button.vue'
 import BasicTextarea from '~/components/ui/input/Textarea.vue'
 import { useLayout } from '~/composables/useLayout'
@@ -232,68 +230,60 @@ const activeRoomName = computed(() => {
 </script>
 
 <template>
-  <div class="h-screen w-full flex overflow-hidden bg-light-100 dark:bg-dark-900">
-    <Sidebar />
-
-    <div class="h-full flex flex-1 flex-col overflow-hidden">
-      <div class="h-42px flex items-center justify-center border-b border-b-black/10 bg-white dark:border-b-white/10 dark:bg-dark-800">
-        <HeaderMenu />
+  <div class="h-full w-full flex flex-col overflow-hidden">
+    <div class="flex items-center border-b border-b-black/10 bg-white p-14px dark:border-b-white/10 dark:bg-dark-800">
+      <div class="mr-12px h-24px w-24px flex cursor-pointer items-center justify-center text-18px" @click="router.push('/')">
+        <i class="i-lucide-chevron-left" />
       </div>
+      <h1 class="m-0 text-16px font-600">
+        {{ activeRoomName }}
+      </h1>
+    </div>
 
-      <div class="flex flex-1 flex-col overflow-hidden bg-light-100 dark:bg-dark-900">
-        <div class="flex items-center border-b border-b-black/10 bg-white p-14px dark:border-b-white/10 dark:bg-dark-800">
-          <div class="mr-12px h-24px w-24px flex cursor-pointer items-center justify-center text-18px" @click="router.push('/')">
-            <i class="i-lucide-chevron-left" />
-          </div>
-          <h1 class="m-0 text-16px font-600">
-            {{ activeRoomName }}
-          </h1>
-        </div>
-
-        <VueFlow
-          v-if="currentMode === ChatMode.FLOW"
-          :nodes="nodesAndEdges.nodes"
-          :edges="nodesAndEdges.edges"
-          @node-click="handleNodeClick"
-          @pane-click="handlePaneClick"
-          @node-context-menu="handleNodeContextMenu"
-        >
-          <Background />
-          <Controls />
-          <MiniMap />
-          <NodeContextMenu
-            v-if="contextMenu.show"
-            :x="contextMenu.x"
-            :y="contextMenu.y"
-            :role="selectedMessage?.role"
-            @generate="generateResponse(selectedMessageId)"
-            @focus-in="handleContextMenuFocusIn"
-            @delete="handleContextMenuDelete"
-          />
-        </VueFlow>
-        <ConversationView
-          v-if="currentMode === ChatMode.CONVERSATION"
-          :messages="currentBranch.messages"
+    <template v-if="currentMode === ChatMode.FLOW">
+      <VueFlow
+        :nodes="nodesAndEdges.nodes"
+        :edges="nodesAndEdges.edges"
+        @node-click="handleNodeClick"
+        @pane-click="handlePaneClick"
+        @node-context-menu="handleNodeContextMenu"
+      >
+        <Background />
+        <Controls />
+        <MiniMap />
+        <NodeContextMenu
+          v-if="contextMenu.show"
+          :x="contextMenu.x"
+          :y="contextMenu.y"
+          :role="selectedMessage?.role"
+          @generate="generateResponse(selectedMessageId)"
+          @focus-in="handleContextMenuFocusIn"
+          @delete="handleContextMenuDelete"
         />
-      </div>
+      </VueFlow>
+    </template>
+    <template v-else>
+      <ConversationView
+        :messages="currentBranch.messages"
+      />
+    </template>
 
-      <div class="p-12px-16px border-t border-t-black/10 bg-light-100 dark:border-t-white/10 dark:bg-dark-900">
-        <div class="flex items-center rounded-8px bg-white shadow-sm dark:bg-dark-800 dark:shadow-md">
-          <BasicTextarea
-            v-model="inputMessage"
-            placeholder="Type your message here, press Enter to send"
-            class="max-h-150px flex-1 resize-none overflow-y-auto rounded-8px border-none p-12px text-14px leading-normal outline-none dark:bg-dark-800 dark:text-white"
-            @submit="sendMessage"
-          />
+    <div class="p-12px-16px border-t border-t-black/10 bg-light-100 dark:border-t-white/10 dark:bg-dark-900">
+      <div class="flex items-center rounded-8px bg-white shadow-sm dark:bg-dark-800 dark:shadow-md">
+        <BasicTextarea
+          v-model="inputMessage"
+          placeholder="Type your message here, press Enter to send"
+          class="max-h-150px flex-1 resize-none overflow-y-auto rounded-8px border-none p-12px text-14px leading-normal outline-none dark:bg-dark-800 dark:text-white"
+          @submit="sendMessage"
+        />
 
-          <Button
-            class="mr-2 flex cursor-pointer items-center justify-center rounded-6px border-none bg-blue-500 text-white dark:bg-blue-700 hover:bg-blue-600 dark:hover:bg-blue-800"
-            title="Send message"
-            @click="sendMessage"
-          >
-            <div i-lucide-send class="h-4 w-4" />
-          </Button>
-        </div>
+        <Button
+          class="mr-2 flex cursor-pointer items-center justify-center rounded-6px border-none bg-blue-500 text-white dark:bg-blue-700 hover:bg-blue-600 dark:hover:bg-blue-800"
+          title="Send message"
+          @click="sendMessage"
+        >
+          <div i-lucide-send class="h-4 w-4" />
+        </Button>
       </div>
     </div>
   </div>

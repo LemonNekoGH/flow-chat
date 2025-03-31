@@ -2,6 +2,8 @@
 import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 import SettingsDialog from '~/components/SettingsDialog.vue'
+import { Button } from '~/components/ui/button'
+import { isDark, toggleDark } from '~/composables/dark'
 import { ChatMode, useModeStore } from '~/stores/mode'
 import { useSettingsStore } from '~/stores/settings'
 
@@ -57,19 +59,27 @@ function getToggleModeName(): string {
         {{ getCurrentModeName() }}
       </div>
 
+      <Button
+        class="border border-gray-300 rounded-md bg-white px-2 transition-colors duration-200 dark:border-gray-500 dark:bg-white hover:bg-gray-200 dark:hover:bg-gray-300"
+        @click="toggleDark()"
+      >
+        <i v-if="isDark" class="i-carbon-moon text-xl text-gray-800" />
+        <i v-else class="i-carbon-sun text-xl text-gray-800" />
+      </Button>
+
       <div class="relative z-1000">
-        <button
+        <Button
           class="h-8 w-8 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-800"
           @click="toggleDropdown"
         >
           <div i-lucide-ellipsis class="text-gray-700 dark:text-gray-300" />
-        </button>
+        </Button>
 
         <div
           v-if="showDropdownMenu"
           class="absolute right-0 top-full mt-1 w-40 overflow-hidden rounded-lg bg-white shadow-lg dark:bg-gray-900"
         >
-          <button
+          <Button
             class="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
             @click="toggleMode"
           >
@@ -77,8 +87,8 @@ function getToggleModeName(): string {
               <div i-lucide-git-branch class="text-lg" />
               {{ getToggleModeName() }}
             </div>
-          </button>
-          <button
+          </Button>
+          <Button
             class="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
             @click="openSettings"
           >
@@ -86,7 +96,7 @@ function getToggleModeName(): string {
               <div i-lucide-settings class="text-lg" />
               Settings
             </div>
-          </button>
+          </Button>
           <a
             href="https://github.com/lemonnekogh/flow-chat"
             target="_blank"
