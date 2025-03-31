@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import type { Message } from '~/types/messages'
-import { storeToRefs } from 'pinia'
-import { ref, watch } from 'vue'
-import { useSettingsStore } from '~/stores/settings'
-import { scrollToBottom } from '../utils/index'
+import { computed } from 'vue'
 import MarkdownView from './MarkdownView.vue'
 import SystemPrompt from './SystemPrompt.vue'
 
@@ -11,29 +8,52 @@ const props = defineProps<{
   messages: Message[]
 }>()
 
-// Get the default model from settings store
-const { model: defaultModel } = storeToRefs(useSettingsStore())
+// const roomsStore = useRoomsStore()
+// const { currentRoom } = storeToRefs(roomsStore)
 
-const containerRef = ref<HTMLElement>()
-watch(() => [props.messages, props.messages.at(-1)!.content], () => {
-  requestAnimationFrame(() => {
-    scrollToBottom(containerRef.value)
-  })
-}, { immediate: true })
+const userAndAssistantMessages = computed(() => {
+  return props.messages.filter(message => message.role === 'user' || message.role === 'assistant')
+})
 </script>
 
 <template>
-  <div relative w-full max-w-screen-lg flex-1>
-    <div ref="containerRef" absolute inset-0 flex="~ col" gap-4 of-y-auto p-4>
-      <div v-for="{ id, model, role, content } in messages" :key="id" class="bubble" :class="[role]">
-        <span
-          v-if="model && model !== defaultModel"
-          absolute top--5 text-xs font-medium
-          :class="role === 'user' ? 'right-0' : 'left-0'"
-        >{{ role === 'user' ? `@${model}` : model }}</span>
-        <SystemPrompt v-if="role === 'system'" :id="id" />
-        <MarkdownView v-else :content="content" />
-      </div>
+  <div class="mx-auto max-w-3xl w-full p-6 space-y-6">
+    <!-- System prompt -->
+    <div class="border border-gray-200 rounded-md p-4 dark:border-gray-700">
+      <SystemPrompt />
+    </div>
+
+    <!-- Messages -->
+    <div class="space-y-6">
+      <template v-for="(message) in userAndAssistantMessages" :key="message.id">
+        <div
+          class="flex gap-4"
+          :class="{ 'flex-row-reverse': message.role === 'user' }"
+        >
+          <!-- Avatar -->
+          <div
+            class="h-8 w-8 flex flex-shrink-0 items-center justify-center rounded-full"
+            :class="message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'"
+          >
+            <div v-if="message.role === 'user'" class="i-solar-user-rounded-bold text-lg" />
+            <div v-else class="i-solar-bot-bold text-lg" />
+          </div>
+
+          <!-- Message content -->
+          <div
+            class="min-w-0 flex-1 rounded-md p-4"
+            :class="message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'"
+          >
+            <MarkdownView
+              :content="message.content"
+              :dark="message.role === 'user'"
+            />
+            <div v-if="message.model" class="mt-2 text-xs opacity-70">
+              {{ message.model }}
+            </div>
+          </div>
+        </div>
+      </template>
     </div>
   </div>
 </template>

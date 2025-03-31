@@ -197,7 +197,7 @@ export const useMessagesStore = defineStore('messages', () => {
     )
   }
 
-  function newMessage(text: string, role: MessageRole, parentMessageId: string | null = null, model?: string) {
+  function newMessage(text: string, role: MessageRole, parentMessageId: string | null = null, model?: string, roomId?: string) {
     const id = crypto.randomUUID()
     const message: Message = {
       id,
@@ -206,6 +206,7 @@ export const useMessagesStore = defineStore('messages', () => {
       parentMessageId,
       timestamp: Date.now(),
       model,
+      roomId,
     }
 
     messages.value.push(message)
@@ -265,6 +266,12 @@ export const useMessagesStore = defineStore('messages', () => {
     return descendants
   }
 
+  function getMessagesByRoomId(roomId?: string | null) {
+    if (!roomId)
+      return []
+    return messages.value.filter(message => message.roomId === roomId)
+  }
+
   return {
     messages,
 
@@ -278,6 +285,7 @@ export const useMessagesStore = defineStore('messages', () => {
     getChildMessagesById,
     getBranchById,
     getSubtreeById,
+    getMessagesByRoomId,
 
     restoreTutorial,
   }

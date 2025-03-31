@@ -1,20 +1,35 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useMessagesStore } from '~/stores/messages'
+import { useRoomsStore } from '~/stores/rooms'
 import MarkdownView from './MarkdownView.vue'
 import Editor from './SystemPromptEdit.vue'
 
 const props = defineProps<{
-  id: string
+  id?: string
 }>()
 
 const messagesStore = useMessagesStore()
+const roomsStore = useRoomsStore()
 const expanded = ref(false)
-const message = computed(() => messagesStore.getMessageById(props.id)!)
+
+const message = computed(() => {
+  if (props.id) {
+    // Use specific system prompt ID if provided
+    return messagesStore.getMessageById(props.id)!
+  }
+  else {
+    // Use current room's system prompt ID
+    const currentRoom = roomsStore.currentRoom
+    if (!currentRoom || !currentRoom.systemPromptId)
+      return null
+    return messagesStore.getMessageById(currentRoom.systemPromptId)
+  }
+})
 </script>
 
 <template>
-  <div grid gap-2>
+  <div v-if="message" grid gap-2>
     <div flex items-center justify-between>
       System Prompt
       <div flex items-center gap-2>
