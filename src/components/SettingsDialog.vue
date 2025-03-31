@@ -44,7 +44,7 @@ async function fetchModels() {
 
   isLoading.value = true
   try {
-    models.value = await settingsStore.fetchModels()
+    await settingsStore.fetchModels()
   }
   catch (error) {
     toast.error('Failed to fetch models', {
@@ -58,7 +58,7 @@ async function fetchModels() {
 
 onMounted(async () => {
   if (baseURL.value && apiKey.value) {
-    models.value = await settingsStore.fetchModels()
+    await settingsStore.fetchModels()
   }
 })
 </script>
