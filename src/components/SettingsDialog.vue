@@ -3,7 +3,23 @@ import type { Model } from 'xsai'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
-import Button from '~/components/ui/button/Button.vue'
+import { Button } from '~/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '~/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectItemText,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '~/components/ui/select'
 import { useSettingsStore } from '~/stores/settings'
 
 const emit = defineEmits<{
@@ -28,7 +44,7 @@ async function fetchModels() {
 
   isLoading.value = true
   try {
-    settingsStore.fetchModels()
+    models.value = await settingsStore.fetchModels()
   }
   catch (error) {
     toast.error('Failed to fetch models', {
@@ -42,22 +58,19 @@ async function fetchModels() {
 
 onMounted(async () => {
   if (baseURL.value && apiKey.value) {
-    await settingsStore.fetchModels()
+    models.value = await settingsStore.fetchModels()
   }
 })
 </script>
 
 <template>
-  <div class="fixed inset-0 z-1000 flex items-center justify-center bg-black/50">
-    <div class="max-h-90vh max-w-90% w-400px overflow-y-auto rounded-lg bg-white dark:bg-dark-800">
-      <div class="flex items-center justify-between border-b border-gray-200 p-4 dark:border-gray-700">
-        <h2 class="m-0 text-lg font-semibold">
+  <Dialog :open="true">
+    <DialogContent class="max-h-90vh max-w-90% w-400px overflow-y-auto rounded-lg bg-white dark:bg-dark-800">
+      <DialogHeader>
+        <DialogTitle class="text-lg font-semibold">
           Settings
-        </h2>
-        <button class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200" @click="emit('close')">
-          <i class="i-lucide-x text-lg" />
-        </button>
-      </div>
+        </DialogTitle>
+      </DialogHeader>
 
       <div class="p-4">
         <div class="mb-4">
@@ -94,37 +107,26 @@ onMounted(async () => {
               {{ isLoading ? 'Loading...' : 'Refresh' }}
             </button>
           </div>
-          <select
-            id="model"
-            v-model="model"
-            class="w-full border border-gray-200 rounded px-3 py-2 dark:border-gray-700 dark:bg-dark-700"
-          >
-            <option value="">
-              Select a model
-            </option>
-            <optgroup v-if="models.length" label="Available Models">
-              <option v-for="m in models" :key="m.id" :value="m.id">
-                {{ m.id }}
-              </option>
-            </optgroup>
-            <optgroup v-else label="Common Models">
-              <option value="claude-3-opus-20240229">
-                Claude 3 Opus
-              </option>
-              <option value="claude-3-sonnet-20240229">
-                Claude 3 Sonnet
-              </option>
-              <option value="claude-3-haiku-20240307">
-                Claude 3 Haiku
-              </option>
-              <option value="claude-3.5-sonnet-20240620">
-                Claude 3.5 Sonnet
-              </option>
-              <option value="claude-3.7-sonnet-20240708">
-                Claude 3.7 Sonnet
-              </option>
-            </optgroup>
-          </select>
+          <Select v-model="model" class="w-full">
+            <SelectTrigger class="w-full border border-gray-200 rounded px-3 py-2 dark:border-gray-700 dark:bg-dark-700">
+              <SelectValue placeholder="Select a model" />
+            </SelectTrigger>
+            <SelectContent class="border border-gray-200 rounded-lg bg-white shadow-lg dark:border-gray-700 dark:bg-dark-800">
+              <SelectGroup v-if="models.length">
+                <SelectLabel class="px-2 py-1.5 text-sm text-gray-500 dark:text-gray-400">
+                  Available Models
+                </SelectLabel>
+                <SelectItem
+                  v-for="m in models"
+                  :key="m.id"
+                  :value="m.id"
+                  class="relative flex items-center rounded px-8 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                >
+                  <SelectItemText>{{ m.id }}</SelectItemText>
+                </SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -133,6 +135,6 @@ onMounted(async () => {
           Save
         </Button>
       </div>
-    </div>
-  </div>
+    </DialogContent>
+  </Dialog>
 </template>

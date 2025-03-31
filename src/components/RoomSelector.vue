@@ -12,6 +12,7 @@ import {
   AlertDialogTrigger,
 } from 'radix-vue'
 import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 import RoomCreateDialog from '~/components/RoomCreateDialog.vue'
 import { useMessagesStore } from '~/stores/messages'
@@ -21,6 +22,7 @@ import { useRoomsStore } from '~/stores/rooms'
 const roomsStore = useRoomsStore()
 const messagesStore = useMessagesStore()
 const { rooms, activeRoomId } = storeToRefs(roomsStore)
+const router = useRouter()
 
 // Search state and filtering
 const searchQuery = ref('')
@@ -47,6 +49,7 @@ const editRoomId = ref<string | undefined>()
 // Room management functions
 function selectRoom(roomId: string) {
   roomsStore.setActiveRoom(roomId)
+  router.push(`/chat/${roomId}`)
 }
 
 function createNewRoom() {
@@ -58,6 +61,7 @@ function createNewRoom() {
   })
   const room = roomsStore.createRoom(`New Chat ${timestamp}`, '')
   roomsStore.setActiveRoom(room.id)
+  router.push(`/chat/${room.id}`)
 }
 
 function editRoom(roomId: string) {

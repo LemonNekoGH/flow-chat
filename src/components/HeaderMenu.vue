@@ -3,8 +3,10 @@ import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 import SettingsDialog from '~/components/SettingsDialog.vue'
 import { ChatMode, useModeStore } from '~/stores/mode'
+import { useSettingsStore } from '~/stores/settings'
 
 const modeStore = useModeStore()
+const { model } = storeToRefs(useSettingsStore())
 const { currentMode } = storeToRefs(modeStore)
 
 const showSettingsDialog = ref(false)
@@ -47,7 +49,7 @@ function getToggleModeName(): string {
   <div class="h-full w-full flex items-center justify-between px-4">
     <div class="flex items-center gap-2">
       <span class="text-sm font-semibold">Flow Chat</span>
-      <span class="text-xs text-gray-500 dark:text-gray-400">Claude 3.7 Sonnet</span>
+      <span class="text-xs text-gray-500 dark:text-gray-400">{{ model }}</span>
     </div>
 
     <div class="flex items-center gap-4">
