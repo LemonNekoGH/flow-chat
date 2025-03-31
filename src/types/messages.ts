@@ -10,6 +10,7 @@ export interface Message extends BaseMessage {
   parentMessageId: string | null
   timestamp: number
   roomId: string
+  model?: string
 }
 
 export interface Room {

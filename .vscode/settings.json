@@ -70,5 +70,6 @@
     "json",
     "jsonc",
     "yaml"
-  ]
+  ],
+  "css.lint.unknownAtRules": "ignore"
 }
