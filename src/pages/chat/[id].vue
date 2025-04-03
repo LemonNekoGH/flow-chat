@@ -23,7 +23,7 @@ import DialogContent from '~/components/ui/dialog/DialogContent.vue'
 import DialogHeader from '~/components/ui/dialog/DialogHeader.vue'
 import DialogTitle from '~/components/ui/dialog/DialogTitle.vue'
 import Input from '~/components/ui/input/Input.vue'
-import BasicTextarea from '~/components/ui/input/Textarea.vue'
+import Textarea from '~/components/ui/textarea/Textarea.vue'
 import { isDark } from '~/composables/dark'
 import { useLayout } from '~/composables/useLayout'
 import { useMessagesStore } from '~/stores/messages'
@@ -378,7 +378,7 @@ onMounted(() => {
     @update:selected-message-id="selectedMessageId = $event"
   />
   <div relative w-full max-w-screen-md flex rounded-lg bg-neutral-100 p-2 shadow-lg dark:bg-neutral-900>
-    <BasicTextarea
+    <Textarea
       v-model="inputMessage"
       placeholder="Enter to send message, Shift+Enter for new-line"
       max-h-60vh w-full resize-none border-gray-300 rounded-sm px-3 py-2 outline-none dark:bg-neutral-800 focus:ring-2 focus:ring-black dark:focus:ring-white

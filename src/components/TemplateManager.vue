@@ -6,8 +6,8 @@ import DialogContent from '~/components/ui/dialog/DialogContent.vue'
 import DialogHeader from '~/components/ui/dialog/DialogHeader.vue'
 import DialogTitle from '~/components/ui/dialog/DialogTitle.vue'
 import Input from '~/components/ui/input/Input.vue'
-import BasicTextarea from '~/components/ui/input/Textarea.vue'
 import Label from '~/components/ui/label/Label.vue'
+import Textarea from '~/components/ui/textarea/Textarea.vue'
 import { useTemplatesStore } from '~/stores/templates'
 
 const templatesStore = useTemplatesStore()
@@ -184,7 +184,7 @@ watch([showAddDialog, showEditDialog, showDeleteConfirm], ([add, edit, del]) => 
           </div>
           <div max-h-80 flex flex-col gap-2>
             <Label for="template-prompt">System Prompt</Label>
-            <BasicTextarea
+            <Textarea
               id="template-prompt"
               v-model="addTemplateForm.prompt"
               placeholder="System prompt..."
@@ -225,7 +225,7 @@ watch([showAddDialog, showEditDialog, showDeleteConfirm], ([add, edit, del]) => 
           </div>
           <div max-h-80 flex flex-col gap-2>
             <Label for="edit-template-prompt">System Prompt</Label>
-            <BasicTextarea
+            <Textarea
               id="edit-template-prompt"
               v-model="editTemplateForm.prompt"
               placeholder="System prompt..."
