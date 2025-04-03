@@ -7,8 +7,8 @@ import { streamText } from 'xsai'
 import { useMessagesStore } from '~/stores/messages'
 import { useRoomsStore } from '~/stores/rooms'
 import { useSettingsStore } from '~/stores/settings'
+import ConversationNodeContextMenu from './ConversationNodeContextMenu.vue'
 import MarkdownView from './MarkdownView.vue'
-import NodeContextMenu from './NodeContextMenu.vue'
 import SystemPrompt from './SystemPrompt.vue'
 
 const props = defineProps<{
@@ -153,15 +153,6 @@ function handleContextMenuForkWith() {
   handleContextMenuFork()
 }
 
-// Handle context menu delete
-function handleContextMenuDelete() {
-  const messageId = contextMenu.value.messageId
-  if (messageId) {
-    messagesStore.deleteSubtree(messageId)
-  }
-  contextMenu.value.show = false
-}
-
 // Handle context menu copy
 function handleContextMenuCopy() {
   const messageId = contextMenu.value.messageId
@@ -259,7 +250,7 @@ useEventListener('click', () => {
     </div>
 
     <!-- Context menu -->
-    <NodeContextMenu
+    <ConversationNodeContextMenu
       v-if="contextMenu.show"
       :x="contextMenu.x"
       :y="contextMenu.y"
@@ -267,7 +258,6 @@ useEventListener('click', () => {
       @fork="handleContextMenuFork"
       @fork-with="handleContextMenuForkWith"
       @focus-in="handleContextMenuFocusIn"
-      @delete="handleContextMenuDelete"
       @copy="handleContextMenuCopy"
     />
   </div>

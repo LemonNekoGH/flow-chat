@@ -54,7 +54,7 @@ onMounted(async () => {
               v-model="model"
               class="w-full border rounded-md p-2 dark:bg-gray-800"
             >
-              <option v-for="m in models" :key="m" :value="m">
+              <option v-for="m in models" :key="m.id" :value="m">
                 {{ m }}
               </option>
             </select>
