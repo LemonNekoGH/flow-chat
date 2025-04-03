@@ -135,6 +135,9 @@ export const useRoomsStore = defineStore('rooms', () => {
     if (roomsMap.value.size === 0) {
       createRoom('Default Chat')
     }
+
+    // Return to the latest chat room if exists
+    return rooms.value[rooms.value.length - 1]
   }
 
   return {

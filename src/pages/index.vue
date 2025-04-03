@@ -8,16 +8,9 @@ const roomsStore = useRoomsStore()
 
 onMounted(() => {
   // Initialize rooms
-  roomsStore.initialize()
+  const room = roomsStore.initialize()
 
-  // Redirect to the first room or create one if none exists
-  if (roomsStore.rooms.length === 0) {
-    const room = roomsStore.createRoom('Default Chat')
-    router.replace(`/chat/${room.id}`)
-  }
-  else {
-    router.replace(`/chat/${roomsStore.rooms[0].id}`)
-  }
+  router.replace(`/chat/${room.id}`)
 })
 </script>
 
