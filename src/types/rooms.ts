@@ -1,7 +1,8 @@
 export interface Room {
   id: string
   name: string
-  systemPromptId: string | null
+  systemPromptId?: string
+  defaultModel?: string
   createdAt: number
   updatedAt: number
 }
