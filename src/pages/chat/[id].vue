@@ -32,7 +32,7 @@ import { useRoomsStore } from '~/stores/rooms'
 import { useSettingsStore } from '~/stores/settings'
 import { parseMessage } from '~/utils/chat'
 
-const route = useRoute()
+const route = useRoute('/chat/[id]')
 const router = useRouter()
 const roomId = computed(() => {
   if (typeof route.params.id === 'string') {
@@ -140,6 +140,20 @@ const nodesAndEdges = computed(() => {
     msg => msg.roomId === roomId.value,
   )
 
+  // Check if we have messages with 'root' as parent
+  const hasRootParent = roomMessages.some(msg => !msg.parentMessageId)
+
+  // Add a hidden root node if needed
+  if (hasRootParent) {
+    nodes.push({
+      id: 'root',
+      type: 'system',
+      position: { x: 0, y: 0 },
+      hidden: true,
+      data: { hidden: true },
+    })
+  }
+
   for (const message of roomMessages) {
     const { id, parentMessageId, role } = message
     const active = ids.has(id)
@@ -151,13 +165,21 @@ const nodesAndEdges = computed(() => {
       data: { message, selected: selectedMessageId.value === id, inactive: selectedMessageId.value && !active },
     })
 
+    // Only create an edge if we have a valid source node
     const source = parentMessageId || 'root'
-    edges.push({
-      id: `${source}-${id}`,
-      source,
-      target: id,
-      style: active ? { stroke: isDark?.value ? '#fff' : '#000', strokeWidth: '2' } : {},
-    })
+    // Check if source exists in our nodes (or will exist)
+    const sourceExists = source === 'root'
+      || roomMessages.some(m => m.id === source)
+      || nodes.some(n => n.id === source)
+
+    if (sourceExists) {
+      edges.push({
+        id: `${source}-${id}`,
+        source,
+        target: id,
+        style: active ? { stroke: isDark?.value ? '#fff' : '#000', strokeWidth: '2' } : {},
+      })
+    }
   }
 
   return { nodes: layout(nodes, edges), edges }
@@ -306,6 +328,13 @@ function handleForkWith() {
   generateResponse(selectedMessageId.value, forkWithModel.value)
 }
 
+// Handle forking - now this just selects the message without generating
+function handleFork(messageId: string | null) {
+  if (messageId) {
+    selectedMessageId.value = messageId
+  }
+}
+
 onMounted(() => {
   // Initialize rooms before displaying
   roomsStore.initialize()
@@ -335,7 +364,7 @@ onMounted(() => {
       :x="contextMenu.x"
       :y="contextMenu.y"
       :role="selectedMessage?.role"
-      @fork="generateResponse(selectedMessageId)"
+      @fork="handleFork(selectedMessageId)"
       @focus-in="handleContextMenuFocusIn"
       @delete="handleContextMenuDelete"
       @copy="handleContextMenuCopy"
@@ -345,6 +374,8 @@ onMounted(() => {
   <ConversationView
     v-if="currentMode === ChatMode.CONVERSATION"
     :messages="currentBranch.messages"
+    :selected-message-id="selectedMessageId"
+    @update:selected-message-id="selectedMessageId = $event"
   />
   <div relative w-full max-w-screen-md flex rounded-lg bg-neutral-100 p-2 shadow-lg dark:bg-neutral-900>
     <BasicTextarea
