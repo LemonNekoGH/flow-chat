@@ -1,20 +1,39 @@
 import type { MessageRole } from '~/types/messages'
 import type { Room } from '~/types/rooms'
+import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMessagesStore } from './messages'
 import { useTemplatesStore } from './templates'
 
+// Type definition for our room map
+type RoomMap = Map<string, Room>
+
 export const useRoomsStore = defineStore('rooms', () => {
-  const rooms = ref<Room[]>([])
-  const currentRoomId = ref<string | null>(null)
+  // Using useLocalStorage for persistence
+  const roomsStorage = useLocalStorage<[string, Room][]>('flow-chat-rooms', [])
+  const currentRoomId = useLocalStorage<string | null>('flow-chat-current-room', null)
+
   const messagesStore = useMessagesStore()
   const templatesStore = useTemplatesStore()
   const router = useRouter()
 
+  // Create reactive map from storage
+  const roomsMap = computed<RoomMap>(() => {
+    return new Map(roomsStorage.value)
+  })
+
+  // Computed property for array of rooms (for compatibility)
+  const rooms = computed<Room[]>(() => Array.from(roomsMap.value.values()))
+
+  // Save map back to storage
+  function saveToStorage() {
+    roomsStorage.value = Array.from(roomsMap.value.entries())
+  }
+
   const currentRoom = computed(() => {
-    return rooms.value.find(room => room.id === currentRoomId.value) || null
+    return currentRoomId.value ? roomsMap.value.get(currentRoomId.value) || null : null
   })
 
   function createRoom(name: string, templateId?: string) {
@@ -39,29 +58,34 @@ export const useRoomsStore = defineStore('rooms', () => {
       updatedAt: Date.now(),
     }
 
-    rooms.value.push(room)
+    roomsMap.value.set(id, room)
+    saveToStorage()
     setCurrentRoom(id)
 
     return room
   }
 
   function updateRoom(id: string, data: Partial<Omit<Room, 'id' | 'createdAt'>>) {
-    const room = rooms.value.find(r => r.id === id)
+    const room = roomsMap.value.get(id)
     if (!room)
       return
 
-    Object.assign(room, {
+    const updatedRoom = {
+      ...room,
       ...data,
       updatedAt: Date.now(),
-    })
+    }
+
+    roomsMap.value.set(id, updatedRoom)
+    saveToStorage()
   }
 
   function deleteRoom(id: string) {
     // Don't delete if it's the only room
-    if (rooms.value.length <= 1)
+    if (roomsMap.value.size <= 1)
       return
 
-    const room = rooms.value.find(r => r.id === id)
+    const room = roomsMap.value.get(id)
     if (!room)
       return
 
@@ -70,8 +94,9 @@ export const useRoomsStore = defineStore('rooms', () => {
       messagesStore.deleteSubtree(room.systemPromptId)
     }
 
-    // Remove room from list
-    rooms.value = rooms.value.filter(r => r.id !== id)
+    // Remove room from map
+    roomsMap.value.delete(id)
+    saveToStorage()
 
     // Set current room to another room if current one is deleted
     if (currentRoomId.value === id) {
@@ -83,7 +108,7 @@ export const useRoomsStore = defineStore('rooms', () => {
   }
 
   function setCurrentRoom(id: string) {
-    const room = rooms.value.find(r => r.id === id)
+    const room = roomsMap.value.get(id)
     if (room) {
       currentRoomId.value = id
       router.push(`/chat/${id}`)
@@ -96,7 +121,7 @@ export const useRoomsStore = defineStore('rooms', () => {
   }
 
   function getRoomSystemPrompt(roomId: string) {
-    const room = rooms.value.find(r => r.id === roomId)
+    const room = roomsMap.value.get(roomId)
     if (!room || !room.systemPromptId)
       return null
     return messagesStore.getMessageById(room.systemPromptId)
@@ -107,7 +132,7 @@ export const useRoomsStore = defineStore('rooms', () => {
     // Initialize templates first to ensure we have a default template
     templatesStore.initialize()
 
-    if (rooms.value.length === 0) {
+    if (roomsMap.value.size === 0) {
       createRoom('Default Chat')
     }
   }
@@ -124,6 +149,4 @@ export const useRoomsStore = defineStore('rooms', () => {
     getRoomSystemPrompt,
     initialize,
   }
-}, {
-  persist: true,
 })
