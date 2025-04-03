@@ -114,13 +114,14 @@ export const useRoomsStore = defineStore('rooms', () => {
     return true
   }
 
-  function setCurrentRoom(id: string) {
+  async function setCurrentRoom(id: string) {
     const room = roomsMap.value.get(id)
     if (!room)
       return false
 
     persistCurrentRoom(id)
-    router.push(`/chat/${id}`)
+
+    router.replace(`/chat/${id}`)
     return true
   }
 

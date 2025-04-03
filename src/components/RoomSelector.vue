@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { nextTick, ref } from 'vue'
 import { toast } from 'vue-sonner'
 import Button from '~/components/ui/button/Button.vue'
 import Dialog from '~/components/ui/dialog/Dialog.vue'
@@ -13,7 +12,6 @@ import { useTemplatesStore } from '~/stores/templates'
 
 const roomsStore = useRoomsStore()
 const templatesStore = useTemplatesStore()
-const router = useRouter()
 
 // Dialog states
 const showRenameDialog = ref(false)
@@ -26,11 +24,7 @@ const renameRoomName = ref('')
 templatesStore.initialize()
 roomsStore.initialize()
 
-function navigateToRoom(id: string) {
-  router.push(`/chat/${id}`)
-}
-
-function createNewChat() {
+async function createNewChat() {
   // Use the default template
   const templateId = templatesStore.defaultTemplate?.id || templatesStore.templates[0]?.id
 
@@ -45,7 +39,9 @@ function createNewChat() {
   const room = roomsStore.createRoom(`Chat ${timestamp}`, templateId)
 
   toast.success('Chat created successfully')
-  navigateToRoom(room.id)
+
+  await nextTick()
+  roomsStore.setCurrentRoom(room.id)
 }
 
 function openRenameDialog(id: string, name: string) {
@@ -92,7 +88,7 @@ function deleteRoom(id: string) {
         class="group flex cursor-pointer items-center justify-between rounded-md px-3 py-2 hover:bg-primary/10" :class="[
           roomsStore.currentRoomId === room.id ? 'bg-primary/20' : '',
         ]"
-        @click="navigateToRoom(room.id)"
+        @click="roomsStore.setCurrentRoom(room.id)"
       >
         <div class="flex items-center gap-2">
           <div class="i-solar-chat-line-bold text-lg" />
