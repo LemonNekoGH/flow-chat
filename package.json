@@ -30,6 +30,7 @@
     "beasties": "^0.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
     "lucide-vue-next": "^0.474.0",
     "nprogress": "^0.2.0",
     "pinia": "^2.3.1",
