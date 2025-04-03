@@ -11,7 +11,7 @@ import { useTemplatesStore } from './templates'
 type RoomMap = Map<string, Room>
 
 export const useRoomsStore = defineStore('rooms', () => {
-  // Using useLocalStorage for persistence
+  // Persistence layer
   const roomsStorage = useLocalStorage<[string, Room][]>('flow-chat-rooms', [])
   const currentRoomId = useLocalStorage<string | null>('flow-chat-current-room', null)
 
@@ -19,48 +19,56 @@ export const useRoomsStore = defineStore('rooms', () => {
   const templatesStore = useTemplatesStore()
   const router = useRouter()
 
-  // Create reactive map from storage
-  const roomsMap = computed<RoomMap>(() => {
-    return new Map(roomsStorage.value)
-  })
-
-  // Computed property for array of rooms (for compatibility)
+  // Pure computed values
+  const roomsMap = computed<RoomMap>(() => new Map(roomsStorage.value))
   const rooms = computed<Room[]>(() => Array.from(roomsMap.value.values()))
+  const currentRoom = computed(() =>
+    currentRoomId.value ? roomsMap.value.get(currentRoomId.value) ?? null : null,
+  )
 
-  // Save map back to storage
-  function saveToStorage() {
-    roomsStorage.value = Array.from(roomsMap.value.entries())
-  }
-
-  const currentRoom = computed(() => {
-    return currentRoomId.value ? roomsMap.value.get(currentRoomId.value) || null : null
-  })
-
-  function createRoom(name: string, templateId?: string) {
-    const id = crypto.randomUUID()
-
-    // Get the template to use (specified, default, or first available)
-    const template = templateId
-      ? templatesStore.getTemplateById(templateId)
-      : templatesStore.defaultTemplate || templatesStore.templates[0]
-
-    // Use template for system prompt or fallback to default if no template
-    const systemPrompt = template?.systemPrompt || ''
-
-    // Create system prompt message for this room
-    const systemPromptId = messagesStore.newMessage(systemPrompt, 'system', null, undefined, id).id
-
-    const room: Room = {
-      id,
+  // Pure functions for state transformations
+  function createRoomState(name: string, systemPromptId: string): Room {
+    return {
+      id: crypto.randomUUID(),
       name,
       systemPromptId,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     }
+  }
 
-    roomsMap.value.set(id, room)
-    saveToStorage()
-    setCurrentRoom(id)
+  function updateRoomState(room: Room, data: Partial<Omit<Room, 'id' | 'createdAt'>>): Room {
+    return {
+      ...room,
+      ...data,
+      updatedAt: Date.now(),
+    }
+  }
+
+  // Storage operations
+  function persistRooms(newMap: RoomMap) {
+    roomsStorage.value = Array.from(newMap.entries())
+  }
+
+  function persistCurrentRoom(roomId: string | null) {
+    currentRoomId.value = roomId
+  }
+
+  // Business logic
+  function createRoom(name: string, templateId?: string) {
+    const template = templateId
+      ? templatesStore.getTemplateById(templateId)
+      : templatesStore.defaultTemplate || templatesStore.templates[0]
+
+    const systemPrompt = template?.systemPrompt || ''
+    const { id: systemPromptId } = messagesStore.newMessage(systemPrompt, 'system', null, undefined, '')
+
+    const room = createRoomState(name, systemPromptId)
+    const newMap = new Map(roomsMap.value)
+    newMap.set(room.id, room)
+
+    persistRooms(newMap)
+    setCurrentRoom(room.id)
 
     return room
   }
@@ -70,80 +78,88 @@ export const useRoomsStore = defineStore('rooms', () => {
     if (!room)
       return
 
-    const updatedRoom = {
-      ...room,
-      ...data,
-      updatedAt: Date.now(),
-    }
+    const updatedRoom = updateRoomState(room, data)
+    const newMap = new Map(roomsMap.value)
+    newMap.set(id, updatedRoom)
 
-    roomsMap.value.set(id, updatedRoom)
-    saveToStorage()
+    persistRooms(newMap)
+    return updatedRoom
   }
 
   function deleteRoom(id: string) {
-    // Don't delete if it's the only room
     if (roomsMap.value.size <= 1)
-      return
+      return false
 
     const room = roomsMap.value.get(id)
     if (!room)
-      return
+      return false
 
-    // Delete all messages in this room
+    // Handle message cleanup
     if (room.systemPromptId) {
       messagesStore.deleteSubtree(room.systemPromptId)
     }
 
-    // Remove room from map
-    roomsMap.value.delete(id)
-    saveToStorage()
+    const newMap = new Map(roomsMap.value)
+    newMap.delete(id)
+    persistRooms(newMap)
 
-    // Set current room to another room if current one is deleted
+    // Handle current room change
     if (currentRoomId.value === id) {
       const firstRoom = rooms.value[0]
       if (firstRoom) {
         setCurrentRoom(firstRoom.id)
       }
     }
+
+    return true
   }
 
   function setCurrentRoom(id: string) {
     const room = roomsMap.value.get(id)
-    if (room) {
-      currentRoomId.value = id
-      router.push(`/chat/${id}`)
-    }
+    if (!room)
+      return false
+
+    persistCurrentRoom(id)
+    router.push(`/chat/${id}`)
+    return true
   }
 
   function createMessage(content: string, role: MessageRole, parentMessageId: string | null = null, model?: string) {
     const parent = parentMessageId || currentRoom.value?.systemPromptId || null
-    return messagesStore.newMessage(content, role, parent, model, currentRoomId.value || undefined)
+    return messagesStore.newMessage(
+      content,
+      role,
+      parent,
+      model,
+      currentRoomId.value || undefined,
+    )
   }
 
   function getRoomSystemPrompt(roomId: string) {
     const room = roomsMap.value.get(roomId)
-    if (!room || !room.systemPromptId)
-      return null
-    return messagesStore.getMessageById(room.systemPromptId)
+    return (!room || !room.systemPromptId)
+      ? null
+      : messagesStore.getMessageById(room.systemPromptId)
   }
 
-  // Initialize with a default room if none exists
   function initialize() {
-    // Initialize templates first to ensure we have a default template
     templatesStore.initialize()
 
     if (roomsMap.value.size === 0) {
-      createRoom('Default Chat')
+      const room = createRoom('Default Chat')
+      return room
     }
 
-    // Return to the latest chat room if exists
     return rooms.value[rooms.value.length - 1]
   }
 
   return {
+    // State
     rooms,
     currentRoomId,
     currentRoom,
+
+    // Actions
     createRoom,
     updateRoom,
     deleteRoom,
