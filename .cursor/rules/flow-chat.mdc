@@ -1,0 +1,16 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# FlowChat
+
+[README.md](mdc:README.md)
+
+[package.json](mdc:package.json)
+
+## Rules
+
+- Components here `components/ui`, if you want to use shadcn/vue, just use the cli command to install instead of create component directly.
+- Stores here `stores/`
+- 

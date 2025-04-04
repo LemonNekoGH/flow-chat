@@ -5,6 +5,7 @@ import DialogContent from '~/components/ui/dialog/DialogContent.vue'
 import DialogHeader from '~/components/ui/dialog/DialogHeader.vue'
 import DialogTitle from '~/components/ui/dialog/DialogTitle.vue'
 import DialogTrigger from '~/components/ui/dialog/DialogTrigger.vue'
+import Textarea from './ui/textarea/Textarea.vue'
 
 const open = ref(false)
 const content = defineModel({ default: '' })
@@ -19,7 +20,7 @@ const content = defineModel({ default: '' })
       <DialogHeader>
         <DialogTitle>Edit System Prompt</DialogTitle>
       </DialogHeader>
-      <textarea
+      <Textarea
         v-model="content"
         min-h-40 border border-gray-300 rounded-md p-2
         dark="border-gray-700 bg-gray-800"

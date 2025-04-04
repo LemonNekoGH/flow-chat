@@ -1,286 +1,226 @@
 import type { Message, MessageRole } from '~/types/messages'
+import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
-import prompt from '~/utils/prompt.md?raw'
+import { computed } from 'vue'
+import { tutorialMessages } from '~/utils/tutorial'
+
+// Type definitions for our maps
+type MessageMap = Map<string, Message>
+type RoomMessageMap = Map<string, MessageMap>
 
 export const useMessagesStore = defineStore('messages', () => {
-  const messages = ref<Message[]>([])
+  // Persistence layer
+  const messagesStorage = useLocalStorage<[string, [string, Message][]][]>('flow-chat-messages', [])
 
-  function restoreTutorial() {
-    // remove existing tutorial messages
-    deleteSubtree('tutorial-root')
+  // Pure computed values
+  const messagesByRoom = computed<RoomMessageMap>(() => {
+    const roomMap = new Map()
+    for (const [roomId, messages] of messagesStorage.value) {
+      roomMap.set(roomId, new Map(messages))
+    }
+    return roomMap
+  })
 
-    // create new tutorial messages
-    messages.value.push(
-      {
-        id: 'tutorial-root',
-        content: prompt,
-        role: 'system',
-        parentMessageId: null,
-        timestamp: Date.now(),
-      },
-      {
-        id: 'tutorial-1',
-        content: 'Hello, how do I use this app?',
-        role: 'user',
-        parentMessageId: 'tutorial-root',
-        timestamp: Date.now(),
-        model: 'openai/chatgpt-4o-latest',
-      },
-      {
-        id: 'tutorial-2',
-        content: 'This App is a chat UI that uses a flow-chart to represent the conversation. Users don\'t need to delete messages and regenerate responses, instead, just create a new branch!',
-        role: 'assistant',
-        parentMessageId: 'tutorial-1',
-        timestamp: Date.now(),
-        model: 'openai/chatgpt-4o-latest',
-      },
-      {
-        id: 'tutorial-2-1',
-        content: 'How do I create a new branch?',
-        role: 'user',
-        parentMessageId: 'tutorial-2',
-        timestamp: Date.now(),
-        model: 'openai/chatgpt-4o-latest',
-      },
-      {
-        id: 'tutorial-2-1-1',
-        content: 'Click this message, then input text and press "Enter"',
-        role: 'assistant',
-        parentMessageId: 'tutorial-2-1',
-        timestamp: Date.now(),
-        model: 'openai/chatgpt-4o-latest',
-      },
-      {
-        id: 'tutorial-2-1-2',
-        content: 'Right-click on previous message and select "Fork"',
-        role: 'assistant',
-        parentMessageId: 'tutorial-2-1',
-        timestamp: Date.now(),
-        model: 'openai/chatgpt-4o-latest',
-      },
-      {
-        id: 'tutorial-2-2',
-        content: 'How do I focus on a branch?',
-        role: 'user',
-        parentMessageId: 'tutorial-2',
-        timestamp: Date.now(),
-        model: 'openai/chatgpt-4o-latest',
-      },
-      {
-        id: 'tutorial-2-2-1',
-        content: 'Right-click on a message and select "Focus In"',
-        role: 'assistant',
-        parentMessageId: 'tutorial-2-2',
-        timestamp: Date.now(),
-        model: 'openai/chatgpt-4o-latest',
-      },
-      {
-        id: 'tutorial-2-2-2',
-        content: 'How do I exit Focus Mode?',
-        role: 'user',
-        parentMessageId: 'tutorial-2-2-1',
-        timestamp: Date.now(),
-        model: 'openai/chatgpt-4o-latest',
-      },
-      {
-        id: 'tutorial-2-2-3',
-        content: 'Click the "Jump Out" button in the top-right corner',
-        role: 'assistant',
-        parentMessageId: 'tutorial-2-2-2',
-        timestamp: Date.now(),
-        model: 'openai/chatgpt-4o-latest',
-      },
-      {
-        id: 'tutorial-2-3',
-        content: 'How do I delete a message?',
-        role: 'user',
-        parentMessageId: 'tutorial-2',
-        timestamp: Date.now(),
-        model: 'openai/chatgpt-4o-latest',
-      },
-      {
-        id: 'tutorial-2-3-1',
-        content: 'Right-click on the message and select "Delete"',
-        role: 'assistant',
-        parentMessageId: 'tutorial-2-3',
-        timestamp: Date.now(),
-        model: 'openai/chatgpt-4o-latest',
-      },
-      {
-        id: 'tutorial-2-3-2',
-        content: 'Press "Delete" on your keyboard, all messages under this message will be deleted',
-        role: 'assistant',
-        parentMessageId: 'tutorial-2-3',
-        timestamp: Date.now(),
-        model: 'openai/chatgpt-4o-latest',
-      },
-      {
-        id: 'tutorial-2-4',
-        content: 'How do I create a new session?',
-        role: 'user',
-        parentMessageId: 'tutorial-2',
-        timestamp: Date.now(),
-        model: 'openai/chatgpt-4o-latest',
-      },
-      {
-        id: 'tutorial-2-4-1',
-        content: 'Click to blank area to cancel selection, then input text and press "Enter", a new session will be created',
-        role: 'assistant',
-        parentMessageId: 'tutorial-2-4',
-        timestamp: Date.now(),
-        model: 'openai/chatgpt-4o-latest',
-      },
-      {
-        id: 'tutorial-2-5',
-        content: 'How do I change the model for next messages?',
-        role: 'user',
-        parentMessageId: 'tutorial-2',
-        timestamp: Date.now(),
-        model: 'openai/chatgpt-4o-latest',
-      },
-      {
-        id: 'tutorial-2-5-1',
-        content: 'input `model=openai/gpt-3.5-turbo` in the input box, then press "Enter"',
-        role: 'assistant',
-        parentMessageId: 'tutorial-2-5',
-        timestamp: Date.now(),
-      },
-      {
-        id: 'tutorial-2-5-2',
-        content: 'Repeat it',
-        role: 'user',
-        parentMessageId: 'tutorial-2-5-1',
-        timestamp: Date.now(),
-        model: 'openai/gpt-3.5-turbo',
-      },
-      {
-        id: 'tutorial-2-5-3',
-        content: 'input `model=openai/gpt-4o-latest` in the input box, then press "Enter"',
-        role: 'assistant',
-        parentMessageId: 'tutorial-2-5-2',
-        timestamp: Date.now(),
-        model: 'openai/gpt-3.5-turbo',
-      },
-      {
-        id: 'tutorial-2-6',
-        content: 'I think this app is great! How can I support this project?',
-        role: 'user',
-        parentMessageId: 'tutorial-2',
-        timestamp: Date.now(),
-        model: 'openai/chatgpt-4o-latest',
-      },
-      {
-        id: 'tutorial-2-6-1',
-        content: 'Starring the repo on [GitHub](https://github.com/LemonNekoGH/flow-chat)',
-        role: 'assistant',
-        parentMessageId: 'tutorial-2-6',
-        timestamp: Date.now(),
-        model: 'openai/chatgpt-4o-latest',
-      },
-      {
-        id: 'tutorial-2-7',
-        content: 'How do I restore this tutorial?',
-        role: 'user',
-        parentMessageId: 'tutorial-2',
-        timestamp: Date.now(),
-        model: 'openai/chatgpt-4o-latest',
-      },
-      {
-        id: 'tutorial-2-7-1',
-        content: 'Click the "Restore Tutorial" button in the settings dialog',
-        role: 'assistant',
-        parentMessageId: 'tutorial-2-7',
-        timestamp: Date.now(),
-        model: 'openai/chatgpt-4o-latest',
-      },
-    )
-  }
-
-  function newMessage(text: string, role: MessageRole, parentMessageId: string | null = null, model?: string) {
-    const id = crypto.randomUUID()
-    const message: Message = {
-      id,
+  // Pure functions for state transformations
+  function createMessageState(
+    text: string,
+    role: MessageRole,
+    parentMessageId: string | null,
+    model: string | undefined,
+    roomId: string,
+  ): Message {
+    return {
+      id: crypto.randomUUID(),
       content: text,
       role,
       parentMessageId,
       timestamp: Date.now(),
       model,
+      roomId,
     }
+  }
 
-    messages.value.push(message)
+  function updateMessageContent(message: Message, text: string): Message {
+    return {
+      ...message,
+      content: message.content + text,
+    }
+  }
 
+  // Storage operations
+  function persistMessages(newMap: RoomMessageMap) {
+    messagesStorage.value = Array.from(newMap.entries()).map(
+      ([roomId, messages]) => [roomId, Array.from(messages.entries())],
+    )
+  }
+
+  // Business logic
+  function newMessage(
+    text: string,
+    role: MessageRole,
+    parentMessageId: string | null = null,
+    model?: string,
+    roomId: string = '',
+  ) {
+    const message = createMessageState(text, role, parentMessageId, model, roomId)
+
+    const newMap = new Map(messagesByRoom.value)
+    const roomMessages = newMap.get(roomId) || new Map()
+    roomMessages.set(message.id, message)
+    newMap.set(roomId, roomMessages)
+
+    persistMessages(newMap)
     return message
   }
 
-  function updateMessage(id: string, text: string) {
-    const message = getMessageById(id)
-    if (!message) {
-      return
+  function updateMessage(id: string, text: string): boolean {
+    const newMap = new Map(messagesByRoom.value)
+
+    for (const [roomId, roomMessages] of newMap.entries()) {
+      const message = roomMessages.get(id)
+      if (message) {
+        const updatedMessage = updateMessageContent(message, text)
+        roomMessages.set(id, updatedMessage)
+        newMap.set(roomId, roomMessages)
+        persistMessages(newMap)
+        return true
+      }
     }
-    message.content += text
+
+    return false
   }
 
-  function deleteMessages(ids: string[]) {
+  function deleteMessages(ids: string[]): boolean {
     if (!ids.length)
-      return
+      return false
 
-    messages.value = messages.value.filter(message => !ids.includes(message.id))
+    const newMap = new Map(messagesByRoom.value)
+    let hasChanges = false
+
+    for (const [roomId, roomMessages] of newMap.entries()) {
+      const newRoomMessages = new Map(roomMessages)
+      for (const id of ids) {
+        if (newRoomMessages.delete(id)) {
+          hasChanges = true
+        }
+      }
+
+      if (newRoomMessages.size === 0) {
+        newMap.delete(roomId)
+      }
+      else {
+        newMap.set(roomId, newRoomMessages)
+      }
+    }
+
+    if (hasChanges) {
+      persistMessages(newMap)
+    }
+    return hasChanges
   }
 
-  function deleteSubtree(id: string) {
-    deleteMessages(getSubtreeById(id))
+  function deleteSubtree(id: string): boolean {
+    return deleteMessages(getSubtreeById(id))
   }
 
-  function getMessageById(id?: string | null) {
-    return messages.value.find(message => message.id === id)
+  // Pure query functions
+  function getMessageById(id?: string | null): Message | undefined {
+    if (!id)
+      return undefined
+
+    for (const roomMessages of messagesByRoom.value.values()) {
+      const message = roomMessages.get(id)
+      if (message)
+        return message
+    }
+    return undefined
   }
 
-  function getParentMessage(msg: Message) {
+  function getParentMessage(msg: Message): Message | undefined {
     return getMessageById(msg.parentMessageId)
   }
 
-  function getChildMessagesById(id?: string | null) {
-    return messages.value.filter(message => message.parentMessageId === id)
+  function getChildMessagesById(id?: string | null): Message[] {
+    if (!id)
+      return []
+
+    const children: Message[] = []
+    for (const roomMessages of messagesByRoom.value.values()) {
+      for (const message of roomMessages.values()) {
+        if (message.parentMessageId === id) {
+          children.push(message)
+        }
+      }
+    }
+    return children
   }
 
   function getBranchById(id?: string | null) {
     const messages: Message[] = []
     const ids = new Set<string>()
+
     for (let message = getMessageById(id); message; message = getParentMessage(message)) {
       messages.push(message)
       ids.add(message.id)
     }
+
     return { messages: messages.reverse(), ids } as const
   }
 
-  function getSubtreeById(id: string) {
-    // use BFS to get all message IDs in the subtree
-    //  1. to avoid DFS's recursion, which will be a little bit better for performance
-    //  2. we can simply return the BFS queue, for free!
+  function getSubtreeById(id: string): string[] {
     const descendants = [id]
     for (let i = 0; i < descendants.length; i++) {
-      for (const { id } of getChildMessagesById(descendants[i])) descendants.push(id)
+      for (const { id } of getChildMessagesById(descendants[i])) {
+        descendants.push(id)
+      }
     }
     return descendants
   }
 
-  return {
-    messages,
+  function getMessagesByRoomId(roomId?: string | null): Message[] {
+    if (!roomId)
+      return []
+    const roomMessages = messagesByRoom.value.get(roomId)
+    return roomMessages ? Array.from(roomMessages.values()) : []
+  }
 
+  function restoreTutorial() {
+    deleteSubtree('tutorial-root')
+
+    const newMap = new Map(messagesByRoom.value)
+    for (const message of tutorialMessages) {
+      const roomMessages = newMap.get(message.roomId) || new Map()
+      roomMessages.set(message.id, message)
+      newMap.set(message.roomId, roomMessages)
+    }
+
+    persistMessages(newMap)
+    return true
+  }
+
+  return {
+    // State
+    messages: computed(() => {
+      const allMessages: Message[] = []
+      for (const roomMessages of messagesByRoom.value.values()) {
+        allMessages.push(...roomMessages.values())
+      }
+      return allMessages
+    }),
+
+    // Actions
     newMessage,
     updateMessage,
     deleteMessages,
     deleteSubtree,
 
+    // Queries
     getMessageById,
     getParentMessage,
     getChildMessagesById,
     getBranchById,
     getSubtreeById,
-
+    getMessagesByRoomId,
     restoreTutorial,
   }
-}, {
-  persist: true,
 })
