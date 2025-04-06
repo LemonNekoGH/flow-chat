@@ -113,6 +113,13 @@ export default defineConfig({
     environment: 'jsdom',
   },
 
+  optimizeDeps: {
+    exclude: [
+      '@proj-airi/drizzle-duckdb-wasm',
+      '@proj-airi/drizzle-duckdb-wasm/*',
+    ],
+  },
+
   build: {
     sourcemap: true,
   },

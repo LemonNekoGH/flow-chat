@@ -116,6 +116,7 @@ export const useTemplatesStore = defineStore('templates', () => {
     const newMap = new Map(templatesMap.value)
 
     // If deleting the default template, set another as default
+    // TODO: default template cannot be deleted
     if (template.isDefault && newMap.size > 1) {
       const [firstId, firstTemplate] = Array.from(newMap.entries())
         .find(([tid]) => tid !== id) ?? []

@@ -329,6 +329,7 @@ function handleForkWith() {
 }
 
 // Handle forking - now this just selects the message without generating
+// FIXME: feature broken
 function handleFork(messageId: string | null) {
   if (messageId) {
     selectedMessageId.value = messageId

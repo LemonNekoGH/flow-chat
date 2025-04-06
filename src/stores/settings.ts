@@ -7,6 +7,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const apiKey = ref('')
   const baseURL = ref('')
   const model = ref('')
+  const defaultTemplateId = ref('')
   const models = ref<Model[]>([])
   const isLoadingModels = ref(false)
 
@@ -37,6 +38,7 @@ export const useSettingsStore = defineStore('settings', () => {
     apiKey,
     baseURL,
     model,
+    defaultTemplateId,
     showSettingsDialog,
     models,
     isLoadingModels,

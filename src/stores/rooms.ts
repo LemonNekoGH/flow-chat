@@ -60,7 +60,7 @@ export const useRoomsStore = defineStore('rooms', () => {
       ? templatesStore.getTemplateById(templateId)
       : templatesStore.defaultTemplate || templatesStore.templates[0]
 
-    const systemPrompt = template?.systemPrompt || ''
+    const systemPrompt = template?.content || ''
     const { id: systemPromptId } = messagesStore.newMessage(systemPrompt, 'system', null, undefined, '')
 
     const room = createRoomState(name, systemPromptId)
