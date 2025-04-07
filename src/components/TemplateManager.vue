@@ -133,14 +133,13 @@ watch([showAddDialog, showEditDialog, showDeleteConfirm], ([add, edit, del]) => 
       <div
         v-for="template in templatesStore.templates"
         :key="template.id"
-        class="border border-gray-200 rounded-md p-4 transition-colors dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+        class="border border-gray-200 rounded-md px-3 py-2 transition-colors dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
       >
         <div class="mb-2 flex flex-col">
-          <div class="flex justify-between gap-2">
-            <h3 class="font-medium">
+          <div class="flex items-center justify-between gap-2">
+            <h3 class="text-sm font-medium">
               {{ template.name }}
             </h3>
-
             <div class="flex gap-2">
               <Button v-if="!template.isDefault" variant="ghost" size="icon" class="h-7 w-7" @click="setAsDefault(template.id)">
                 <div class="i-solar-star-bold text-sm" title="Set as default" />
@@ -162,7 +161,7 @@ watch([showAddDialog, showEditDialog, showDeleteConfirm], ([add, edit, del]) => 
         </div>
 
         <div class="line-clamp-3 text-sm text-gray-600 dark:text-gray-400">
-          <div v-if="template.isDefault" class="inline-block rounded-full bg-primary/20 px-2 py-0.5 text-xs text-primary">
+          <div v-if="template.isDefault" class="inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
             Default
           </div>
 

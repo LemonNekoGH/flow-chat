@@ -149,8 +149,9 @@ function deleteRoom(id: string) {
         <div
           v-for="room in group.rooms"
           :key="room.id"
-          class="group flex cursor-pointer items-center justify-between rounded-md px-3 py-2 hover:bg-primary/10" :class="[
-            roomsStore.currentRoomId === room.id ? 'bg-primary/20' : '',
+          class="group flex cursor-pointer items-center justify-between rounded-md px-3 py-2 transition-all duration-200 transition-ease-in-out hover:bg-primary/10"
+          :class="[
+            roomsStore.currentRoomId === room.id ? 'bg-primary/5' : '',
           ]"
           @click="roomsStore.setCurrentRoom(room.id)"
         >
