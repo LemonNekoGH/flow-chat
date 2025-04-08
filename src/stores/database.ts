@@ -7,7 +7,7 @@ import { defineStore } from 'pinia'
 
 import { ref } from 'vue'
 import * as schema from '../../db/schema'
-import migration1 from '../../drizzle/0000_silent_black_tarantula.sql?raw'
+import migration1 from '../../drizzle/0000_next_talos.sql?raw'
 
 export const useDatabaseStore = defineStore('database', () => {
   const logger = useLogg('database')

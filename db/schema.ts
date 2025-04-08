@@ -1,10 +1,11 @@
 import { sql } from 'drizzle-orm'
 import { pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 
-export const systemPrompts = pgTable('system_prompts', () => ({
+export const templates = pgTable('templates', () => ({
   id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
   name: text('name').notNull(),
-  content: text('content').notNull(),
+  systemPrompt: text('system_prompt').notNull(),
+  // TODO: temperature or something else AI settings.
   createdAt: timestamp('created_at').notNull().default(sql`now()`),
   updatedAt: timestamp('updated_at').notNull().default(sql`now()`),
 }))
@@ -12,7 +13,7 @@ export const systemPrompts = pgTable('system_prompts', () => ({
 export const rooms = pgTable('rooms', () => ({
   id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
   name: text('name').notNull(),
-  systemPromptId: uuid('system_prompt_id').references(() => systemPrompts.id),
+  templateId: uuid('template_id').references(() => templates.id),
   defaultModel: text('default_model'),
   createdAt: timestamp('created_at').notNull().default(sql`now()`),
   updatedAt: timestamp('updated_at').notNull().default(sql`now()`),
