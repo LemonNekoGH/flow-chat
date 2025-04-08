@@ -28,6 +28,3 @@ CREATE TABLE "templates" (
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "templates_id_unique" UNIQUE("id")
 );
---> statement-breakpoint
-ALTER TABLE "messages" ADD CONSTRAINT "messages_room_id_rooms_id_fk" FOREIGN KEY ("room_id") REFERENCES "public"."rooms"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "rooms" ADD CONSTRAINT "rooms_template_id_templates_id_fk" FOREIGN KEY ("template_id") REFERENCES "public"."templates"("id") ON DELETE no action ON UPDATE no action;

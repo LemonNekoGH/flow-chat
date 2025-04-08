@@ -4,8 +4,8 @@ import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useTemplateModel } from '~/models/template'
 import { useMessagesStore } from './messages'
-import { useTemplatesStore } from './templates'
 
 // Type definition for our room map
 type RoomMap = Map<string, Room>
@@ -16,7 +16,7 @@ export const useRoomsStore = defineStore('rooms', () => {
   const currentRoomId = useLocalStorage<string | null>('flow-chat-current-room', null)
 
   const messagesStore = useMessagesStore()
-  const templatesStore = useTemplatesStore()
+  const templateModel = useTemplateModel()
   const router = useRouter()
 
   // Pure computed values
@@ -55,12 +55,12 @@ export const useRoomsStore = defineStore('rooms', () => {
   }
 
   // Business logic
-  function createRoom(name: string, templateId?: string) {
+  async function createRoom(name: string, templateId?: string) {
     const template = templateId
-      ? templatesStore.getTemplateById(templateId)
-      : templatesStore.defaultTemplate || templatesStore.templates[0]
+      ? (await templateModel.getById(templateId))[0]
+      : (await templateModel.getAll())[0]
 
-    const systemPrompt = template?.content || ''
+    const systemPrompt = template?.system_prompt || ''
     const { id: systemPromptId } = messagesStore.newMessage(systemPrompt, 'system', null, undefined, '')
 
     const room = createRoomState(name, systemPromptId)
@@ -144,8 +144,6 @@ export const useRoomsStore = defineStore('rooms', () => {
   }
 
   function initialize() {
-    templatesStore.initialize()
-
     if (roomsMap.value.size === 0) {
       const room = createRoom('Default Chat')
       return room

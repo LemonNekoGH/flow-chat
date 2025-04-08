@@ -16,10 +16,10 @@ import DialogHeader from '~/components/ui/dialog/DialogHeader.vue'
 import DialogTitle from '~/components/ui/dialog/DialogTitle.vue'
 import Input from '~/components/ui/input/Input.vue'
 import { useRoomsStore } from '~/stores/rooms'
-import { useTemplatesStore } from '~/stores/templates'
+import { useSettingsStore } from '~/stores/settings'
 
 const roomsStore = useRoomsStore()
-const templatesStore = useTemplatesStore()
+const settingsStore = useSettingsStore()
 
 // Dialog states
 const showRenameDialog = ref(false)
@@ -29,7 +29,6 @@ const renameRoomId = ref('')
 const renameRoomName = ref('')
 
 // Initialize stores
-templatesStore.initialize()
 roomsStore.initialize()
 
 interface GroupedRoom {
@@ -87,12 +86,9 @@ const groupedRooms = computed<GroupedRoom[]>(() => {
 })
 
 async function createNewChat() {
-  // Use the default template
-  const templateId = templatesStore.defaultTemplate?.id || templatesStore.templates[0]?.id
-
   // Create a room with timestamp in the name
   const timestamp = format(new Date(), 'MMM d h:mm a', { locale: enUS })
-  const room = roomsStore.createRoom(`Chat ${timestamp}`, templateId)
+  const room = await roomsStore.createRoom(`Chat ${timestamp}`, settingsStore.defaultTemplateId)
 
   toast.success('Chat created successfully')
 

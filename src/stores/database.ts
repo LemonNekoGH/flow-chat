@@ -57,10 +57,19 @@ export const useDatabaseStore = defineStore('database', () => {
     migrating.value = false
   }
 
+  async function persistData() {
+    if (!db.value)
+      return
+
+    // force write WAL log to main database file
+    await db.value.execute('PRAGMA wal_checkpoint(FULL);')
+  }
+
   return {
     db,
     migrating,
 
     initialize,
+    persistData,
   }
 })

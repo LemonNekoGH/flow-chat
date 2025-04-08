@@ -4,19 +4,19 @@ import { pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 export const templates = pgTable('templates', () => ({
   id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
   name: text('name').notNull(),
-  systemPrompt: text('system_prompt').notNull(),
+  system_prompt: text('system_prompt').notNull(),
   // TODO: temperature or something else AI settings.
-  createdAt: timestamp('created_at').notNull().default(sql`now()`),
-  updatedAt: timestamp('updated_at').notNull().default(sql`now()`),
+  created_at: timestamp('created_at').notNull().default(sql`now()`),
+  updated_at: timestamp('updated_at').notNull().default(sql`now()`),
 }))
 
 export const rooms = pgTable('rooms', () => ({
   id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
   name: text('name').notNull(),
-  templateId: uuid('template_id').references(() => templates.id),
-  defaultModel: text('default_model'),
-  createdAt: timestamp('created_at').notNull().default(sql`now()`),
-  updatedAt: timestamp('updated_at').notNull().default(sql`now()`),
+  template_id: uuid('template_id').references(() => templates.id),
+  default_model: text('default_model'),
+  created_at: timestamp('created_at').notNull().default(sql`now()`),
+  updated_at: timestamp('updated_at').notNull().default(sql`now()`),
 }))
 
 export const messages = pgTable('messages', () => ({
@@ -24,8 +24,8 @@ export const messages = pgTable('messages', () => ({
   content: text('content').notNull(),
   model: text('model').notNull(),
   role: text('role').notNull(),
-  roomId: uuid('room_id').references(() => rooms.id),
-  parentId: uuid('parent_id'),
-  createdAt: timestamp('created_at').notNull().default(sql`now()`),
-  updatedAt: timestamp('updated_at').notNull().default(sql`now()`),
+  room_id: uuid('room_id').references(() => rooms.id),
+  parent_id: uuid('parent_id'),
+  created_at: timestamp('created_at').notNull().default(sql`now()`),
+  updated_at: timestamp('updated_at').notNull().default(sql`now()`),
 }))

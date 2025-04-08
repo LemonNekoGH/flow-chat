@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import type { Template } from '~/types/templates'
+import { onMounted, ref, watch } from 'vue'
 import Button from '~/components/ui/button/Button.vue'
 import Dialog from '~/components/ui/dialog/Dialog.vue'
 import DialogContent from '~/components/ui/dialog/DialogContent.vue'
@@ -8,12 +9,13 @@ import DialogTitle from '~/components/ui/dialog/DialogTitle.vue'
 import Input from '~/components/ui/input/Input.vue'
 import Label from '~/components/ui/label/Label.vue'
 import Textarea from '~/components/ui/textarea/Textarea.vue'
-import { useTemplatesStore } from '~/stores/templates'
+import { useTemplateModel } from '~/models/template'
+import { useSettingsStore } from '~/stores/settings'
 
-const templatesStore = useTemplatesStore()
+const templateModel = useTemplateModel()
+const settingsStore = useSettingsStore()
 
-// Initialize templates if empty
-templatesStore.initialize()
+const templates = ref<Template[]>([])
 
 // Dialog states
 const showAddDialog = ref(false)
@@ -46,42 +48,39 @@ function openAddDialog() {
   showAddDialog.value = true
 }
 
-function createTemplate() {
+async function createTemplate() {
   if (!addTemplateForm.value.name.trim() || !addTemplateForm.value.prompt.trim())
     return
 
-  templatesStore.createTemplate(
+  await templateModel.create(
     addTemplateForm.value.name.trim(),
     addTemplateForm.value.prompt.trim(),
-    addTemplateForm.value.isDefault,
   )
+  templates.value = await templateModel.getAll()
 
   showAddDialog.value = false
 }
 
-function openEditDialog(id: string) {
-  const template = templatesStore.getTemplateById(id)
+async function openEditDialog(id: string) {
+  const template = (await templateModel.getById(id))[0]
   if (!template)
     return
 
   editTemplateForm.value = {
     id,
     name: template.name,
-    prompt: template.systemPrompt,
-    isDefault: template.isDefault,
+    prompt: template.system_prompt,
+    isDefault: settingsStore.defaultTemplateId === id,
   }
   showEditDialog.value = true
 }
 
-function updateTemplate() {
+async function updateTemplate() {
   if (!editTemplateForm.value.id || !editTemplateForm.value.name.trim() || !editTemplateForm.value.prompt.trim())
     return
 
-  templatesStore.updateTemplate(editTemplateForm.value.id, {
-    name: editTemplateForm.value.name.trim(),
-    systemPrompt: editTemplateForm.value.prompt.trim(),
-    isDefault: editTemplateForm.value.isDefault,
-  })
+  await templateModel.update(editTemplateForm.value.id, editTemplateForm.value.name.trim(), editTemplateForm.value.prompt.trim())
+  templates.value = await templateModel.getAll()
 
   showEditDialog.value = false
 }
@@ -91,17 +90,18 @@ function confirmDeleteTemplate(id: string) {
   showDeleteConfirm.value = true
 }
 
-function deleteTemplate() {
+async function deleteTemplate() {
   if (!templateToDelete.value)
     return
 
-  templatesStore.deleteTemplate(templateToDelete.value)
+  await templateModel.destroy(templateToDelete.value)
+  templates.value = await templateModel.getAll()
   showDeleteConfirm.value = false
   templateToDelete.value = ''
 }
 
 function setAsDefault(id: string) {
-  templatesStore.updateTemplate(id, { isDefault: true })
+  settingsStore.defaultTemplateId = id
 }
 
 // Close modals on ESC key
@@ -111,6 +111,10 @@ watch([showAddDialog, showEditDialog, showDeleteConfirm], ([add, edit, del]) => 
     editTemplateForm.value = { id: '', name: '', prompt: '', isDefault: false }
     templateToDelete.value = ''
   }
+})
+
+onMounted(async () => {
+  templates.value = await templateModel.getAll()
 })
 </script>
 
@@ -125,13 +129,13 @@ watch([showAddDialog, showEditDialog, showDeleteConfirm], ([add, edit, del]) => 
       </Button>
     </div>
 
-    <div v-if="templatesStore.templates.length === 0" class="py-8 text-center text-muted-foreground">
+    <div v-if="templates.length === 0" class="py-8 text-center text-muted-foreground">
       No templates found. Create your first template to get started.
     </div>
 
     <div v-else class="flex flex-col gap-3">
       <div
-        v-for="template in templatesStore.templates"
+        v-for="template in templates"
         :key="template.id"
         class="border border-gray-200 rounded-md p-4 transition-colors dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
       >
@@ -149,7 +153,7 @@ watch([showAddDialog, showEditDialog, showDeleteConfirm], ([add, edit, del]) => 
                 <div class="i-solar-pen-2-bold text-sm" />
               </Button>
               <Button
-                v-if="templatesStore.templates.length > 1"
+                v-if="templates.length > 1"
                 variant="ghost"
                 size="icon"
                 class="h-7 w-7"

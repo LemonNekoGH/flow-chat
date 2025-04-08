@@ -12,10 +12,11 @@ export function useTemplateModel() {
       throw new Error('Database not initialized')
     }
 
-    await db.value?.insert(schema.templates).values({
+    await db.value.insert(schema.templates).values({
       name,
-      systemPrompt,
+      system_prompt: systemPrompt,
     })
+    await db.value.execute('CHECKPOINT;')
   }
 
   async function update(id: string, name: string, systemPrompt: string) {
@@ -23,10 +24,11 @@ export function useTemplateModel() {
       throw new Error('Database not initialized')
     }
 
-    await db.value?.update(schema.templates).set({
+    await db.value.update(schema.templates).set({
       name,
-      systemPrompt,
+      system_prompt: systemPrompt,
     }).where(eq(schema.templates.id, id))
+    await db.value.execute('CHECKPOINT;')
   }
 
   async function destroy(id: string) {
@@ -34,7 +36,8 @@ export function useTemplateModel() {
       throw new Error('Database not initialized')
     }
 
-    await db.value?.delete(schema.templates).where(eq(schema.templates.id, id))
+    await db.value.delete(schema.templates).where(eq(schema.templates.id, id))
+    await db.value.execute('CHECKPOINT;')
   }
 
   async function getById(id: string) {
@@ -42,7 +45,15 @@ export function useTemplateModel() {
       throw new Error('Database not initialized')
     }
 
-    return await db.value?.select().from(schema.templates).where(eq(schema.templates.id, id))
+    return await db.value.select().from(schema.templates).where(eq(schema.templates.id, id))
+  }
+
+  async function getAll() {
+    if (!db.value) {
+      throw new Error('Database not initialized')
+    }
+
+    return await db.value.select().from(schema.templates)
   }
 
   return {
@@ -50,5 +61,6 @@ export function useTemplateModel() {
     update,
     destroy,
     getById,
+    getAll,
   }
 }
