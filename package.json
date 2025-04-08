@@ -39,7 +39,6 @@
     "lucide-vue-next": "^0.485.0",
     "nprogress": "^0.2.0",
     "pinia": "^3.0.1",
-    "pinia-plugin-persistedstate": "^4.2.0",
     "radix-vue": "^1.9.17",
     "rehype-highlight": "^7.0.2",
     "reka-ui": "^2.1.1",

@@ -1,13 +1,14 @@
 import type { Model } from 'xsai'
+import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { listModels } from 'xsai'
 
 export const useSettingsStore = defineStore('settings', () => {
-  const apiKey = ref('')
-  const baseURL = ref('')
-  const model = ref('')
-  const defaultTemplateId = ref('')
+  const apiKey = useLocalStorage('settings/apiKey', '')
+  const baseURL = useLocalStorage('settings/baseURL', '')
+  const model = useLocalStorage('settings/model', '')
+  const defaultTemplateId = useLocalStorage('settings/defaultTemplateId', '')
   const models = ref<Model[]>([])
   const isLoadingModels = ref(false)
 
@@ -44,4 +45,4 @@ export const useSettingsStore = defineStore('settings', () => {
     isLoadingModels,
     fetchModels,
   }
-}, { persist: true })
+})
