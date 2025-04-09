@@ -47,12 +47,10 @@ export const useDatabaseStore = defineStore('database', () => {
       migration1,
     ]
 
-    for (let i = 0; i < migrations.length; i++) {
-      if (i > maxId) {
-        logger.log('Running migration', migrations[i])
-        await db.value.execute(migrations[i])
-        await db.value.execute(`INSERT INTO __migrations (id) VALUES (${i});`)
-      }
+    for (let i = maxId + 1; i < migrations.length; i++) {
+      logger.log('Running migration', migrations[i])
+      await db.value.execute(migrations[i])
+      await db.value.execute(`INSERT INTO __migrations (id) VALUES (${i});`)
     }
     migrating.value = false
   }

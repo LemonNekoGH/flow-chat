@@ -6,9 +6,9 @@ import { useRoomsStore } from '~/stores/rooms'
 const router = useRouter()
 const roomsStore = useRoomsStore()
 
-onMounted(() => {
+onMounted(async () => {
   // Initialize rooms
-  const room = roomsStore.initialize()
+  const room = await roomsStore.initialize()
 
   router.replace(`/chat/${room.id}`)
 })

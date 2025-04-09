@@ -145,7 +145,7 @@ onMounted(async () => {
               {{ template.name }}
             </h3>
             <div class="flex gap-2">
-              <Button v-if="!template.isDefault" variant="ghost" size="icon" class="h-7 w-7" @click="setAsDefault(template.id)">
+              <Button v-if="!settingsStore.defaultTemplateId || settingsStore.defaultTemplateId !== template.id" variant="ghost" size="icon" class="h-7 w-7" @click="setAsDefault(template.id)">
                 <div class="i-solar-star-bold text-sm" title="Set as default" />
               </Button>
               <Button variant="ghost" size="icon" class="h-7 w-7" @click="openEditDialog(template.id)">
@@ -165,11 +165,11 @@ onMounted(async () => {
         </div>
 
         <div class="line-clamp-3 text-sm text-gray-600 dark:text-gray-400">
-          <div v-if="template.isDefault" class="inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+          <div v-if="settingsStore.defaultTemplateId === template.id" class="inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
             Default
           </div>
 
-          {{ template.systemPrompt }}
+          {{ template.system_prompt }}
         </div>
       </div>
     </div>

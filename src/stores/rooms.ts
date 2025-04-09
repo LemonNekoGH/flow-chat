@@ -143,9 +143,9 @@ export const useRoomsStore = defineStore('rooms', () => {
       : messagesStore.getMessageById(room.systemPromptId)
   }
 
-  function initialize() {
+  async function initialize() {
     if (roomsMap.value.size === 0) {
-      const room = createRoom('Default Chat')
+      const room = await createRoom('Default Chat')
       return room
     }
 
