@@ -1,6 +1,6 @@
 ---
-description: 
-globs: 
+description:
+globs:
 alwaysApply: true
 ---
 # FlowChat
@@ -13,4 +13,4 @@ alwaysApply: true
 
 - Components here `components/ui`, if you want to use shadcn/vue, just use the cli command to install instead of create component directly.
 - Stores here `stores/`
-- 
+-

@@ -1,8 +1,7 @@
 export interface Template {
   id: string
   name: string
-  systemPrompt: string
-  isDefault: boolean
-  createdAt: number
-  updatedAt: number
+  system_prompt: string
+  created_at: Date
+  updated_at: Date
 }
