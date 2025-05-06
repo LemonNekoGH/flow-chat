@@ -18,11 +18,11 @@ importers:
         specifier: 1.0.6
         version: 1.0.6
       '@proj-airi/drizzle-duckdb-wasm':
-        specifier: ^0.4.23
-        version: 0.4.23(drizzle-orm@0.43.1(gel@2.0.2))
+        specifier: ^0.4.24
+        version: 0.4.24(drizzle-orm@0.43.1(gel@2.0.2))
       '@proj-airi/duckdb-wasm':
-        specifier: ^0.4.23
-        version: 0.4.23(drizzle-orm@0.43.1(gel@2.0.2))
+        specifier: ^0.4.24
+        version: 0.4.24(drizzle-orm@0.43.1(gel@2.0.2))
       '@unhead/vue':
         specifier: ^2.0.8
         version: 2.0.8(vue@3.5.13(typescript@5.8.3))
@@ -1693,8 +1693,8 @@ packages:
   '@polka/url@1.0.0-next.24':
     resolution: {integrity: sha512-2LuNTFBIO0m7kKIQvvPHN6UE63VjpmL9rnEEaOOaiSPbZK+zUOYIzBAWcED+3XYzhYsd/0mD57VdxAEqqV52CQ==}
 
-  '@proj-airi/drizzle-duckdb-wasm@0.4.23':
-    resolution: {integrity: sha512-lFZrapH4EVW8HBKQASnfMsSicerHJQeha4FP/qtC2Y0dyidUM6d5rm03NVglnKq+KMsb85SF/i4lt7XiJBeuaw==}
+  '@proj-airi/drizzle-duckdb-wasm@0.4.24':
+    resolution: {integrity: sha512-LPil7T45sNk4rWsbAmcq+wJmQWgv1WWWgkXEM9/Mpt9lZ46Oq0fTKGHFwhTNIxfRKMxEdwsD7IYfQeV3sj6KtQ==}
     peerDependencies:
       drizzle-orm: '>=0.40.0'
       web-worker: ^1.5.0
@@ -1702,8 +1702,8 @@ packages:
       web-worker:
         optional: true
 
-  '@proj-airi/duckdb-wasm@0.4.23':
-    resolution: {integrity: sha512-q8EWQAtDRm30MkuOwJ+qO3EWoihRGlMTJB3j5TpH5gda8jfAy6FrRmNB5KhbbniMeBqMoUqGdXmuZUXecwntmA==}
+  '@proj-airi/duckdb-wasm@0.4.24':
+    resolution: {integrity: sha512-Md2HWJoJggn9vMLWvD7s6XFIYEPvXu8AurRBMXk4S5r2z/38FzQvn1vK91uOq3oWvrJJvl7mLteVYCKsAtPjYA==}
     peerDependencies:
       drizzle-orm: '>=0.40.0'
       web-worker: ^1.5.0
@@ -7860,11 +7860,11 @@ snapshots:
 
   '@polka/url@1.0.0-next.24': {}
 
-  '@proj-airi/drizzle-duckdb-wasm@0.4.23(drizzle-orm@0.43.1(gel@2.0.2))':
+  '@proj-airi/drizzle-duckdb-wasm@0.4.24(drizzle-orm@0.43.1(gel@2.0.2))':
     dependencies:
       '@date-fns/tz': 1.2.0
       '@duckdb/duckdb-wasm': 1.29.1-dev68.0
-      '@proj-airi/duckdb-wasm': 0.4.23(drizzle-orm@0.43.1(gel@2.0.2))
+      '@proj-airi/duckdb-wasm': 0.4.24(drizzle-orm@0.43.1(gel@2.0.2))
       apache-arrow: 19.0.1
       date-fns: 4.1.0
       defu: 6.1.4
@@ -7873,7 +7873,7 @@ snapshots:
     transitivePeerDependencies:
       - '@75lb/nature'
 
-  '@proj-airi/duckdb-wasm@0.4.23(drizzle-orm@0.43.1(gel@2.0.2))':
+  '@proj-airi/duckdb-wasm@0.4.24(drizzle-orm@0.43.1(gel@2.0.2))':
     dependencies:
       '@date-fns/tz': 1.2.0
       '@duckdb/duckdb-wasm': 1.29.1-dev68.0
