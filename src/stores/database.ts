@@ -1,8 +1,7 @@
 import type { DuckDBWasmDrizzleDatabase } from '@proj-airi/drizzle-duckdb-wasm'
-import { DuckDBAccessMode } from '@duckdb/duckdb-wasm'
 import { useLogg } from '@guiiai/logg'
 import { buildDSN, drizzle } from '@proj-airi/drizzle-duckdb-wasm'
-import { DBStorageType } from '@proj-airi/duckdb-wasm'
+import { DBStorageType, DuckDBAccessMode } from '@proj-airi/duckdb-wasm'
 import { defineStore } from 'pinia'
 
 import { ref } from 'vue'
