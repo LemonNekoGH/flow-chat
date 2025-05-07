@@ -2,17 +2,16 @@ import type { MessageRole } from '~/types/messages'
 import type { Room } from '~/types/rooms'
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useRoomModel } from '~/models/rooms'
 import { useTemplateModel } from '~/models/template'
 import { useMessagesStore } from './messages'
 
-// Type definition for our room map
-type RoomMap = Map<string, Room>
-
 export const useRoomsStore = defineStore('rooms', () => {
   // Persistence layer
-  const roomsStorage = useLocalStorage<[string, Room][]>('flow-chat-rooms', [])
+  const roomModel = useRoomModel()
+  const rooms = ref<Room[]>([])
   const currentRoomId = useLocalStorage<string | null>('flow-chat-current-room', null)
 
   const messagesStore = useMessagesStore()
@@ -20,39 +19,7 @@ export const useRoomsStore = defineStore('rooms', () => {
   const router = useRouter()
 
   // Pure computed values
-  const roomsMap = computed<RoomMap>(() => new Map(roomsStorage.value))
-  const rooms = computed<Room[]>(() => Array.from(roomsMap.value.values()))
-  const currentRoom = computed(() =>
-    currentRoomId.value ? roomsMap.value.get(currentRoomId.value) ?? null : null,
-  )
-
-  // Pure functions for state transformations
-  function createRoomState(name: string, systemPromptId: string): Room {
-    return {
-      id: crypto.randomUUID(),
-      name,
-      systemPromptId,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    }
-  }
-
-  function updateRoomState(room: Room, data: Partial<Omit<Room, 'id' | 'createdAt'>>): Room {
-    return {
-      ...room,
-      ...data,
-      updatedAt: Date.now(),
-    }
-  }
-
-  // Storage operations
-  function persistRooms(newMap: RoomMap) {
-    roomsStorage.value = Array.from(newMap.entries())
-  }
-
-  function persistCurrentRoom(roomId: string | null) {
-    currentRoomId.value = roomId
-  }
+  const currentRoom = computed(() => rooms.value.find(room => room.id === currentRoomId.value) ?? null)
 
   // Business logic
   async function createRoom(name: string, templateId?: string) {
@@ -63,45 +30,33 @@ export const useRoomsStore = defineStore('rooms', () => {
     const systemPrompt = template?.system_prompt || ''
     const { id: systemPromptId } = messagesStore.newMessage(systemPrompt, 'system', null, undefined, '')
 
-    const room = createRoomState(name, systemPromptId)
-    const newMap = new Map(roomsMap.value)
-    newMap.set(room.id, room)
-
-    persistRooms(newMap)
+    const room = await roomModel.create(name, systemPromptId)
     setCurrentRoom(room.id)
+
+    rooms.value = await roomModel.getAll()
 
     return room
   }
 
-  function updateRoom(id: string, data: Partial<Omit<Room, 'id' | 'createdAt'>>) {
-    const room = roomsMap.value.get(id)
-    if (!room)
-      return
+  async function updateRoom(id: string, data: Partial<Omit<Room, 'id' | 'createdAt'>>) {
+    const room = await roomModel.update(id, data)
 
-    const updatedRoom = updateRoomState(room, data)
-    const newMap = new Map(roomsMap.value)
-    newMap.set(id, updatedRoom)
+    rooms.value = await roomModel.getAll()
 
-    persistRooms(newMap)
-    return updatedRoom
+    return room
   }
 
-  function deleteRoom(id: string) {
-    if (roomsMap.value.size <= 1)
-      return false
-
-    const room = roomsMap.value.get(id)
+  async function deleteRoom(id: string) {
+    const room = rooms.value.find(room => room.id === id)
     if (!room)
       return false
 
-    // Handle message cleanup
-    if (room.systemPromptId) {
-      messagesStore.deleteSubtree(room.systemPromptId)
-    }
+    await roomModel.destroy(id)
 
-    const newMap = new Map(roomsMap.value)
-    newMap.delete(id)
-    persistRooms(newMap)
+    // Handle message cleanup
+    if (room.template_id) {
+      messagesStore.deleteSubtree(room.template_id)
+    }
 
     // Handle current room change
     if (currentRoomId.value === id) {
@@ -111,22 +66,24 @@ export const useRoomsStore = defineStore('rooms', () => {
       }
     }
 
+    rooms.value = await roomModel.getAll()
+
     return true
   }
 
   async function setCurrentRoom(id: string) {
-    const room = roomsMap.value.get(id)
+    const room = rooms.value.find(room => room.id === id)
     if (!room)
       return false
 
-    persistCurrentRoom(id)
+    currentRoomId.value = id
 
     router.replace(`/chat/${id}`)
     return true
   }
 
   function createMessage(content: string, role: MessageRole, parentMessageId: string | null = null, model?: string) {
-    const parent = parentMessageId || currentRoom.value?.systemPromptId || null
+    const parent = parentMessageId || currentRoom.value?.template_id || null
     return messagesStore.newMessage(
       content,
       role,
@@ -137,14 +94,15 @@ export const useRoomsStore = defineStore('rooms', () => {
   }
 
   function getRoomSystemPrompt(roomId: string) {
-    const room = roomsMap.value.get(roomId)
-    return (!room || !room.systemPromptId)
+    const room = rooms.value.find(room => room.id === roomId)
+    return (!room || !room.template_id)
       ? null
-      : messagesStore.getMessageById(room.systemPromptId)
+      : messagesStore.getMessageById(room.template_id)
   }
 
   async function initialize() {
-    if (roomsMap.value.size === 0) {
+    rooms.value = await roomModel.getAll()
+    if (rooms.value.length === 0) {
       const room = await createRoom('Default Chat')
       return room
     }

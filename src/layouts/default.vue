@@ -73,7 +73,7 @@ onMounted(async () => {
           <Label for="api-key">
             API Key
           </Label>
-          <Input id="api-key" v-model="apiKey" />
+          <Input id="api-key" v-model="apiKey" type="password" />
           <Label for="base-url">
             Base URL
           </Label>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Room } from '~/types/rooms'
 import {
   format,
   formatDistanceToNow,
@@ -33,12 +34,7 @@ roomsStore.initialize()
 
 interface GroupedRoom {
   title: string
-  rooms: Array<{
-    id: string
-    name: string
-    createdAt: number
-    relativeTime: string
-  }>
+  rooms: Room[]
 }
 
 // Group rooms by date
@@ -51,7 +47,7 @@ const groupedRooms = computed<GroupedRoom[]>(() => {
   ]
 
   roomsStore.rooms.forEach((room) => {
-    const date = new Date(room.createdAt)
+    const date = room.created_at
     const relativeTime = formatDistanceToNow(date, {
       addSuffix: true,
       locale: enUS,
@@ -78,7 +74,7 @@ const groupedRooms = computed<GroupedRoom[]>(() => {
 
   // Sort rooms within each group by creation time (newest first)
   groups.forEach((group) => {
-    group.rooms.sort((a, b) => b.createdAt - a.createdAt)
+    group.rooms.sort((a, b) => b.created_at.getTime() - a.created_at.getTime())
   })
 
   // Only include groups that have rooms
@@ -88,12 +84,17 @@ const groupedRooms = computed<GroupedRoom[]>(() => {
 async function createNewChat() {
   // Create a room with timestamp in the name
   const timestamp = format(new Date(), 'MMM d h:mm a', { locale: enUS })
-  const room = await roomsStore.createRoom(`Chat ${timestamp}`, settingsStore.defaultTemplateId)
 
-  toast.success('Chat created successfully')
-
-  await nextTick()
-  roomsStore.setCurrentRoom(room.id)
+  try {
+    const room = await roomsStore.createRoom(`Chat ${timestamp}`, settingsStore.defaultTemplateId)
+    toast.success('Chat created successfully')
+    await nextTick()
+    roomsStore.setCurrentRoom(room.id)
+  }
+  catch (error) {
+    console.error(error)
+    toast.error('Failed to create chat')
+  }
 }
 
 function openRenameDialog(id: string, name: string) {
@@ -102,23 +103,36 @@ function openRenameDialog(id: string, name: string) {
   showRenameDialog.value = true
 }
 
-function renameRoom() {
+async function renameRoom() {
   if (!renameRoomName.value.trim() || !renameRoomId.value)
     return
 
-  roomsStore.updateRoom(renameRoomId.value, {
-    name: renameRoomName.value.trim(),
-  })
-
-  renameRoomId.value = ''
-  renameRoomName.value = ''
-  showRenameDialog.value = false
-  toast.success('Chat renamed successfully')
+  try {
+    await roomsStore.updateRoom(renameRoomId.value, {
+      name: renameRoomName.value.trim(),
+    })
+    toast.success('Chat renamed successfully')
+  }
+  catch (error) {
+    console.error(error)
+    toast.error('Failed to rename chat')
+  }
+  finally {
+    renameRoomId.value = ''
+    renameRoomName.value = ''
+    showRenameDialog.value = false
+  }
 }
 
-function deleteRoom(id: string) {
-  roomsStore.deleteRoom(id)
-  toast.success('Chat deleted successfully')
+async function deleteRoom(id: string) {
+  try {
+    await roomsStore.deleteRoom(id)
+    toast.success('Chat deleted successfully')
+  }
+  catch (error) {
+    console.error(error)
+    toast.error('Failed to delete chat')
+  }
 }
 </script>
 
