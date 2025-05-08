@@ -118,6 +118,7 @@ export default defineConfig({
 
   optimizeDeps: {
     exclude: [
+      '@proj-airi/duckdb-wasm',
       '@proj-airi/drizzle-duckdb-wasm',
       '@proj-airi/drizzle-duckdb-wasm/*',
     ],

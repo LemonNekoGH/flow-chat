@@ -19,10 +19,10 @@ importers:
         version: 1.0.6
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: ^0.4.24
-        version: 0.4.24(drizzle-orm@0.43.1(gel@2.0.2))
+        version: 0.4.24(drizzle-orm@0.43.1(gel@2.0.2))(web-worker@1.5.0)
       '@proj-airi/duckdb-wasm':
         specifier: ^0.4.24
-        version: 0.4.24(drizzle-orm@0.43.1(gel@2.0.2))
+        version: 0.4.24(drizzle-orm@0.43.1(gel@2.0.2))(web-worker@1.5.0)
       '@unhead/vue':
         specifier: ^2.0.8
         version: 2.0.8(vue@3.5.13(typescript@5.8.3))
@@ -219,6 +219,9 @@ importers:
       vue-tsc:
         specifier: ^2.2.10
         version: 2.2.10(typescript@5.8.3)
+      web-worker:
+        specifier: ^1.5.0
+        version: 1.5.0
 
 packages:
 
@@ -6169,6 +6172,9 @@ packages:
   wbuf@1.7.3:
     resolution: {integrity: sha512-O84QOnr0icsbFGLS0O3bI5FswxzRr8/gHwWkDlQFskhSPryQXvrTMxjxGP4+iWYoauLoBvfDpkrOauZ+0iZpDA==}
 
+  web-worker@1.5.0:
+    resolution: {integrity: sha512-RiMReJrTAiA+mBjGONMnjVDP2u3p9R1vkcGz6gDIrOMT3oGuYwX2WRMYI9ipkphSuE5XKEhydbhNEJh4NY9mlw==}
+
   webidl-conversions@4.0.2:
     resolution: {integrity: sha512-YQ+BmxuTgd6UXZW3+ICGfyqRyHXVlD5GtQr5+qjiNW7bF0cqrzX500HVXPBOvgXb5YnzDd+h0zqyv61KUD7+Sg==}
 
@@ -7860,20 +7866,22 @@ snapshots:
 
   '@polka/url@1.0.0-next.24': {}
 
-  '@proj-airi/drizzle-duckdb-wasm@0.4.24(drizzle-orm@0.43.1(gel@2.0.2))':
+  '@proj-airi/drizzle-duckdb-wasm@0.4.24(drizzle-orm@0.43.1(gel@2.0.2))(web-worker@1.5.0)':
     dependencies:
       '@date-fns/tz': 1.2.0
       '@duckdb/duckdb-wasm': 1.29.1-dev68.0
-      '@proj-airi/duckdb-wasm': 0.4.24(drizzle-orm@0.43.1(gel@2.0.2))
+      '@proj-airi/duckdb-wasm': 0.4.24(drizzle-orm@0.43.1(gel@2.0.2))(web-worker@1.5.0)
       apache-arrow: 19.0.1
       date-fns: 4.1.0
       defu: 6.1.4
       drizzle-orm: 0.43.1(gel@2.0.2)
       es-toolkit: 1.37.2
+    optionalDependencies:
+      web-worker: 1.5.0
     transitivePeerDependencies:
       - '@75lb/nature'
 
-  '@proj-airi/duckdb-wasm@0.4.24(drizzle-orm@0.43.1(gel@2.0.2))':
+  '@proj-airi/duckdb-wasm@0.4.24(drizzle-orm@0.43.1(gel@2.0.2))(web-worker@1.5.0)':
     dependencies:
       '@date-fns/tz': 1.2.0
       '@duckdb/duckdb-wasm': 1.29.1-dev68.0
@@ -7882,6 +7890,8 @@ snapshots:
       defu: 6.1.4
       drizzle-orm: 0.43.1(gel@2.0.2)
       es-toolkit: 1.37.2
+    optionalDependencies:
+      web-worker: 1.5.0
     transitivePeerDependencies:
       - '@75lb/nature'
 
@@ -13260,6 +13270,8 @@ snapshots:
   wbuf@1.7.3:
     dependencies:
       minimalistic-assert: 1.0.1
+
+  web-worker@1.5.0: {}
 
   webidl-conversions@4.0.2: {}
 
