@@ -34,7 +34,7 @@ roomsStore.initialize()
 
 interface GroupedRoom {
   title: string
-  rooms: Room[]
+  rooms: (Room & { relative_time: string })[]
 }
 
 // Group rooms by date
@@ -55,7 +55,7 @@ const groupedRooms = computed<GroupedRoom[]>(() => {
 
     const roomWithTime = {
       ...room,
-      relativeTime,
+      relative_time: relativeTime,
     }
 
     if (isToday(date)) {
@@ -169,7 +169,7 @@ async function deleteRoom(id: string) {
             <div class="i-solar-chat-line-bold text-lg" />
             <div class="flex flex-col">
               <span class="line-clamp-1 text-sm">{{ room.name }}</span>
-              <span class="text-xs text-muted-foreground">{{ room.relativeTime }}</span>
+              <span class="text-xs text-muted-foreground">{{ room.relative_time }}</span>
             </div>
           </div>
 
