@@ -13,26 +13,14 @@ export const useDatabaseStore = defineStore('database', () => {
 
   const migrating = ref(false)
   const db = ref<DuckDBWasmDrizzleDatabase<typeof schema>>()
-  const dsn = buildDSN({
-    scheme: 'duckdb-wasm:',
-    bundles: 'import-url',
-    logger: true,
-    storage: {
-      type: DBStorageType.ORIGIN_PRIVATE_FS,
-      path: 'flow_chat.db',
-      accessMode: DuckDBAccessMode.READ_WRITE,
-    },
-  })
-  logger.log('dsn', dsn)
 
-  async function initialize() {
-    if (db.value) {
-      logger.warn('Database connection already initialized')
+  async function migrate(migrations?: string[]) {
+    if (!db.value) {
+      logger.warn('Database connection not initialized')
       return
     }
 
     migrating.value = true
-    db.value = drizzle(dsn, { schema })
     await db.value.execute(`CREATE TABLE IF NOT EXISTS __migrations (
       id INTEGER PRIMARY KEY,
       executed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -42,16 +30,50 @@ export const useDatabaseStore = defineStore('database', () => {
     const executedMigrations = await db.value.execute<{ id: number }>('SELECT id FROM __migrations')
     const maxId = executedMigrations.reduce((max, migration) => Math.max(max, migration.id), -1)
 
-    const migrations = [ // TODO: unit test
+    const m = migrations ?? [ // TODO: unit test
       migration1,
     ]
 
-    for (let i = maxId + 1; i < migrations.length; i++) {
-      logger.log('Running migration', migrations[i])
-      await db.value.execute(migrations[i])
+    for (let i = maxId + 1; i < m.length; i++) {
+      logger.log('Running migration', m[i])
+      await db.value.execute(m[i])
       await db.value.execute(`INSERT INTO __migrations (id) VALUES (${i});`)
     }
+
+    logger.log('Database migrations completed')
     migrating.value = false
+  }
+
+  async function initialize(inMemory = false) {
+    if (db.value) {
+      logger.warn('Database connection already initialized')
+      return
+    }
+
+    const dsn = inMemory
+      ? 'duckdb-wasm:'
+      : buildDSN({
+          scheme: 'duckdb-wasm:',
+          bundles: 'import-url',
+          logger: true,
+          storage: {
+            type: DBStorageType.ORIGIN_PRIVATE_FS,
+            path: 'flow_chat.db',
+            accessMode: DuckDBAccessMode.READ_WRITE,
+          },
+        })
+    logger.log('dsn', dsn)
+
+    db.value = drizzle(dsn, { schema })
+
+    // It can only use in node environment
+    // await migrate(db.value, {
+    //   migrationsFolder: 'drizzle',
+    //   migrationsTable: '__migrations',
+    //   migrationsSchema: 'public',
+    // })
+
+    logger.log('Database initialized')
   }
 
   async function persistData() {
@@ -67,6 +89,7 @@ export const useDatabaseStore = defineStore('database', () => {
     migrating,
 
     initialize,
+    migrate,
     persistData,
   }
 })

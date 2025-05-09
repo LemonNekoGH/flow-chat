@@ -21,9 +21,9 @@ const message = computed(() => {
   else {
     // Use current room's system prompt ID
     const currentRoom = roomsStore.currentRoom
-    if (!currentRoom || !currentRoom.systemPromptId)
+    if (!currentRoom || !currentRoom.template_id)
       return null
-    return messagesStore.getMessageById(currentRoom.systemPromptId)
+    return messagesStore.getMessageById(currentRoom.template_id)
   }
 })
 </script>

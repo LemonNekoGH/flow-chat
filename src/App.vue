@@ -8,6 +8,7 @@ const dbStore = useDatabaseStore()
 onMounted(async () => {
   try {
     await dbStore.initialize()
+    await dbStore.migrate()
   }
   catch (error) {
     console.error(error)
