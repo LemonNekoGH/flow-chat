@@ -1,11 +1,22 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
+import ModelSelector from '~/components/ModelSelector.vue'
 import TemplateManager from '~/components/TemplateManager.vue'
+import Button from '~/components/ui/button/Button.vue'
+import Input from '~/components/ui/input/Input.vue'
 import { useSettingsStore } from '~/stores/settings'
 
 const settingsStore = useSettingsStore()
-const { apiKey, baseURL, model, models } = storeToRefs(settingsStore)
+const { textGeneration, imageGeneration } = storeToRefs(settingsStore)
+
+// Model selector state
+const showModelSelector = ref(false)
+
+// Handle model selection
+function handleModelSelect(selectedModelValue: string) {
+  textGeneration.value.model = selectedModelValue
+}
 
 onMounted(async () => {
   await settingsStore.fetchModels()
@@ -19,54 +30,70 @@ onMounted(async () => {
     </h1>
 
     <div class="flex flex-col gap-8">
-      <!-- API Settings -->
+      <!-- Text generation API Settings -->
       <div class="card border rounded-lg p-6 shadow-sm">
         <h2 class="mb-4 text-xl font-semibold">
-          API Settings
+          Text generation API Settings
         </h2>
         <div class="space-y-4">
           <div>
             <label for="api-key" class="mb-1 block text-sm font-medium">API Key</label>
-            <input
+            <Input
               id="api-key"
-              v-model="apiKey"
-              type="text"
+              v-model="textGeneration.apiKey"
+              type="password"
               class="w-full border rounded-md p-2 dark:bg-gray-800"
               placeholder="Enter your API key"
-            >
+            />
           </div>
 
           <div>
             <label for="base-url" class="mb-1 block text-sm font-medium">Base URL</label>
-            <input
+            <Input
               id="base-url"
-              v-model="baseURL"
+              v-model="textGeneration.baseURL"
               type="text"
               class="w-full border rounded-md p-2 dark:bg-gray-800"
               placeholder="Enter API base URL"
-            >
+            />
           </div>
 
           <div>
-            <label for="default-model" class="mb-1 block text-sm font-medium">Default Model</label>
-            <select
-              id="default-model"
-              v-model="model"
-              class="w-full border rounded-md p-2 dark:bg-gray-800"
-            >
-              <option v-for="m in models" :key="m.id" :value="m">
-                {{ m }}
-              </option>
-            </select>
+            <label for="model" class="mb-1 block text-sm font-medium">Model</label>
+            <div class="relative flex gap-2">
+              <Input id="model" v-model="textGeneration.model" class="w-full" @click.stop="showModelSelector = true" />
+              <ModelSelector
+                v-if="showModelSelector"
+                v-model:search-term="textGeneration.model"
+                v-model:show-model-selector="showModelSelector"
+                @select-model="handleModelSelect"
+              />
+              <Button variant="outline" class="h-full" @click="settingsStore.fetchModels">
+                Reload
+              </Button>
+            </div>
           </div>
+        </div>
+      </div>
 
-          <div class="flex justify-end">
-            <button
-              class="rounded-md bg-primary px-4 py-2 text-white hover:bg-primary/90"
-              @click="settingsStore.fetchModels"
-            >
-              Reload Models
-            </button>
+      <!-- Image generation API Settings -->
+      <div class="card border rounded-lg p-6 shadow-sm">
+        <h2 class="mb-4 text-xl font-semibold">
+          Image generation API Settings
+        </h2>
+        <div class="mb-4 text-sm text-gray-500">
+          Currently only OpenAI is supported
+        </div>
+        <div class="space-y-4">
+          <div>
+            <label for="api-key" class="mb-1 block text-sm font-medium">API Key</label>
+            <Input
+              id="api-key"
+              v-model="imageGeneration.apiKey"
+              type="password"
+              class="w-full border rounded-md p-2 dark:bg-gray-800"
+              placeholder="Enter your API key"
+            />
           </div>
         </div>
       </div>

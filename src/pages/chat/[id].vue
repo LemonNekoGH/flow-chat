@@ -30,7 +30,9 @@ import { useMessagesStore } from '~/stores/messages'
 import { ChatMode, useModeStore } from '~/stores/mode'
 import { useRoomsStore } from '~/stores/rooms'
 import { useSettingsStore } from '~/stores/settings'
+import { createImageTools } from '~/tools'
 import { parseMessage } from '~/utils/chat'
+import { asyncIteratorFromReadableStream } from '~/utils/interator'
 
 const route = useRoute('/chat/[id]')
 const router = useRouter()
@@ -185,26 +187,6 @@ const nodesAndEdges = computed(() => {
   return { nodes: layout(nodes, edges), edges }
 })
 
-async function* asyncIteratorFromReadableStream<T, F = Uint8Array>(
-  res: ReadableStream<F>,
-  func: (value: F) => Promise<T>,
-): AsyncGenerator<T, void, unknown> {
-  const reader = res.getReader()
-  try {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) {
-        return
-      }
-
-      yield func(value)
-    }
-  }
-  finally {
-    reader.releaseLock()
-  }
-}
-
 useEventListener('click', () => {
   contextMenu.value.show = false
 })
@@ -236,20 +218,26 @@ function handleContextMenuDelete() {
 }
 
 async function generateResponse(parentId: string | null, model: string | null = null) {
-  const usingModel = model ?? settingsStore.model
+  const usingModel = model ?? settingsStore.textGeneration.model
   if (!usingModel) {
     settingsStore.showSettingsDialog = true
     return
   }
 
-  if (!settingsStore.baseURL) {
+  if (!settingsStore.textGeneration.baseURL) {
     settingsStore.showSettingsDialog = true
     return
   }
 
   const { textStream } = await streamText({
-    apiKey: settingsStore.apiKey,
-    baseURL: settingsStore.baseURL,
+    tools: await createImageTools({ // TODO: more tools
+      apiKey: settingsStore.imageGeneration.apiKey,
+      baseURL: 'https://api.openai.com/v1',
+      piniaStore: messagesStore,
+    }),
+    maxSteps: 10,
+    apiKey: settingsStore.textGeneration.apiKey,
+    baseURL: settingsStore.textGeneration.baseURL,
     model: usingModel,
     messages: currentBranch.value.messages.map(({ content, role }): BaseMessage => ({ content, role })),
   })
@@ -259,6 +247,11 @@ async function generateResponse(parentId: string | null, model: string | null = 
   selectedMessageId.value = id
 
   for await (const textPart of asyncIteratorFromReadableStream(textStream, async v => v)) {
+    // check if image tool was used
+    if (messagesStore.image) {
+      messagesStore.updateMessage(id, `![generated image](${messagesStore.image})`)
+      messagesStore.image = ''
+    }
     // textPart might be `undefined` in some cases
     textPart && messagesStore.updateMessage(id, textPart)
   }
@@ -280,7 +273,7 @@ async function handleSendButton() {
   }
   catch (error) {
     console.error(error)
-    toast.error('Failed to generate response')
+    toast.error('Failed to generate response') // TODO: more details
   }
 }
 
