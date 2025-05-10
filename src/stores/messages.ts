@@ -1,7 +1,7 @@
 import type { Message, MessageRole } from '~/types/messages'
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { tutorialMessages } from '~/utils/tutorial'
 
 // Type definitions for our maps
@@ -20,6 +20,18 @@ export const useMessagesStore = defineStore('messages', () => {
     }
     return roomMap
   })
+
+  const messages = computed(() => {
+    const allMessages: Message[] = []
+    for (const roomMessages of messagesByRoom.value.values()) {
+      allMessages.push(...roomMessages.values())
+    }
+    return allMessages
+  })
+
+  // images
+  // FIXME: dirty code, add a store for image
+  const image = ref('')
 
   // Pure functions for state transformations
   function createMessageState(
@@ -200,13 +212,8 @@ export const useMessagesStore = defineStore('messages', () => {
 
   return {
     // State
-    messages: computed(() => {
-      const allMessages: Message[] = []
-      for (const roomMessages of messagesByRoom.value.values()) {
-        allMessages.push(...roomMessages.values())
-      }
-      return allMessages
-    }),
+    messages,
+    image,
 
     // Actions
     newMessage,

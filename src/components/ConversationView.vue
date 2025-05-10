@@ -7,6 +7,8 @@ import { streamText } from 'xsai'
 import { useMessagesStore } from '~/stores/messages'
 import { useRoomsStore } from '~/stores/rooms'
 import { useSettingsStore } from '~/stores/settings'
+import { createImageTools } from '~/tools'
+import { asyncIteratorFromReadableStream } from '~/utils/interator'
 import ConversationNodeContextMenu from './ConversationNodeContextMenu.vue'
 import MarkdownView from './MarkdownView.vue'
 import SystemPrompt from './SystemPrompt.vue'
@@ -60,34 +62,37 @@ function scrollToBottom() {
 
 // Generate AI response
 async function generateResponse(parentId: string, model: string | null = null) {
-  const usingModel = model ?? settingsStore.model
-  if (!usingModel || !settingsStore.baseURL) {
+  const usingModel = model ?? settingsStore.textGeneration.model
+  if (!usingModel || !settingsStore.textGeneration.baseURL) {
     settingsStore.showSettingsDialog = true
     return
   }
 
   try {
     const { textStream } = await streamText({
-      apiKey: settingsStore.apiKey,
-      baseURL: settingsStore.baseURL,
+      apiKey: settingsStore.textGeneration.apiKey,
+      baseURL: settingsStore.textGeneration.baseURL,
       model: usingModel,
       messages: messagesStore.getBranchById(parentId).messages.map(({ content, role }) => ({ content, role })),
+      tools: await createImageTools({
+        apiKey: settingsStore.imageGeneration.apiKey,
+        baseURL: 'https://api.openai.com/v1',
+        piniaStore: messagesStore,
+      }),
     })
 
     const { id } = messagesStore.newMessage('', 'assistant', parentId, usingModel, roomsStore.currentRoom?.id)
 
     const reader = textStream.getReader()
     try {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done)
-          break
-
-        if (value) {
-          messagesStore.updateMessage(id, value)
-          await nextTick()
-          scrollToBottom()
+      for await (const textPart of asyncIteratorFromReadableStream(textStream, async v => v)) {
+        // check if image tool was used
+        if (messagesStore.image) {
+          messagesStore.updateMessage(id, `![generated image](${messagesStore.image})`)
+          messagesStore.image = ''
         }
+        // textPart might be `undefined` in some cases
+        textPart && messagesStore.updateMessage(id, textPart)
       }
     }
     finally {

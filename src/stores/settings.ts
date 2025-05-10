@@ -5,9 +5,16 @@ import { ref } from 'vue'
 import { listModels } from 'xsai'
 
 export const useSettingsStore = defineStore('settings', () => {
-  const apiKey = useLocalStorage('settings/apiKey', '')
-  const baseURL = useLocalStorage('settings/baseURL', '')
-  const model = useLocalStorage('settings/model', '')
+  const textGeneration = useLocalStorage('settings/textGeneration', {
+    apiKey: '',
+    baseURL: '',
+    model: '',
+  })
+  const imageGeneration = useLocalStorage('settings/imageGeneration', {
+    apiKey: '',
+    baseURL: '',
+    model: '',
+  })
   const defaultTemplateId = useLocalStorage('settings/defaultTemplateId', '')
   const models = ref<Model[]>([])
   const isLoadingModels = ref(false)
@@ -16,15 +23,15 @@ export const useSettingsStore = defineStore('settings', () => {
 
   // Fetch available models
   async function fetchModels() {
-    if (!baseURL.value || !apiKey.value) {
+    if (!textGeneration.value.baseURL || !textGeneration.value.apiKey) {
       return
     }
 
     isLoadingModels.value = true
     try {
       models.value = await listModels({
-        apiKey: apiKey.value,
-        baseURL: baseURL.value,
+        apiKey: textGeneration.value.apiKey,
+        baseURL: textGeneration.value.baseURL,
       })
     }
     catch (error) {
@@ -36,9 +43,8 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   return {
-    apiKey,
-    baseURL,
-    model,
+    textGeneration,
+    imageGeneration,
     defaultTemplateId,
     showSettingsDialog,
     models,

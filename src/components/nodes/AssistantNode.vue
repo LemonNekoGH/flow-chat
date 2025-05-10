@@ -7,7 +7,7 @@ import Node from './Node.vue'
 
 defineProps<NodeProps>()
 
-const { model } = storeToRefs(useSettingsStore())
+const { textGeneration } = storeToRefs(useSettingsStore())
 </script>
 
 <template>
@@ -16,7 +16,7 @@ const { model } = storeToRefs(useSettingsStore())
     :inactive="data.inactive"
     :class="data.selected ? 'b-pink-300 dark:b-pink-700' : 'b-pink-200 dark:b-pink-800'"
   >
-    <div v-if="data.message.model && data.message.model !== model" p-2 bg="pink-200 dark:pink-800">
+    <div v-if="data.message.model && data.message.model !== textGeneration.model" p-2 bg="pink-200 dark:pink-800">
       {{ data.message.model }}
     </div>
     <MarkdownView p-2 :content="data.message.content" />
