@@ -24,7 +24,7 @@ export async function createImageTools(options: CreateImageToolOptions) {
           prompt,
           response_format: 'b64_json',
           model: 'dall-e-3',
-        })
+        }) // TODO: catch error
 
         options.piniaStore.image = response.image.base64
 
