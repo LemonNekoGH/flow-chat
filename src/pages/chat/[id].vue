@@ -377,7 +377,7 @@ onMounted(() => {
       placeholder="Enter to send message, Shift+Enter for new-line"
       max-h-60vh w-full resize-none border-gray-300 rounded-sm px-3 py-2 outline-none dark:bg-neutral-800 focus:ring-2 focus:ring-black dark:focus:ring-white
       transition="all duration-200 ease-in-out"
-      @submit="handleSendButton"
+      @keydown.enter.exact.prevent="handleSendButton"
     />
     <ModelSelector
       v-if="showModelSelector"
