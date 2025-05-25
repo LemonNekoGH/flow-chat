@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import ModelSelector from '~/components/ModelSelector.vue'
 import TemplateManager from '~/components/TemplateManager.vue'
 import Button from '~/components/ui/button/Button.vue'
 import Input from '~/components/ui/input/Input.vue'
 import { useSettingsStore } from '~/stores/settings'
 
+const router = useRouter()
 const settingsStore = useSettingsStore()
 const { textGeneration, imageGeneration } = storeToRefs(settingsStore)
 
@@ -25,10 +27,17 @@ onMounted(async () => {
 
 <template>
   <div class="mx-auto max-w-3xl w-full p-6">
-    <h1 class="mb-6 text-2xl font-bold">
-      Settings
-    </h1>
-
+    <div class="flex">
+      <Button
+        variant="outline" as="a" class="mr-2 aspect-square w-10 px-unset dark:bg-black dark:hover:bg-primary/30"
+        @click="router.go(-1)"
+      >
+        <span class="i-carbon-arrow-left" />
+      </Button>
+      <h1 class="mb-6 text-2xl font-bold">
+        Settings
+      </h1>
+    </div>
     <div class="flex flex-col gap-8">
       <!-- Text generation API Settings -->
       <div class="card border rounded-lg p-6 shadow-sm">
