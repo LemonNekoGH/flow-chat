@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { ref } from 'vue'
+import { ref, watchEffect } from 'vue'
 import { useRouter } from 'vue-router'
 import { Toaster } from 'vue-sonner'
 import RoomSelector from '~/components/RoomSelector.vue'
@@ -15,8 +15,24 @@ import { ChatMode, useModeStore } from '~/stores/mode'
 
 const { currentMode } = storeToRefs(useModeStore())
 
+// isMobile
+const isMobile = ref(false)
+function checkMobile() {
+  isMobile.value = window.innerWidth < 768
+}
+if (typeof window !== 'undefined') {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
+}
+
 // Sidebar state
-const showSidebar = ref(true)
+const showSidebar = ref(!isMobile.value)
+watchEffect(() => {
+  if (isMobile.value)
+    showSidebar.value = false
+  else showSidebar.value = true
+})
+
 // Sidebar tab state
 const sidebarTab = ref('chats')
 
@@ -35,10 +51,10 @@ const router = useRouter()
         Flow Chat
       </div>
       <div class="flex-1" />
-      <Button v-if="currentMode === ChatMode.CONVERSATION" variant="outline" @click="currentMode = ChatMode.FLOW">
+      <Button v-if="currentMode === ChatMode.CONVERSATION" variant="outline" class="hidden sm:inline-flex" @click="currentMode = ChatMode.FLOW">
         Jump Out
       </Button>
-      <Button variant="outline" @click="router.push('/settings')">
+      <Button variant="outline" class="hidden sm:inline-flex" @click="router.push('/settings')">
         Settings
       </Button>
       <Button
@@ -56,12 +72,33 @@ const router = useRouter()
       </Button>
     </div>
   </header>
-  <div class="h-[calc(100vh-4rem)] flex flex-1">
+  <div class="relative h-[calc(100vh-4rem)] flex flex-1">
+    <div
+      v-if="isMobile && showSidebar"
+      class="fixed bottom-0 left-0 right-0 z-40 bg-black/40 md:hidden"
+      style="top: 4rem;"
+      @click="showSidebar = false"
+    />
     <!-- Sidebar for rooms and templates -->
     <aside
-      v-if="showSidebar"
-      class="w-64 flex flex-col overflow-y-auto border-r border-gray-200 p-3 dark:border-gray-800"
+      v-show="isMobile ? true : showSidebar"
+      class="fixed z-50 h-full w-64 flex flex-col overflow-y-auto border-r border-gray-200 bg-white p-3 transition-transform duration-300 md:static md:h-auto md:translate-x-0 md:translate-x-0 dark:border-gray-800 dark:bg-dark-500"
+      :class="[
+        isMobile
+          ? (showSidebar ? 'translate-x-0 left-0 top-16' : '-translate-x-full left-0 top-16')
+          : 'md:flex',
+      ]"
+      style="top: 4rem;"
     >
+      <div class="mb-4 flex sm:hidden">
+        <Button
+          variant="outline"
+          class="w-full"
+          @click="router.push('/settings'); showSidebar = false"
+        >
+          <span class="i-carbon-settings mr-2" /> Settings
+        </Button>
+      </div>
       <Tabs v-model="sidebarTab" class="w-full">
         <TabsList class="grid grid-cols-2 w-full">
           <TabsTrigger value="chats">
@@ -79,9 +116,8 @@ const router = useRouter()
         </TabsContent>
       </Tabs>
     </aside>
-
     <!-- Main content -->
-    <main class="flex flex-1 flex-col place-items-center overflow-auto">
+    <main class="w-full flex flex-1 flex-col place-items-center overflow-auto">
       <RouterView />
     </main>
   </div>
