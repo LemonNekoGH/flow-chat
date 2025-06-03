@@ -23,7 +23,8 @@ export const useSettingsStore = defineStore('settings', () => {
 
   // Fetch available models
   async function fetchModels() {
-    if (!textGeneration.value.baseURL || !textGeneration.value.apiKey) {
+    // API key is not required for public models
+    if (!textGeneration.value.baseURL) {
       return
     }
 
