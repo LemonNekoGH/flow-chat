@@ -46,9 +46,9 @@ onMounted(async () => {
         </h2>
         <div class="space-y-4">
           <div>
-            <label for="api-key" class="mb-1 block text-sm font-medium">API Key</label>
+            <label for="text-api-key" class="mb-1 block text-sm font-medium">API Key</label>
             <Input
-              id="api-key"
+              id="text-api-key"
               v-model="textGeneration.apiKey"
               type="password"
               class="w-full border rounded-md p-2 dark:bg-gray-800"
@@ -95,9 +95,9 @@ onMounted(async () => {
         </div>
         <div class="space-y-4">
           <div>
-            <label for="api-key" class="mb-1 block text-sm font-medium">API Key</label>
+            <label for="image-api-key" class="mb-1 block text-sm font-medium">API Key</label>
             <Input
-              id="api-key"
+              id="image-api-key"
               v-model="imageGeneration.apiKey"
               type="password"
               class="w-full border rounded-md p-2 dark:bg-gray-800"
