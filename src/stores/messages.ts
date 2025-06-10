@@ -40,6 +40,7 @@ export const useMessagesStore = defineStore('messages', () => {
     parentMessageId: string | null,
     model: string | undefined,
     roomId: string,
+    generating: boolean,
   ): Message {
     return {
       id: crypto.randomUUID(),
@@ -49,10 +50,11 @@ export const useMessagesStore = defineStore('messages', () => {
       timestamp: Date.now(),
       model,
       roomId,
+      generating,
     }
   }
 
-  function updateMessageContent(message: Message, text: string): Message {
+  function appendMessageContent(message: Message, text: string): Message {
     return {
       ...message,
       content: message.content + text,
@@ -73,8 +75,9 @@ export const useMessagesStore = defineStore('messages', () => {
     parentMessageId: string | null = null,
     model?: string,
     roomId: string = '',
+    generating: boolean = false,
   ) {
-    const message = createMessageState(text, role, parentMessageId, model, roomId)
+    const message = createMessageState(text, role, parentMessageId, model, roomId, generating)
 
     const newMap = new Map(messagesByRoom.value)
     const roomMessages = newMap.get(roomId) || new Map()
@@ -85,13 +88,17 @@ export const useMessagesStore = defineStore('messages', () => {
     return message
   }
 
-  function updateMessage(id: string, text: string): boolean {
+  // pass `""` to `text` to update the message without appending content
+  function updateMessage(id: string, text: string, generating?: boolean): boolean {
     const newMap = new Map(messagesByRoom.value)
 
     for (const [roomId, roomMessages] of newMap.entries()) {
       const message = roomMessages.get(id)
       if (message) {
-        const updatedMessage = updateMessageContent(message, text)
+        const updatedMessage = appendMessageContent(message, text)
+        if (typeof generating !== 'undefined') {
+          updatedMessage.generating = generating
+        }
         roomMessages.set(id, updatedMessage)
         newMap.set(roomId, roomMessages)
         persistMessages(newMap)

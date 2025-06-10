@@ -7,7 +7,7 @@ import { VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
 import { useClipboard, useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, markRaw, onMounted, ref, watch, watchEffect } from 'vue'
+import { computed, onMounted, ref, watch, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 import { streamText } from 'xsai'
@@ -93,12 +93,6 @@ watch(inputMessage, (newValue) => {
 function handleModelSelect(model: string) {
   selectedModel.value = model
   inputMessage.value = `model=${model} `
-}
-
-const nodeTypes = {
-  system: markRaw(SystemNode),
-  user: markRaw(UserNode),
-  assistant: markRaw(AssistantNode),
 }
 
 // #region vue flow event handlers
@@ -217,6 +211,8 @@ function handleContextMenuDelete() {
   selectedMessageId.value && deleteSelectedNode(selectedMessageId.value)
 }
 
+const streamTextAbortControllers = ref<Map<string, AbortController>>(new Map())
+
 async function generateResponse(parentId: string | null, model: string | null = null) {
   const usingModel = model ?? settingsStore.textGeneration.model
   if (!usingModel) {
@@ -229,6 +225,9 @@ async function generateResponse(parentId: string | null, model: string | null = 
     return
   }
 
+  const { id: newMsgId } = roomsStore.createMessage('', 'assistant', parentId, usingModel, true)
+  const abortController = new AbortController()
+  streamTextAbortControllers.value.set(newMsgId, abortController)
   const { textStream } = await streamText({
     tools: await createImageTools({ // TODO: more tools
       apiKey: settingsStore.imageGeneration.apiKey,
@@ -240,20 +239,20 @@ async function generateResponse(parentId: string | null, model: string | null = 
     baseURL: settingsStore.textGeneration.baseURL,
     model: usingModel,
     messages: currentBranch.value.messages.map(({ content, role }): BaseMessage => ({ content, role })),
+    abortSignal: abortController.signal,
   })
 
-  const { id } = roomsStore.createMessage('', 'assistant', parentId, usingModel)
   // auto select the answer
-  selectedMessageId.value = id
+  selectedMessageId.value = newMsgId
 
   for await (const textPart of asyncIteratorFromReadableStream(textStream, async v => v)) {
     // check if image tool was used
     if (messagesStore.image) {
-      messagesStore.updateMessage(id, `![generated image](${messagesStore.image})`)
+      messagesStore.updateMessage(newMsgId, `![generated image](${messagesStore.image})`)
       messagesStore.image = ''
     }
     // textPart might be `undefined` in some cases
-    textPart && messagesStore.updateMessage(id, textPart)
+    textPart && messagesStore.updateMessage(newMsgId, textPart)
   }
 }
 
@@ -329,6 +328,14 @@ function handleFork(messageId: string | null) {
   }
 }
 
+function handleAbort(messageId: string) {
+  const abortController = streamTextAbortControllers.value.get(messageId)
+  abortController?.abort()
+  streamTextAbortControllers.value.delete(messageId)
+  messagesStore.updateMessage(messageId, '', false)
+  toast.success('Generation aborted')
+}
+
 onMounted(() => {
   // Initialize rooms before displaying
   roomsStore.initialize()
@@ -345,7 +352,6 @@ onMounted(() => {
     v-if="currentMode === ChatMode.FLOW"
     :nodes="nodesAndEdges.nodes"
     :edges="nodesAndEdges.edges"
-    :node-types="nodeTypes"
     @node-click="handleNodeClick"
     @pane-click="handlePaneClick"
     @node-context-menu="handleNodeContextMenu"
@@ -364,6 +370,15 @@ onMounted(() => {
       @copy="handleContextMenuCopy"
       @fork-with="handleContextMenuForkWith"
     />
+    <template #node-assistant="props">
+      <AssistantNode v-bind="props" @abort="handleAbort(props.id)" />
+    </template>
+    <template #node-system="props">
+      <SystemNode v-bind="props" />
+    </template>
+    <template #node-user="props">
+      <UserNode v-bind="props" />
+    </template>
   </VueFlow>
   <ConversationView
     v-if="currentMode === ChatMode.CONVERSATION"
