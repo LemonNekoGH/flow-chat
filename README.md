@@ -6,6 +6,13 @@ A simple chat app with flow chart. [Demo](https://flow-chat.lemonneko.moe/)
 
 ![demo](./flow-chat-demo.png)
 
+## Features
+
+- Text Generation: basic feature of a chat app
+- Image Generation: generate image from text
+- Fork: create a new branch from a message
+- Switch model: switch between different models
+
 ## Development
 
 This project use `.tool-versions` to manage the version of the tools, if you use [`asdf`](https://asdf-vm.com/), you can use the following command to install the tools:
