@@ -61,6 +61,7 @@ function scrollToBottom() {
 }
 
 // Generate AI response
+// FIXME: Duplicate with chat/[id].vue
 async function generateResponse(parentId: string, model: string | null = null) {
   const usingModel = model ?? settingsStore.textGeneration.model
   if (!usingModel || !settingsStore.textGeneration.baseURL) {
