@@ -110,12 +110,6 @@ export default defineConfig({
     VueDevTools(),
   ],
 
-  // https://github.com/vitest-dev/vitest
-  test: {
-    include: ['test/**/*.test.ts'],
-    environment: 'jsdom',
-  },
-
   optimizeDeps: {
     exclude: [
       '@proj-airi/duckdb-wasm',
