@@ -271,6 +271,10 @@ async function handleSendButton() {
     await generateResponse(id, model)
   }
   catch (error) {
+    const err = error as Error
+    if (err.message.includes('BodyStreamBuffer was aborted')) {
+      return
+    }
     console.error(error)
     toast.error('Failed to generate response') // TODO: more details
   }
@@ -330,7 +334,7 @@ function handleFork(messageId: string | null) {
 
 function handleAbort(messageId: string) {
   const abortController = streamTextAbortControllers.value.get(messageId)
-  abortController?.abort()
+  abortController?.abort('Aborted by user')
   streamTextAbortControllers.value.delete(messageId)
   messagesStore.updateMessage(messageId, '', false)
   toast.success('Generation aborted')

@@ -96,7 +96,7 @@ export const useMessagesStore = defineStore('messages', () => {
       const message = roomMessages.get(id)
       if (message) {
         const updatedMessage = appendMessageContent(message, text)
-        if (typeof generating !== 'undefined') {
+        if (generating !== undefined) {
           updatedMessage.generating = generating
         }
         roomMessages.set(id, updatedMessage)

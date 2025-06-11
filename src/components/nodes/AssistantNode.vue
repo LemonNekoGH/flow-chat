@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { NodeProps } from '@vue-flow/core'
-import { CircleStop } from 'lucide-vue-next'
 import { storeToRefs } from 'pinia'
 import { useSettingsStore } from '~/stores/settings'
 import MarkdownView from '../MarkdownView.vue'
@@ -26,7 +25,7 @@ const { textGeneration } = storeToRefs(useSettingsStore())
         Generating...
       </div>
       <div>
-        <CircleStop @click="emit('abort')" />
+        <div i-lucide-circle-stop @click="emit('abort')" />
       </div>
     </div>
     <div v-if="data.message.model && data.message.model !== textGeneration.model" p-2 bg="pink-200 dark:pink-800">
