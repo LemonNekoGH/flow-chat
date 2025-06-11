@@ -12,6 +12,8 @@ import '@vue-flow/controls/dist/style.css'
 import '@vue-flow/minimap/dist/style.css'
 import '@unocss/reset/tailwind.css'
 
+import 'vue-sonner/style.css'
+
 import './styles/main.css'
 import 'uno.css'
 

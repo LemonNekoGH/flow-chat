@@ -11,4 +11,5 @@ export interface Message extends BaseMessage {
   timestamp: number
   roomId: string
   model?: string // model used to generate this message
+  generating: boolean
 }

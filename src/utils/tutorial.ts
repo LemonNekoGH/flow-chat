@@ -32,6 +32,7 @@ function createMessage(
     timestamp: Date.now(),
     roomId: TUTORIAL_ROOM_ID,
     ...(model && { model }),
+    generating: false,
   }
 }
 

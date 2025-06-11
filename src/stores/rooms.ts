@@ -82,7 +82,7 @@ export const useRoomsStore = defineStore('rooms', () => {
     return true
   }
 
-  function createMessage(content: string, role: MessageRole, parentMessageId: string | null = null, model?: string) {
+  function createMessage(content: string, role: MessageRole, parentMessageId: string | null = null, model?: string, generating: boolean = false) {
     const parent = parentMessageId || currentRoom.value?.template_id || null
     return messagesStore.newMessage(
       content,
@@ -90,6 +90,7 @@ export const useRoomsStore = defineStore('rooms', () => {
       parent,
       model,
       currentRoomId.value || undefined,
+      generating,
     )
   }
 
