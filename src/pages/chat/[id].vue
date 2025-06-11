@@ -362,7 +362,7 @@ onMounted(() => {
   >
     <Background />
     <Controls />
-    <MiniMap :mask-color="strokeColor" />
+    <MiniMap :mask-color="strokeColor" zoomable pannable />
     <NodeContextMenu
       v-if="contextMenu.show"
       :x="contextMenu.x"
