@@ -375,13 +375,13 @@ onMounted(() => {
       @fork-with="handleContextMenuForkWith"
     />
     <template #node-assistant="props">
-      <AssistantNode v-bind="props" @abort="handleAbort(props.id)" />
+      <AssistantNode v-bind="props" class="nodrag" @abort="handleAbort(props.id)" />
     </template>
     <template #node-system="props">
-      <SystemNode v-bind="props" />
+      <SystemNode v-bind="props" class="nodrag" />
     </template>
     <template #node-user="props">
-      <UserNode v-bind="props" />
+      <UserNode v-bind="props" class="nodrag" />
     </template>
   </VueFlow>
   <ConversationView
