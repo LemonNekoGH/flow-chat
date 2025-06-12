@@ -40,6 +40,29 @@ export function useLayout() {
 
     dagre.layout(dagreGraph)
 
+    // We prefer to use the top left corner as anchor point, but dagre result is center of the node,
+    // so we need to calc the top left padding of the graph then trim the blank space
+    let leftPadding = 0
+    let topPadding = 0
+    dagreGraph.nodes().forEach((nodeId) => {
+      const node = dagreGraph.node(nodeId)
+      if (!node) {
+        return
+      }
+      if (leftPadding === 0) {
+        leftPadding = node.x
+      }
+      if (topPadding === 0) {
+        topPadding = node.y
+      }
+      if (node.x < leftPadding) {
+        leftPadding = node.x
+      }
+      if (node.y < topPadding) {
+        topPadding = node.y
+      }
+    })
+
     // set nodes with updated positions
     return nodes.map((node) => {
       const nodeWithPosition = dagreGraph.node(node.id)
@@ -52,7 +75,7 @@ export function useLayout() {
         ...node,
         targetPosition: Position.Left,
         sourcePosition: Position.Right,
-        position: { x: nodeWithPosition.x, y: nodeWithPosition.y },
+        position: { x: nodeWithPosition.x - leftPadding, y: nodeWithPosition.y - topPadding },
       }
     })
   }

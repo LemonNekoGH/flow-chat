@@ -113,6 +113,25 @@ function handlePaneClick() {
   selectedMessageId.value = null
 }
 
+const easeOut = (t: number) => 1 - (1 - t) ** 3
+
+function setCenterToNode(node: Node<NodeData>) {
+  setCenter(node.position.x + 100, node.position.y + innerHeight / 4, {
+    zoom: viewport.value.zoom,
+    interpolate: 'linear',
+    duration: 500,
+    ease: easeOut,
+  })
+}
+
+function handleNodeDoubleClick(event: NodeMouseEvent) {
+  const node = findNode(event.node.id)
+  if (!node) {
+    return
+  }
+
+  setCenterToNode(node)
+}
 function handleNodeContextMenu(event: NodeMouseEvent) {
   selectedMessageId.value = event.node.id
   const mouseEvent = event.event as MouseEvent
@@ -182,26 +201,6 @@ const nodesAndEdges = computed(() => {
   }
 
   return { nodes: layout(nodes, edges), edges }
-})
-
-const easeOut = (t: number) => 1 - (1 - t) ** 3
-
-watch(nodesAndEdges, () => {
-  if (!selectedMessageId.value) {
-    return
-  }
-
-  const node = findNode(selectedMessageId.value)
-  if (!node) {
-    return
-  }
-
-  setCenter(node.position.x + 100, node.position.y + innerHeight / 4, {
-    zoom: viewport.value.zoom,
-    interpolate: 'linear',
-    duration: 500,
-    ease: easeOut,
-  })
 })
 
 useEventListener('click', () => {
@@ -377,6 +376,14 @@ function handleAbort(messageId: string) {
   toast.success('Generation aborted')
 }
 
+function handleInit() {
+  const firstNode = nodesAndEdges.value.nodes[0]
+  if (!firstNode) {
+    return
+  }
+  setCenterToNode(firstNode)
+}
+
 onMounted(() => {
   // Initialize rooms before displaying
   roomsStore.initialize()
@@ -395,7 +402,9 @@ onMounted(() => {
     :edges="nodesAndEdges.edges"
     @node-click="handleNodeClick"
     @pane-click="handlePaneClick"
+    @node-double-click="handleNodeDoubleClick"
     @node-context-menu="handleNodeContextMenu"
+    @init="handleInit"
   >
     <Background />
     <Controls />
