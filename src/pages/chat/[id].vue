@@ -115,8 +115,21 @@ function handlePaneClick() {
 
 const easeOut = (t: number) => 1 - (1 - t) ** 3
 
-function setCenterToNode(node: Node<NodeData>) {
-  setCenter(node.position.x + 100, node.position.y + innerHeight / 4, {
+function setCenterToNode(node: Node<NodeData> | string) {
+  let nodeToCenter: Node<NodeData> | undefined
+  if (typeof node === 'string') {
+    nodeToCenter = findNode(node)
+  }
+  else {
+    nodeToCenter = node
+  }
+
+  if (!nodeToCenter) {
+    console.warn('Node not found', node)
+    return
+  }
+
+  setCenter(nodeToCenter.position.x + 100, nodeToCenter.position.y + innerHeight / 4, {
     zoom: viewport.value.zoom,
     interpolate: 'linear',
     duration: 500,
@@ -230,6 +243,7 @@ function deleteSelectedNode(nodeId: string) {
   // Auto select the parent node or cancel selection
   if (parentId) {
     selectedMessageId.value = parentId
+    setCenterToNode(parentId)
     return
   }
 
@@ -274,6 +288,7 @@ async function generateResponse(parentId: string | null, model: string | null = 
 
   // auto select the answer
   selectedMessageId.value = newMsgId
+  setCenterToNode(newMsgId)
 
   for await (const textPart of asyncIteratorFromReadableStream(textStream, async v => v)) {
     // check if image tool was used
@@ -305,8 +320,12 @@ async function handleSendButton() {
     if (err.message.includes('BodyStreamBuffer was aborted')) {
       return
     }
+    if (err.message.includes('does not support tools')) {
+      toast.error('This model does not support tools')
+      return
+    }
     console.error(error)
-    toast.error('Failed to generate response') // TODO: more details
+    toast.error('Failed to generate response') // TODO: show error in message
   }
   finally {
     if (generatingMessageId.value) {
