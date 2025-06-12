@@ -1,4 +1,5 @@
 import type { Edge, Node } from '@vue-flow/core'
+import type { NodeData } from '~/types/node'
 import dagre from '@dagrejs/dagre'
 import { Position, useVueFlow } from '@vue-flow/core'
 import { ref } from 'vue'
@@ -12,7 +13,7 @@ export function useLayout() {
 
   const graph = ref(new dagre.graphlib.Graph())
 
-  function layout(nodes: Node[], edges: Edge[]) {
+  function layout(nodes: Node<NodeData>[], edges: Edge[]) {
     // we create a new graph instance, in case some nodes/edges were removed, otherwise dagre would act as if they were still there
     const dagreGraph = new dagre.graphlib.Graph()
 

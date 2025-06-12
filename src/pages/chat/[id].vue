@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { Edge, Node, NodeMouseEvent } from '@vue-flow/core'
 import type { BaseMessage } from '~/types/messages'
+import type { NodeData } from '~/types/node'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
-import { VueFlow } from '@vue-flow/core'
+import { useVueFlow, VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
 import { useClipboard, useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -42,6 +43,7 @@ const roomId = computed(() => {
   }
   return Array.isArray(route.params.id) ? route.params.id[0] : ''
 })
+const { setCenter, findNode, viewport } = useVueFlow()
 
 const settingsStore = useSettingsStore()
 const messagesStore = useMessagesStore()
@@ -55,6 +57,7 @@ const selectedMessageId = ref<string | null>(null)
 const selectedMessage = computed(() => {
   return messagesStore.messages.find(message => message.id === selectedMessageId.value)
 })
+const generatingMessageId = ref<string | null>(null)
 
 const inputMessage = ref('')
 
@@ -128,7 +131,7 @@ const currentBranch = computed(() => {
 
 const nodesAndEdges = computed(() => {
   const { ids } = currentBranch.value
-  const nodes: Node[] = []
+  const nodes: Node<NodeData>[] = []
   const edges: Edge[] = []
 
   // Filter for current room's messages
@@ -146,7 +149,7 @@ const nodesAndEdges = computed(() => {
       type: 'system',
       position: { x: 0, y: 0 },
       hidden: true,
-      data: { hidden: true },
+      data: { hidden: true, message: roomMessages[0], selected: false, inactive: false },
     })
   }
 
@@ -158,7 +161,7 @@ const nodesAndEdges = computed(() => {
       id,
       type: role,
       position: { x: 0, y: 0 },
-      data: { message, selected: selectedMessageId.value === id, inactive: selectedMessageId.value && !active },
+      data: { message, selected: selectedMessageId.value === id, inactive: !!selectedMessageId.value && !active, hidden: false },
     })
 
     // Only create an edge if we have a valid source node
@@ -181,6 +184,26 @@ const nodesAndEdges = computed(() => {
   return { nodes: layout(nodes, edges), edges }
 })
 
+const easeOut = (t: number) => 1 - (1 - t) ** 3
+
+watch(nodesAndEdges, () => {
+  if (!selectedMessageId.value) {
+    return
+  }
+
+  const node = findNode(selectedMessageId.value)
+  if (!node) {
+    return
+  }
+
+  setCenter(node.position.x + 100, node.position.y + innerHeight / 4, {
+    zoom: viewport.value.zoom,
+    interpolate: 'linear',
+    duration: 500,
+    ease: easeOut,
+  })
+})
+
 useEventListener('click', () => {
   contextMenu.value.show = false
 })
@@ -200,10 +223,17 @@ useEventListener('keydown', (event) => {
 
 // delete the current selected node
 function deleteSelectedNode(nodeId: string) {
+  // get parent node
+  const parentId = messagesStore.getMessageById(nodeId)?.parentMessageId
   // delete the node and all its descendants from store
   messagesStore.deleteSubtree(nodeId)
 
-  // cancel selection
+  // Auto select the parent node or cancel selection
+  if (parentId) {
+    selectedMessageId.value = parentId
+    return
+  }
+
   selectedMessageId.value = null
 }
 
@@ -226,6 +256,7 @@ async function generateResponse(parentId: string | null, model: string | null = 
   }
 
   const { id: newMsgId } = roomsStore.createMessage('', 'assistant', parentId, usingModel, true)
+  generatingMessageId.value = newMsgId
   const abortController = new AbortController()
   streamTextAbortControllers.value.set(newMsgId, abortController)
   const { textStream } = await streamText({
@@ -277,6 +308,12 @@ async function handleSendButton() {
     }
     console.error(error)
     toast.error('Failed to generate response') // TODO: more details
+  }
+  finally {
+    if (generatingMessageId.value) {
+      messagesStore.updateMessage(generatingMessageId.value, '', false)
+    }
+    generatingMessageId.value = null
   }
 }
 
@@ -362,7 +399,7 @@ onMounted(() => {
   >
     <Background />
     <Controls />
-    <MiniMap :mask-color="strokeColor" />
+    <MiniMap :mask-color="strokeColor" zoomable pannable />
     <NodeContextMenu
       v-if="contextMenu.show"
       :x="contextMenu.x"
