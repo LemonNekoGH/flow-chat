@@ -218,8 +218,10 @@ useEventListener('click', () => {
               :dark="message.role === 'user'"
             />
 
-            <div v-if="message.model" class="mt-2 text-xs opacity-70">
-              {{ message.model }}
+            <div v-if="message.model">
+              <div class="mt-2 text-xs opacity-70" font-mono>
+                {{ message.model }}
+              </div>
             </div>
 
             <!-- Message actions -->

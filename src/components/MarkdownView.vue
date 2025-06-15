@@ -11,13 +11,17 @@ defineProps<{
 
 <template>
   <VueMarkdown
-    of-auto break-words
+    of-auto break-words space-y-2
     :markdown="(model ? `@${model} ` : '') + content"
     :rehype-plugins="[rehypeHighlight]"
   />
 </template>
 
 <style>
+pre code.hljs {
+  border-radius: 8px;
+}
+
 code {
   white-space: pre-wrap;
 }
