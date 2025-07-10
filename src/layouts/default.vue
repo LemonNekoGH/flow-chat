@@ -58,7 +58,7 @@ const router = useRouter()
         Settings
       </Button>
       <Button
-        class="border border-gray-300 rounded-md bg-white px-2 transition-colors duration-200 dark:border-gray-500 dark:bg-white hover:bg-gray-200 dark:hover:bg-gray-300"
+        class="border rounded-md bg-white px-2 shadow-sm transition-colors duration-200 dark:bg-white hover:bg-gray-200 dark:hover:bg-gray-300"
         @click="toggleDark()"
       >
         <i v-if="isDark" class="i-carbon-moon text-xl text-gray-800" />
