@@ -9,12 +9,12 @@ export interface TutorialMessage extends Message {
   parentMessageId: string | null
   timestamp: number
   roomId: string
-  model?: string
 }
 
 // Tutorial room configuration
 const TUTORIAL_ROOM_ID = 'tutorial'
 const DEFAULT_MODEL = 'openai/chatgpt-4o-latest'
+const DEFAULT_PROVIDER = 'openai'
 
 // Helper functions to create tutorial messages
 function createMessage(
@@ -22,7 +22,8 @@ function createMessage(
   content: string,
   role: 'system' | 'user' | 'assistant',
   parentMessageId: string | null,
-  model?: string,
+  model: string,
+  provider: string,
 ): TutorialMessage {
   return {
     id,
@@ -31,22 +32,23 @@ function createMessage(
     parentMessageId,
     timestamp: Date.now(),
     roomId: TUTORIAL_ROOM_ID,
-    ...(model && { model }),
+    model,
+    provider,
     generating: false,
   }
 }
 
 function createUserMessage(id: string, content: string, parentId: string): TutorialMessage {
-  return createMessage(id, content, 'user', parentId, DEFAULT_MODEL)
+  return createMessage(id, content, 'user', parentId, DEFAULT_MODEL, DEFAULT_PROVIDER)
 }
 
 function createAssistantMessage(id: string, content: string, parentId: string): TutorialMessage {
-  return createMessage(id, content, 'assistant', parentId, DEFAULT_MODEL)
+  return createMessage(id, content, 'assistant', parentId, DEFAULT_MODEL, DEFAULT_PROVIDER)
 }
 
 // Tutorial message tree data
 export const tutorialMessages: TutorialMessage[] = [
-  createMessage('tutorial-root', prompt, 'system', null),
+  createMessage('tutorial-root', prompt, 'system', null, DEFAULT_MODEL, DEFAULT_PROVIDER),
   createUserMessage('tutorial-1', 'Hello, how do I use this app?', 'tutorial-root'),
   createAssistantMessage(
     'tutorial-2',
@@ -67,8 +69,8 @@ export const tutorialMessages: TutorialMessage[] = [
   createAssistantMessage('tutorial-2-4-1', 'Click to blank area to cancel selection, then input text and press "Enter", a new session will be created', 'tutorial-2-4'),
   createUserMessage('tutorial-2-5', 'How do I change the model for next messages?', 'tutorial-2'),
   createAssistantMessage('tutorial-2-5-1', 'input `model=openai/gpt-3.5-turbo` in the input box, then press "Enter"', 'tutorial-2-5'),
-  createMessage('tutorial-2-5-2', 'Repeat it', 'user', 'tutorial-2-5-1', 'openai/gpt-3.5-turbo'),
-  createMessage('tutorial-2-5-3', 'input `model=openai/gpt-4o-latest` in the input box, then press "Enter"', 'assistant', 'tutorial-2-5-2', 'openai/gpt-3.5-turbo'),
+  createMessage('tutorial-2-5-2', 'Repeat it', 'user', 'tutorial-2-5-1', 'openai/gpt-3.5-turbo', DEFAULT_PROVIDER),
+  createMessage('tutorial-2-5-3', 'input `model=openai/gpt-4o-latest` in the input box, then press "Enter"', 'assistant', 'tutorial-2-5-2', 'openai/gpt-3.5-turbo', DEFAULT_PROVIDER),
   createUserMessage('tutorial-2-6', 'I think this app is great! How can I support this project?', 'tutorial-2'),
   createAssistantMessage('tutorial-2-6-1', 'Starring the repo on [GitHub](https://github.com/LemonNekoGH/flow-chat)', 'tutorial-2-6'),
   createUserMessage('tutorial-2-7', 'How do I restore this tutorial?', 'tutorial-2'),
@@ -80,7 +82,7 @@ export interface TutorialRoom {
   id: string
   name: string
   systemPromptId: string
-  messages: Message[]
+  messages: TutorialMessage[]
 }
 
 // Get tutorial room ID

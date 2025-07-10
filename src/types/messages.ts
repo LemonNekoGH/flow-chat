@@ -10,6 +10,7 @@ export interface Message extends BaseMessage {
   parentMessageId: string | null
   timestamp: number
   roomId: string
-  model?: string // model used to generate this message
+  provider: string // provider used to generate this message
+  model: string // model used to generate this message
   generating: boolean
 }

@@ -28,7 +28,7 @@ export const useRoomsStore = defineStore('rooms', () => {
       : (await templateModel.getAll())[0]
 
     const systemPrompt = template?.system_prompt || ''
-    const { id: systemPromptId } = messagesStore.newMessage(systemPrompt, 'system', null, undefined, '')
+    const { id: systemPromptId } = messagesStore.newMessage(systemPrompt, 'system', null, '', '')
 
     const room = await roomModel.create(name, systemPromptId)
     setCurrentRoom(room.id)
@@ -82,12 +82,13 @@ export const useRoomsStore = defineStore('rooms', () => {
     return true
   }
 
-  function createMessage(content: string, role: MessageRole, parentMessageId: string | null = null, model?: string, generating: boolean = false) {
+  function createMessage(content: string, role: MessageRole, parentMessageId: string | null, provider: string, model: string, generating: boolean = false) {
     const parent = parentMessageId || currentRoom.value?.template_id || null
     return messagesStore.newMessage(
       content,
       role,
       parent,
+      provider,
       model,
       currentRoomId.value || undefined,
       generating,

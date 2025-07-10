@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import type { NodeProps } from '@vue-flow/core'
+import type { NodeData } from '~/types/node'
 import { storeToRefs } from 'pinia'
 import { useSettingsStore } from '~/stores/settings'
 import MarkdownView from '../MarkdownView.vue'
 import Node from './Node.vue'
 
-defineProps<NodeProps>()
+defineProps<NodeProps<NodeData>>()
 
 const emit = defineEmits<{
   (e: 'abort'): void
 }>()
 
-const { textGeneration } = storeToRefs(useSettingsStore())
+const { defaultTextModel } = storeToRefs(useSettingsStore())
 </script>
 
 <template>
@@ -28,8 +29,8 @@ const { textGeneration } = storeToRefs(useSettingsStore())
         <div i-lucide-circle-stop @click="emit('abort')" />
       </div>
     </div>
-    <div v-if="data.message.model && data.message.model !== textGeneration.model" p-2 bg="pink-200 dark:pink-800">
-      {{ data.message.model }}
+    <div v-if="defaultTextModel.provider !== data.message.provider || data.message.model !== defaultTextModel.model" p-2 bg="pink-200 dark:pink-800">
+      {{ data.message.provider }}/{{ data.message.model }}
     </div>
     <MarkdownView p-2 :content="data.message.content" />
   </Node>
