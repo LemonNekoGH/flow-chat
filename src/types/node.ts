@@ -5,4 +5,5 @@ export interface NodeData {
   selected: boolean
   inactive: boolean
   hidden: boolean
+  generating: boolean
 }

@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import type { CapabilitiesByModel, ModelIdsByProvider, ProviderNames } from '@moeru-ai/jem'
 import type { Edge, Node, NodeMouseEvent } from '@vue-flow/core'
 import type { BaseMessage } from '~/types/messages'
 import type { NodeData } from '~/types/node'
+import { hasCapabilities } from '@moeru-ai/jem'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { useVueFlow, VueFlow } from '@vue-flow/core'
@@ -24,6 +26,11 @@ import DialogContent from '~/components/ui/dialog/DialogContent.vue'
 import DialogHeader from '~/components/ui/dialog/DialogHeader.vue'
 import DialogTitle from '~/components/ui/dialog/DialogTitle.vue'
 import Input from '~/components/ui/input/Input.vue'
+import Select from '~/components/ui/select/Select.vue'
+import SelectContent from '~/components/ui/select/SelectContent.vue'
+import SelectItem from '~/components/ui/select/SelectItem.vue'
+import SelectTrigger from '~/components/ui/select/SelectTrigger.vue'
+import SelectValue from '~/components/ui/select/SelectValue.vue'
 import Textarea from '~/components/ui/textarea/Textarea.vue'
 import { isDark } from '~/composables/dark'
 import { useLayout } from '~/composables/useLayout'
@@ -46,6 +53,8 @@ const roomId = computed(() => {
 const { setCenter, findNode, viewport } = useVueFlow()
 
 const settingsStore = useSettingsStore()
+const { defaultTextModel, currentProvider } = storeToRefs(settingsStore)
+
 const messagesStore = useMessagesStore()
 const roomsStore = useRoomsStore()
 const { layout } = useLayout()
@@ -63,7 +72,8 @@ const inputMessage = ref('')
 
 // Model selection
 const showModelSelector = ref(false)
-const selectedModel = ref('')
+const inlineModelCommandValue = ref('')
+const inlineModelCommandProvider = ref<ProviderNames | null>(null)
 
 // Watch for route changes to update current room
 watchEffect(() => {
@@ -84,7 +94,9 @@ watch(inputMessage, (newValue) => {
   }
   else if (newValue === '') {
     // Reset but don't hide immediately to prevent flickering when selecting a model
-    selectedModel.value = ''
+    const inlineModelCommand = newValue.split('/')
+    inlineModelCommandValue.value = inlineModelCommand[1]
+    inlineModelCommandProvider.value = inlineModelCommand[0] as ProviderNames
   }
   else {
     // Hide selector for any other input
@@ -94,7 +106,7 @@ watch(inputMessage, (newValue) => {
 
 // Handle model selection from the component
 function handleModelSelect(model: string) {
-  selectedModel.value = model
+  inlineModelCommandValue.value = model
   inputMessage.value = `model=${model} `
 }
 
@@ -181,7 +193,7 @@ const nodesAndEdges = computed(() => {
       type: 'system',
       position: { x: 0, y: 0 },
       hidden: true,
-      data: { hidden: true, message: roomMessages[0], selected: false, inactive: false },
+      data: { hidden: true, message: roomMessages[0], selected: false, inactive: false, generating: false },
     })
   }
 
@@ -193,7 +205,7 @@ const nodesAndEdges = computed(() => {
       id,
       type: role,
       position: { x: 0, y: 0 },
-      data: { message, selected: selectedMessageId.value === id, inactive: !!selectedMessageId.value && !active, hidden: false },
+      data: { message, selected: selectedMessageId.value === id, inactive: !!selectedMessageId.value && !active, hidden: false, generating: false },
     })
 
     // Only create an edge if we have a valid source node
@@ -256,32 +268,49 @@ function handleContextMenuDelete() {
 
 const streamTextAbortControllers = ref<Map<string, AbortController>>(new Map())
 
-async function generateResponse(parentId: string | null, model: string | null = null) {
-  const usingModel = model ?? settingsStore.textGeneration.model
-  if (!usingModel) {
-    settingsStore.showSettingsDialog = true
+async function generateResponse(parentId: string | null, provider: ProviderNames, model: string) {
+  if (!model) {
+    toast.error('Please select a model')
     return
   }
 
-  if (!settingsStore.textGeneration.baseURL) {
-    settingsStore.showSettingsDialog = true
+  if (!currentProvider.value?.baseURL) {
+    toast.error('Please select a provider')
     return
   }
 
-  const { id: newMsgId } = roomsStore.createMessage('', 'assistant', parentId, usingModel, true)
+  const { id: newMsgId } = roomsStore.createMessage('', 'assistant', parentId, provider, model, true)
   generatingMessageId.value = newMsgId
   const abortController = new AbortController()
   streamTextAbortControllers.value.set(newMsgId, abortController)
-  const { textStream } = await streamText({
-    tools: await createImageTools({ // TODO: more tools
+
+  const tools = {
+    tool: await createImageTools({ // TODO: more tools
       apiKey: settingsStore.imageGeneration.apiKey,
       baseURL: 'https://api.openai.com/v1',
       piniaStore: messagesStore,
     }),
+  }
+
+  let isSupportTools = false
+  try {
+    const capabilities: Record<string, boolean> = hasCapabilities(
+      provider as ProviderNames,
+      model as ModelIdsByProvider<ProviderNames>,
+      ['tool-call'] as CapabilitiesByModel<ProviderNames, ModelIdsByProvider<ProviderNames>>,
+    )
+    isSupportTools = capabilities['tool-call']
+  }
+  catch (error) {
+    console.error('Failed to check if model supports tools', error)
+  }
+
+  const { textStream } = await streamText({
+    ...(isSupportTools ? tools : {}),
     maxSteps: 10,
-    apiKey: settingsStore.textGeneration.apiKey,
-    baseURL: settingsStore.textGeneration.baseURL,
-    model: usingModel,
+    apiKey: currentProvider.value?.apiKey,
+    baseURL: currentProvider.value?.baseURL,
+    model,
     messages: currentBranch.value.messages.map(({ content, role }): BaseMessage => ({ content, role })),
     abortSignal: abortController.signal,
   })
@@ -308,12 +337,12 @@ async function handleSendButton() {
 
   const { model, message } = parseMessage(inputMessage.value)
 
-  const { id } = roomsStore.createMessage(message, 'user', selectedMessageId.value, model)
+  const { id } = roomsStore.createMessage(message, 'user', selectedMessageId.value, defaultTextModel.value.provider, model ?? defaultTextModel.value.model)
   inputMessage.value = model ? `model=${model} ` : ''
   selectedMessageId.value = id
 
   try {
-    await generateResponse(id, model)
+    await generateResponse(id, defaultTextModel.value.provider as ProviderNames, model ?? defaultTextModel.value.model)
   }
   catch (error) {
     const err = error as Error
@@ -362,6 +391,7 @@ async function handleContextMenuCopy() {
 }
 
 const forkWithModel = ref('')
+const forkWithProvider = ref<ProviderNames>('' as ProviderNames)
 const showForkWithModelDialog = ref(false)
 const showForkWithModelSelector = ref(false)
 
@@ -373,10 +403,16 @@ function handleContextMenuForkWith() {
   forkWithModel.value = ''
 }
 
+function handleForkWithProviderChange(provider: string) {
+  forkWithProvider.value = provider as ProviderNames
+  forkWithModel.value = ''
+  settingsStore.fetchModels()
+}
+
 function handleForkWith() {
   showForkWithModelDialog.value = false
   showForkWithModelSelector.value = false
-  generateResponse(selectedMessageId.value, forkWithModel.value)
+  generateResponse(selectedMessageId.value, forkWithProvider.value as ProviderNames, forkWithModel.value)
 }
 
 // Handle forking - now this just selects the message without generating
@@ -477,7 +513,20 @@ onMounted(() => {
         <DialogHeader>
           <DialogTitle>Fork With</DialogTitle>
         </DialogHeader>
-        <div relative>
+        <div>
+          <Select
+            :model-value="defaultTextModel.provider as ProviderNames"
+            @update:model-value="handleForkWithProviderChange"
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="provider in settingsStore.configuredTextProviders" :key="provider.name" :value="provider.name">
+                {{ provider.name }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
           <Input
             id="model" v-model="forkWithModel" placeholder="Search models..."
             @click.stop="showForkWithModelSelector = true"

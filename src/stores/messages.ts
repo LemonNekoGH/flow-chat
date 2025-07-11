@@ -38,7 +38,8 @@ export const useMessagesStore = defineStore('messages', () => {
     text: string,
     role: MessageRole,
     parentMessageId: string | null,
-    model: string | undefined,
+    provider: string,
+    model: string,
     roomId: string,
     generating: boolean,
   ): Message {
@@ -48,6 +49,7 @@ export const useMessagesStore = defineStore('messages', () => {
       role,
       parentMessageId,
       timestamp: Date.now(),
+      provider,
       model,
       roomId,
       generating,
@@ -73,11 +75,12 @@ export const useMessagesStore = defineStore('messages', () => {
     text: string,
     role: MessageRole,
     parentMessageId: string | null = null,
-    model?: string,
+    provider: string,
+    model: string,
     roomId: string = '',
     generating: boolean = false,
   ) {
-    const message = createMessageState(text, role, parentMessageId, model, roomId, generating)
+    const message = createMessageState(text, role, parentMessageId, provider, model, roomId, generating)
 
     const newMap = new Map(messagesByRoom.value)
     const roomMessages = newMap.get(roomId) || new Map()
