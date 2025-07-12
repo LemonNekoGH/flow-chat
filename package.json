@@ -42,7 +42,7 @@
     "radix-vue": "^1.9.17",
     "rehype-highlight": "^7.0.2",
     "reka-ui": "^2.3.1",
-    "vue": "^3.5.17",
+    "vue": "3.6.0-alpha.1",
     "vue-demi": "^0.14.10",
     "vue-i18n": "^11.1.7",
     "vue-router": "^4.5.1",
