@@ -54,7 +54,7 @@ const router = useRouter()
       <Button v-if="currentMode === ChatMode.CONVERSATION" variant="outline" class="hidden sm:inline-flex" @click="currentMode = ChatMode.FLOW">
         Jump Out
       </Button>
-      <Button variant="outline" class="hidden sm:inline-flex" @click="router.push('/settings')">
+      <Button variant="outline" class="hidden border rounded-md bg-white px-2 color-black shadow-sm transition-colors duration-200 sm:inline-flex hover:bg-gray-200 hover:color-dark" @click="router.push('/settings')">
         Settings
       </Button>
       <Button
