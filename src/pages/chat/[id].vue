@@ -8,10 +8,10 @@ import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { useVueFlow, VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
-import { useClipboard, useEventListener } from '@vueuse/core'
+import { until, useClipboard, useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch, watchEffect } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { toast } from 'vue-sonner'
 import { streamText } from 'xsai'
 import ConversationView from '~/components/ConversationView.vue'
@@ -34,6 +34,7 @@ import SelectValue from '~/components/ui/select/SelectValue.vue'
 import Textarea from '~/components/ui/textarea/Textarea.vue'
 import { isDark } from '~/composables/dark'
 import { useLayout } from '~/composables/useLayout'
+import { useDatabaseStore } from '~/stores/database'
 import { useMessagesStore } from '~/stores/messages'
 import { ChatMode, useModeStore } from '~/stores/mode'
 import { useRoomsStore } from '~/stores/rooms'
@@ -43,7 +44,9 @@ import { parseMessage } from '~/utils/chat'
 import { asyncIteratorFromReadableStream } from '~/utils/interator'
 
 const route = useRoute('/chat/[id]')
-const router = useRouter()
+const dbStore = useDatabaseStore()
+const { db } = storeToRefs(dbStore)
+
 const roomId = computed(() => {
   if (typeof route.params.id === 'string') {
     return route.params.id
@@ -439,14 +442,10 @@ function handleInit() {
   setCenterToNode(firstNode)
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await until(db).toBeTruthy()
   // Initialize rooms before displaying
-  roomsStore.initialize()
-
-  // Redirect to the first room if no roomId is provided
-  if (!roomId.value) {
-    router.replace(`/chat/${roomsStore.rooms[0]?.id}`)
-  }
+  await roomsStore.initialize()
 })
 </script>
 

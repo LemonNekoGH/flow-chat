@@ -1,14 +1,9 @@
 <script setup lang="ts">
-import type { Room } from '~/types/rooms'
-import {
-  format,
-  formatDistanceToNow,
-  isThisWeek,
-  isToday,
-  isYesterday,
-} from 'date-fns'
+import { until } from '@vueuse/core'
+import { format } from 'date-fns'
 import { enUS } from 'date-fns/locale'
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
+import { nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
 import Button from '~/components/ui/button/Button.vue'
 import Dialog from '~/components/ui/dialog/Dialog.vue'
@@ -16,6 +11,7 @@ import DialogContent from '~/components/ui/dialog/DialogContent.vue'
 import DialogHeader from '~/components/ui/dialog/DialogHeader.vue'
 import DialogTitle from '~/components/ui/dialog/DialogTitle.vue'
 import Input from '~/components/ui/input/Input.vue'
+import { useDatabaseStore } from '~/stores/database'
 import { useRoomsStore } from '~/stores/rooms'
 import { useSettingsStore } from '~/stores/settings'
 
@@ -44,12 +40,18 @@ function checkMobile() {
   isMobile.value = window.innerWidth <= 768
 }
 
+const dbStore = useDatabaseStore()
+const { db } = storeToRefs(dbStore)
+
 // Set up event listeners for responsive behavior
-onMounted(() => {
+onMounted(async () => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
   // Close swipe when clicking outside
   document.addEventListener('click', handleOutsideClick)
+
+  await until(db).toBeTruthy()
+  await roomsStore.initialize()
 })
 
 onUnmounted(() => {
@@ -66,54 +68,6 @@ function handleOutsideClick(event: MouseEvent) {
     }
   }
 }
-
-roomsStore.initialize()
-
-interface GroupedRoom {
-  title: string
-  rooms: (Room & { relative_time: string })[]
-}
-
-const groupedRooms = computed<GroupedRoom[]>(() => {
-  const groups: GroupedRoom[] = [
-    { title: 'Today', rooms: [] },
-    { title: 'Yesterday', rooms: [] },
-    { title: 'This Week', rooms: [] },
-    { title: 'Earlier', rooms: [] },
-  ]
-
-  roomsStore.rooms.forEach((room) => {
-    const date = room.created_at
-    const relativeTime = formatDistanceToNow(date, {
-      addSuffix: true,
-      locale: enUS,
-    })
-
-    const roomWithTime = {
-      ...room,
-      relative_time: relativeTime,
-    }
-
-    if (isToday(date)) {
-      groups[0].rooms.push(roomWithTime)
-    }
-    else if (isYesterday(date)) {
-      groups[1].rooms.push(roomWithTime)
-    }
-    else if (isThisWeek(date, { weekStartsOn: 1 })) {
-      groups[2].rooms.push(roomWithTime)
-    }
-    else {
-      groups[3].rooms.push(roomWithTime)
-    }
-  })
-
-  groups.forEach((group) => {
-    group.rooms.sort((a, b) => b.created_at.getTime() - a.created_at.getTime())
-  })
-
-  return groups.filter(group => group.rooms.length > 0)
-})
 
 function handleTouchStart(e: TouchEvent, _: string) {
   touchStartX.value = e.touches[0].clientX
@@ -216,7 +170,7 @@ async function deleteRoomConfirmed() {
 
     <div class="mt-1 flex flex-col gap-3">
       <div
-        v-for="group in groupedRooms"
+        v-for="group in roomsStore.groupedRooms"
         :key="group.title"
         class="flex flex-col gap-1"
       >

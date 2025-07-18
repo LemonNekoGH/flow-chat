@@ -1,6 +1,13 @@
 import type { MessageRole } from '~/types/messages'
 import type { Room } from '~/types/rooms'
 import { useLocalStorage } from '@vueuse/core'
+import {
+  formatDistanceToNow,
+  isThisWeek,
+  isToday,
+  isYesterday,
+} from 'date-fns'
+import { enUS } from 'date-fns/locale'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -112,9 +119,56 @@ export const useRoomsStore = defineStore('rooms', () => {
     return rooms.value[rooms.value.length - 1]
   }
 
+  interface GroupedRoom {
+    title: string
+    rooms: (Room & { relative_time: string })[]
+  }
+
+  const groupedRooms = computed<GroupedRoom[]>(() => {
+    const groups: GroupedRoom[] = [
+      { title: 'Today', rooms: [] },
+      { title: 'Yesterday', rooms: [] },
+      { title: 'This Week', rooms: [] },
+      { title: 'Earlier', rooms: [] },
+    ]
+
+    rooms.value.forEach((room) => {
+      const date = room.created_at
+      const relativeTime = formatDistanceToNow(date, {
+        addSuffix: true,
+        locale: enUS,
+      })
+
+      const roomWithTime = {
+        ...room,
+        relative_time: relativeTime,
+      }
+
+      if (isToday(date)) {
+        groups[0].rooms.push(roomWithTime)
+      }
+      else if (isYesterday(date)) {
+        groups[1].rooms.push(roomWithTime)
+      }
+      else if (isThisWeek(date, { weekStartsOn: 1 })) {
+        groups[2].rooms.push(roomWithTime)
+      }
+      else {
+        groups[3].rooms.push(roomWithTime)
+      }
+    })
+
+    groups.forEach((group) => {
+      group.rooms.sort((a, b) => b.created_at.getTime() - a.created_at.getTime())
+    })
+
+    return groups.filter(group => group.rooms.length > 0)
+  })
+
   return {
     // State
     rooms,
+    groupedRooms,
     currentRoomId,
     currentRoom,
 
