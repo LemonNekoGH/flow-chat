@@ -57,7 +57,8 @@ function handleDeleteProvider(provider: Provider) {
   <div class="mx-auto max-w-3xl w-full p-6">
     <div class="flex">
       <Button
-        variant="outline" as="a" class="mr-2 aspect-square w-10 px-unset dark:bg-black dark:hover:bg-primary/30"
+        id="text-generation-back"
+        variant="outline" class="mr-2 aspect-square w-10 px-unset dark:bg-black dark:hover:bg-primary/30"
         @click="router.replace('/settings')"
       >
         <span class="i-carbon-arrow-left" />
@@ -74,7 +75,7 @@ function handleDeleteProvider(provider: Provider) {
 
         <div class="flex-1" />
 
-        <Button v-if="editingProviderId !== provider.id" size="icon" class="h-8 w-8" variant="ghost" @click="editingProviderId = provider.id">
+        <Button v-if="editingProviderId !== provider.id" size="icon" class="edit-provider-btn h-8 w-8" variant="ghost" @click="editingProviderId = provider.id">
           <div i-lucide-pencil class="bg-blue" />
         </Button>
 
@@ -82,7 +83,7 @@ function handleDeleteProvider(provider: Provider) {
           <div i-lucide-check class="bg-green" />
         </Button>
 
-        <Button v-if="editingProviderId === provider.id" size="icon" class="h-8 w-8" variant="ghost" @click="handleDeleteProvider(provider)">
+        <Button v-if="editingProviderId === provider.id" size="icon" class="delete-provider-btn h-8 w-8" variant="ghost" @click="handleDeleteProvider(provider)">
           <div i-lucide-trash class="bg-red" />
         </Button>
       </div>
@@ -131,7 +132,7 @@ function handleDeleteProvider(provider: Provider) {
         </div>
       </div>
     </div>
-    <Button class="w-full" variant="outline" @click="handleAddProvider">
+    <Button id="settings-add-provider-btn" class="w-full" variant="outline" @click="handleAddProvider">
       <div i-lucide-plus class="h-4 w-4" />
       <div>Add Provider</div>
     </Button>

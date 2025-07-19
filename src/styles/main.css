@@ -82,3 +82,8 @@ body,
     @apply bg-background text-foreground;
   }
 }
+
+.vue-devtools__panel {
+  z-index: 100000;
+  pointer-events: auto;
+}

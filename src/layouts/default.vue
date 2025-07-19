@@ -47,14 +47,14 @@ const router = useRouter()
         <div v-if="showSidebar" class="i-solar-sidebar-minimalistic-outline text-lg" />
         <div v-else class="i-solar-hamburger-menu-outline text-lg" />
       </Button>
-      <div class="text-xl font-bold">
+      <div id="site-title" class="text-xl font-bold">
         Flow Chat
       </div>
       <div class="flex-1" />
       <Button v-if="currentMode === ChatMode.CONVERSATION" variant="outline" class="hidden sm:inline-flex" @click="currentMode = ChatMode.FLOW">
         Jump Out
       </Button>
-      <Button variant="outline" class="hidden border rounded-md bg-white px-2 color-black shadow-sm transition-colors duration-200 sm:inline-flex hover:bg-gray-200 hover:color-dark" @click="router.push('/settings')">
+      <Button id="settings-btn" variant="outline" class="hidden border rounded-md bg-white px-2 color-black shadow-sm transition-colors duration-200 sm:inline-flex hover:bg-gray-200 hover:color-dark" @click="router.push('/settings')">
         Settings
       </Button>
       <Button
