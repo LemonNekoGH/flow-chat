@@ -1,4 +1,4 @@
-<script setup lang="ts" vapor>
+<script setup lang="ts">
 import { useEventListener } from '@vueuse/core'
 import { computed, ref, watch } from 'vue'
 import { useSettingsStore } from '~/stores/settings'
