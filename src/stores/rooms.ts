@@ -85,7 +85,7 @@ export const useRoomsStore = defineStore('rooms', () => {
 
     currentRoomId.value = id
 
-    router.replace(`/chat/${id}`)
+    await router.replace(`/chat/${id}`)
     return true
   }
 

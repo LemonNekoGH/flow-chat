@@ -12,8 +12,8 @@ export interface TutorialMessage extends Message {
 }
 
 // Tutorial room configuration
-const TUTORIAL_ROOM_ID = 'tutorial'
-const DEFAULT_MODEL = 'openai/chatgpt-4o-latest'
+export const TUTORIAL_ROOM_ID = 'tutorial'
+const DEFAULT_MODEL = 'chatgpt-4o'
 const DEFAULT_PROVIDER = 'openai'
 
 // Helper functions to create tutorial messages

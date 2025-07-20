@@ -1,21 +1,31 @@
 <script setup lang="ts">
+import type { Tutorial } from '~/types/tutorial'
 import { storeToRefs } from 'pinia'
+import { DialogOverlay } from 'radix-vue'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import ModelSelector from '~/components/ModelSelector.vue'
 import TemplateManager from '~/components/TemplateManager.vue'
 import Button from '~/components/ui/button/Button.vue'
+import Dialog from '~/components/ui/dialog/Dialog.vue'
+import DialogContent from '~/components/ui/dialog/DialogContent.vue'
+import DialogDescription from '~/components/ui/dialog/DialogDescription.vue'
+import DialogHeader from '~/components/ui/dialog/DialogHeader.vue'
+import DialogTitle from '~/components/ui/dialog/DialogTitle.vue'
 import Input from '~/components/ui/input/Input.vue'
 import Select from '~/components/ui/select/Select.vue'
 import SelectContent from '~/components/ui/select/SelectContent.vue'
 import SelectItem from '~/components/ui/select/SelectItem.vue'
 import SelectTrigger from '~/components/ui/select/SelectTrigger.vue'
-import SelectValue from '~/components/ui/select/SelectValue.vue'
 
+import SelectValue from '~/components/ui/select/SelectValue.vue'
 import { useSettingsStore } from '~/stores/settings'
+import { useTutorialStore } from '~/stores/tutorial'
 
 const router = useRouter()
 const settingsStore = useSettingsStore()
+const tutorialStore = useTutorialStore()
+const { showSelectTutorial, chat, settings } = storeToRefs(tutorialStore)
 const { defaultTextModel, imageGeneration, configuredTextProviders } = storeToRefs(settingsStore)
 
 // Model selector state
@@ -32,6 +42,15 @@ function handleTextProviderChange(selectedProvider: string) {
   settingsStore.fetchModels()
 }
 
+function onSelectTutorial(tutorial: Tutorial) {
+  showSelectTutorial.value = false
+  tutorialStore.showTutorial(tutorial)
+}
+
+async function resetTutorial() {
+  showSelectTutorial.value = true
+}
+
 onMounted(async () => {
   await settingsStore.fetchModels()
 })
@@ -41,7 +60,8 @@ onMounted(async () => {
   <div class="mx-auto max-w-3xl w-full p-6">
     <div class="flex">
       <Button
-        variant="outline" as="a" class="mr-2 aspect-square w-10 px-unset dark:bg-black dark:hover:bg-primary/30"
+        id="settings-back-btn"
+        variant="outline" class="mr-2 aspect-square w-10 px-unset dark:bg-black dark:hover:bg-primary/30"
         @click="router.push('/')"
       >
         <span class="i-carbon-arrow-left" />
@@ -51,7 +71,7 @@ onMounted(async () => {
       </h1>
     </div>
     <div class="flex flex-col gap-4">
-      <div class="card border rounded-lg p-6 shadow-sm">
+      <div id="text-generation-settings-card" class="card border rounded-lg p-6 shadow-sm">
         <h2 class="mb-4 text-xl font-semibold">
           Text Generation Settings
         </h2>
@@ -92,11 +112,11 @@ onMounted(async () => {
         </div>
       </div>
 
-      <Button variant="outline" @click="router.push('/settings/modules/text-generation')">
+      <Button id="edit-text-generation-provider-btn" variant="outline" @click="router.push('/settings/modules/text-generation')">
         Edit Text Generation Providers
       </Button>
 
-      <div class="card border rounded-lg p-6 shadow-sm">
+      <div id="image-generation-settings-card" class="card border rounded-lg p-6 shadow-sm">
         <h2 class="mb-4 text-xl font-semibold">
           Image Generation Settings
         </h2>
@@ -121,6 +141,29 @@ onMounted(async () => {
       <div class="card border rounded-lg p-6 shadow-sm">
         <TemplateManager />
       </div>
+
+      <Button id="reset-tutorial-button" variant="outline" @click="resetTutorial">
+        Reset Tutorial
+      </Button>
     </div>
+
+    <Dialog v-model:open="showSelectTutorial">
+      <DialogOverlay class="fixed inset-0 z-10002" />
+      <DialogContent class="fixed z-10003">
+        <DialogHeader>
+          <DialogTitle>
+            Select the tutorial section
+          </DialogTitle>
+        </DialogHeader>
+        <DialogDescription class="flex gap-2">
+          <Button variant="outline" class="pointer-events-auto" @click="onSelectTutorial(chat)">
+            Chat
+          </Button>
+          <Button variant="outline" class="pointer-events-auto" @click="onSelectTutorial(settings)">
+            Settings
+          </Button>
+        </DialogDescription>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
