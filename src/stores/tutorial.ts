@@ -253,8 +253,8 @@ export const useTutorialStore = defineStore('tutorial', () => {
   ], driverObj, activeTutorial))
 
   const firstHere = shallowRef(useTutorial('tutorial/firstHereDriver', [
-    ...settings.value.steps,
-    ...chat.value.steps,
+    ...settings.value.steps.slice(0, -1),
+    ...chat.value.steps.slice(0, -1),
     lastStep,
   ], driverObj, activeTutorial))
 
