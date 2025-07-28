@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { SelectContentEmits, SelectContentProps } from 'radix-vue'
+import type { SelectContentEmits, SelectContentProps } from 'reka-ui'
 import type { HTMLAttributes } from 'vue'
 import {
   SelectContent,
@@ -7,7 +7,7 @@ import {
   SelectPortal,
   SelectViewport,
   useForwardPropsEmits,
-} from 'radix-vue'
+} from 'reka-ui'
 import { computed } from 'vue'
 import { cn } from '~/utils'
 import { SelectScrollDownButton, SelectScrollUpButton } from '.'

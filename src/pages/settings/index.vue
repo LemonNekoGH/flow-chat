@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Tutorial } from '~/types/tutorial'
 import { storeToRefs } from 'pinia'
-import { DialogOverlay } from 'radix-vue'
+import { DialogOverlay } from 'reka-ui'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import ModelSelector from '~/components/ModelSelector.vue'

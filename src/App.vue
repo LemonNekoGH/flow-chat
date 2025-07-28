@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { DialogOverlay } from 'radix-vue'
+import { DialogOverlay } from 'reka-ui'
 import { onMounted } from 'vue'
 import { toast } from 'vue-sonner'
 import Dialog from '~/components/ui/dialog/Dialog.vue'
