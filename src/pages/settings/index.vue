@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import type { AcceptableValue } from 'reka-ui'
 import type { Tutorial } from '~/types/tutorial'
 import { storeToRefs } from 'pinia'
-import { DialogOverlay } from 'radix-vue'
+import { DialogOverlay } from 'reka-ui'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import ModelSelector from '~/components/ModelSelector.vue'
@@ -36,7 +37,12 @@ function handleModelSelect(selectedModelValue: string) {
   settingsStore.defaultTextModel.model = selectedModelValue
 }
 
-function handleTextProviderChange(selectedProvider: string) {
+function handleTextProviderChange(selectedProvider: AcceptableValue) {
+  if (typeof selectedProvider !== 'string') {
+    console.error('Provider is not a string', selectedProvider)
+    return
+  }
+
   settingsStore.defaultTextModel.provider = selectedProvider
   settingsStore.defaultTextModel.model = ''
   settingsStore.fetchModels()
