@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { CapabilitiesByModel, ModelIdsByProvider, ProviderNames } from '@moeru-ai/jem'
 import type { Edge, Node, NodeMouseEvent } from '@vue-flow/core'
+import type { AcceptableValue } from 'reka-ui'
 import type { BaseMessage } from '~/types/messages'
 import type { NodeData } from '~/types/node'
 import { hasCapabilities } from '@moeru-ai/jem'
@@ -406,7 +407,12 @@ function handleContextMenuForkWith() {
   forkWithModel.value = ''
 }
 
-function handleForkWithProviderChange(provider: string) {
+function handleForkWithProviderChange(provider: AcceptableValue) {
+  if (typeof provider !== 'string') {
+    console.error('Provider is not a string', provider)
+    return
+  }
+
   forkWithProvider.value = provider as ProviderNames
   forkWithModel.value = ''
   settingsStore.fetchModels()

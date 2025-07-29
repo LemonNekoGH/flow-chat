@@ -1,18 +1,19 @@
 <script setup lang="ts">
+import type { AcceptableValue } from 'reka-ui'
 import type { Provider } from '~/types/settings'
-import { providers } from '@moeru-ai/jem'
 
+import { providers } from '@moeru-ai/jem'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import Button from '~/components/ui/button/Button.vue'
 import Input from '~/components/ui/input/Input.vue'
 import Select from '~/components/ui/select/Select.vue'
 import SelectContent from '~/components/ui/select/SelectContent.vue'
+
 import SelectItem from '~/components/ui/select/SelectItem.vue'
-
 import SelectTrigger from '~/components/ui/select/SelectTrigger.vue'
-import SelectValue from '~/components/ui/select/SelectValue.vue'
 
+import SelectValue from '~/components/ui/select/SelectValue.vue'
 import { useSettingsStore } from '~/stores/settings'
 
 const router = useRouter()
@@ -31,7 +32,12 @@ function handleAddProvider() {
   })
 }
 
-function handleChangeProvider(selectedProvider: string) {
+function handleChangeProvider(selectedProvider: AcceptableValue) {
+  if (typeof selectedProvider !== 'string') {
+    console.error('Provider is not a string', selectedProvider)
+    return
+  }
+
   const editingProvider = settingsStore.configuredTextProviders.find(p => p.id === editingProviderId.value)
   if (!editingProvider) {
     return
@@ -95,7 +101,7 @@ function handleDeleteProvider(provider: Provider) {
             :model-value="provider.name"
             class="w-full border rounded-md p-2 dark:bg-gray-800"
             placeholder="Enter provider name"
-            @update:model-value="handleChangeProvider($event)"
+            @update:model-value="handleChangeProvider"
           >
             <label for="provider-name" class="mb-2 block text-sm font-medium">Provider Name</label>
             <SelectTrigger>
