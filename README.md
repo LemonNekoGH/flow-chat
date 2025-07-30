@@ -33,3 +33,7 @@ pnpm dev
 ```bash
 pnpm build
 ```
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=LemonNekoGH/flow-chat&type=Date)](https://www.star-history.com/#LemonNekoGH/flow-chat&Date)
