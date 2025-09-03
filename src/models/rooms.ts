@@ -10,15 +10,21 @@ export function useRoomModel() {
     return (await dbStore.withCheckpoint((db) => {
       return db.insert(schema.rooms).values({
         name,
-        template_id: templateId,
+        template_id: templateId || null,
         default_model: 'gpt-4o',
       }).returning()
     }))[0]
   }
 
   function update(id: string, data: Partial<Omit<Room, 'id' | 'createdAt'>>) {
+    // Ensure empty strings are converted to null for UUID fields
+    const cleanData = {
+      ...data,
+      ...(data.template_id !== undefined && { template_id: data.template_id || null }),
+    }
+
     return dbStore.withCheckpoint((db) => {
-      return db.update(schema.rooms).set(data).where(eq(schema.rooms.id, id)).returning()
+      return db.update(schema.rooms).set(cleanData).where(eq(schema.rooms.id, id)).returning()
     })
   }
 

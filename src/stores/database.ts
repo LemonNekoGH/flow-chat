@@ -7,7 +7,7 @@ import { until } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import * as schema from '../../db/schema'
-import migration1 from '../../drizzle/0000_next_talos.sql?raw'
+import migration1 from '../../drizzle/0000_yummy_morg.sql?raw'
 
 export const useDatabaseStore = defineStore('database', () => {
   const logger = useLogg('database')
@@ -37,8 +37,18 @@ export const useDatabaseStore = defineStore('database', () => {
       await db().execute(`INSERT INTO __migrations (id) VALUES (${i});`)
     }
 
+    await db().execute('CHECKPOINT;')
+
     logger.log('Database migrations completed')
     migrating.value = false
+  }
+
+  async function clearDb() {
+    await db().execute('DROP TABLE IF EXISTS __migrations;')
+    await db().execute('DROP TABLE IF EXISTS messages;')
+    await db().execute('DROP TABLE IF EXISTS rooms;')
+    await db().execute('DROP TABLE IF EXISTS templates;')
+    await db().execute('CHECKPOINT;')
   }
 
   async function initialize(inMemory = false) {
@@ -97,6 +107,7 @@ export const useDatabaseStore = defineStore('database', () => {
     migrating,
 
     initialize,
+    clearDb,
     migrate,
 
     withCheckpoint,

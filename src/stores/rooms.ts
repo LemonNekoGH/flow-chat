@@ -1,4 +1,3 @@
-import type { MessageRole } from '~/types/messages'
 import type { Room } from '~/types/rooms'
 import { useLocalStorage } from '@vueuse/core'
 import {
@@ -9,20 +8,24 @@ import {
 } from 'date-fns'
 import { enUS } from 'date-fns/locale'
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useRoomModel } from '~/models/rooms'
-import { useTemplateModel } from '~/models/template'
 import { useMessagesStore } from './messages'
 
 export const useRoomsStore = defineStore('rooms', () => {
-  // Persistence layer
+  const route = useRoute()
   const roomModel = useRoomModel()
   const rooms = ref<Room[]>([])
-  const currentRoomId = useLocalStorage<string | null>('flow-chat-current-room', null)
+  const currentRoomId = useLocalStorage<string | undefined>('flow-chat-current-room', undefined)
+  const currentRoomIdFromRoute = (route.params as { id: string }).id
+  watch(() => currentRoomIdFromRoute, (newId) => {
+    if (newId) {
+      setCurrentRoom(newId)
+    }
+  })
 
   const messagesStore = useMessagesStore()
-  const templateModel = useTemplateModel()
   const router = useRouter()
 
   // Pure computed values
@@ -30,14 +33,8 @@ export const useRoomsStore = defineStore('rooms', () => {
 
   // Business logic
   async function createRoom(name: string, templateId?: string) {
-    const template = templateId
-      ? (await templateModel.getById(templateId))
-      : (await templateModel.getAll())[0]
-
-    const systemPrompt = template?.system_prompt || ''
-    const { id: systemPromptId } = messagesStore.newMessage(systemPrompt, 'system', null, '', '')
-
-    const room = await roomModel.create(name, systemPromptId)
+    // debugger
+    const room = await roomModel.create(name, templateId)
     setCurrentRoom(room.id)
 
     rooms.value = await roomModel.getAll()
@@ -79,6 +76,9 @@ export const useRoomsStore = defineStore('rooms', () => {
   }
 
   async function setCurrentRoom(id: string) {
+    if (id === currentRoomId.value)
+      return true
+
     const room = rooms.value.find(room => room.id === id)
     if (!room)
       return false
@@ -87,19 +87,6 @@ export const useRoomsStore = defineStore('rooms', () => {
 
     await router.replace(`/chat/${id}`)
     return true
-  }
-
-  function createMessage(content: string, role: MessageRole, parentMessageId: string | null, provider: string, model: string, generating: boolean = false) {
-    const parent = parentMessageId || currentRoom.value?.template_id || null
-    return messagesStore.newMessage(
-      content,
-      role,
-      parent,
-      provider,
-      model,
-      currentRoomId.value || undefined,
-      generating,
-    )
   }
 
   function getRoomSystemPrompt(roomId: string) {
@@ -177,7 +164,6 @@ export const useRoomsStore = defineStore('rooms', () => {
     updateRoom,
     deleteRoom,
     setCurrentRoom,
-    createMessage,
     getRoomSystemPrompt,
     initialize,
   }

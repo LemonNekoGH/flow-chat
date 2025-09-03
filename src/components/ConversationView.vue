@@ -1,15 +1,10 @@
 <script setup lang="ts">
 import type { Message, MessageRole } from '~/types/messages'
 import { useClipboard, useEventListener } from '@vueuse/core'
-import { storeToRefs } from 'pinia'
 import { computed, nextTick, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
-import { streamText } from 'xsai'
 import { useMessagesStore } from '~/stores/messages'
-import { useRoomsStore } from '~/stores/rooms'
 import { useSettingsStore } from '~/stores/settings'
-import { parseMessage } from '~/utils/chat'
-import { asyncIteratorFromReadableStream } from '~/utils/interator'
 import ConversationNodeContextMenu from './ConversationNodeContextMenu.vue'
 import MarkdownView from './MarkdownView.vue'
 import ModelSelector from './ModelSelector.vue'
@@ -17,33 +12,23 @@ import SystemPrompt from './SystemPrompt.vue'
 
 const props = defineProps<{
   messages: Message[]
-  selectedMessageId?: string | null
 }>()
-const emit = defineEmits(['update:selected-message-id'])
+const emit = defineEmits<{
+  (e: 'forkMessage', messageId: string, model?: string): void
+  (e: 'abortMessage', messageId: string): void
+  (e: 'sendMessage', message: string): void
+}>()
 
 const messagesStore = useMessagesStore()
-const roomsStore = useRoomsStore()
 const settingsStore = useSettingsStore()
-const { defaultTextModel, currentProvider } = storeToRefs(settingsStore)
 
 const containerRef = ref<HTMLDivElement>()
 const inputMessage = ref('')
 const showModelSelector = ref(false)
 const selectedModel = ref('')
-const selectedMessageId = ref<string | null>(props.selectedMessageId ?? null)
-const generatingMessageId = ref<string | null>(null)
-const streamTextAbortControllers = ref<Map<string, AbortController>>(new Map())
 
 const userAndAssistantMessages = computed(() => {
   return props.messages.filter(message => message.role === 'user' || message.role === 'assistant')
-})
-
-watch(() => props.selectedMessageId, (val) => {
-  selectedMessageId.value = val ?? null
-})
-
-watch(selectedMessageId, (val) => {
-  emit('update:selected-message-id', val)
 })
 
 // Watch for "model=" in the input
@@ -76,68 +61,11 @@ function scrollToBottom() {
 }
 
 // Generate AI response
-async function generateResponse(parentId: string | null, provider: string, model: string) {
-  if (!model) {
-    toast.error('Please select a model')
-    return
-  }
-  if (!currentProvider.value?.baseURL) {
-    toast.error('Please select a provider')
-    return
-  }
-  const { id: newMsgId } = roomsStore.createMessage('', 'assistant', parentId, provider, model, true)
-  generatingMessageId.value = newMsgId
-  const abortController = new AbortController()
-  streamTextAbortControllers.value.set(newMsgId, abortController)
-
-  const branch = messagesStore.getBranchById(parentId)
-  const { textStream } = await streamText({
-    maxSteps: 10,
-    apiKey: currentProvider.value?.apiKey,
-    baseURL: currentProvider.value?.baseURL,
-    model,
-    messages: branch.messages.map(({ content, role }) => ({ content, role })),
-    abortSignal: abortController.signal,
-  })
-  for await (const textPart of asyncIteratorFromReadableStream(textStream, async v => v)) {
-    if (messagesStore.image) {
-      messagesStore.updateMessage(newMsgId, `![generated image](${messagesStore.image})`)
-      messagesStore.image = ''
-    }
-    textPart && messagesStore.updateMessage(newMsgId, textPart)
-  }
-  generatingMessageId.value = null
-  streamTextAbortControllers.value.delete(newMsgId)
-}
-
-// Generate AI response
 async function handleSendButton() {
   if (!inputMessage.value)
     return
-  const { model, message } = parseMessage(inputMessage.value)
-  const { id } = roomsStore.createMessage(message, 'user', selectedMessageId.value, defaultTextModel.value.provider, model ?? defaultTextModel.value.model)
-  inputMessage.value = model ? `model=${model} ` : ''
-  selectedMessageId.value = id
-  try {
-    await generateResponse(id, defaultTextModel.value.provider, model ?? defaultTextModel.value.model)
-  }
-  catch (error) {
-    const err = error as Error
-    if (err.message.includes('BodyStreamBuffer was aborted'))
-      return
-    if (err.message.includes('does not support tools')) {
-      toast.error('This model does not support tools')
-      return
-    }
-    console.error(error)
-    toast.error('Failed to generate response')
-  }
-  finally {
-    if (generatingMessageId.value) {
-      messagesStore.updateMessage(generatingMessageId.value, '', false)
-    }
-    generatingMessageId.value = null
-  }
+
+  emit('sendMessage', inputMessage.value)
 }
 
 // Copy message content
@@ -153,8 +81,8 @@ async function copyMessage(message: Message) {
 }
 
 // Fork from a message
-function forkMessage(messageId: string, model?: string | null) {
-  generateResponse(messageId, defaultTextModel.value.provider, model ?? defaultTextModel.value.model)
+function forkMessage(messageId: string, model?: string) {
+  emit('forkMessage', messageId, model)
 }
 
 // Context menu state
@@ -208,11 +136,7 @@ function handleContextMenuFocusIn() {
 
 // Abort generation
 function handleAbort(messageId: string) {
-  const abortController = streamTextAbortControllers.value.get(messageId)
-  abortController?.abort('Aborted by user')
-  streamTextAbortControllers.value.delete(messageId)
-  messagesStore.updateMessage(messageId, '', false)
-  toast.success('Generation aborted')
+  emit('abortMessage', messageId)
 }
 
 // Close context menu on click outside
@@ -284,7 +208,7 @@ useEventListener('click', () => {
                 <div class="i-solar-code-line-duotone text-sm" />
               </button>
               <button
-                v-if="message.generating"
+                v-if="messagesStore.isGenerating(message.id)"
                 class="h-7 w-7 flex items-center justify-center rounded-full hover:bg-black/10"
                 title="Abort"
                 @click="handleAbort(message.id)"
@@ -297,7 +221,7 @@ useEventListener('click', () => {
       </template>
 
       <!-- Generating indicator -->
-      <div v-if="generatingMessageId" class="flex items-center gap-2 pl-14 text-sm text-gray-500 italic">
+      <div v-if="messagesStore.generatingMessages.length" class="flex items-center gap-2 pl-14 text-sm text-gray-500 italic">
         <div class="i-solar-loading-bold animate-spin" />
         Generating...
       </div>

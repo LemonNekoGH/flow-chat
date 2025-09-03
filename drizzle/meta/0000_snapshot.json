@@ -1,5 +1,5 @@
 {
-  "id": "adea3c48-257d-46c9-9bb7-35fc18ef5c71",
+  "id": "31580580-fad1-44e5-b6ff-6c0a01548d09",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -23,6 +23,12 @@
         },
         "model": {
           "name": "model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provider": {
+          "name": "provider",
           "type": "text",
           "primaryKey": false,
           "notNull": true
