@@ -9,7 +9,7 @@ import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { useVueFlow, VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
-import { until, useClipboard, useEventListener } from '@vueuse/core'
+import { useClipboard, useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch, watchEffect } from 'vue'
 import { useRoute } from 'vue-router'
@@ -46,7 +46,6 @@ import { asyncIteratorFromReadableStream } from '~/utils/interator'
 
 const route = useRoute('/chat/[id]')
 const dbStore = useDatabaseStore()
-const { db } = storeToRefs(dbStore)
 
 const roomId = computed(() => {
   if (typeof route.params.id === 'string') {
@@ -449,7 +448,7 @@ function handleInit() {
 }
 
 onMounted(async () => {
-  await until(db).toBeTruthy()
+  await dbStore.waitForDbInitialized()
   // Initialize rooms before displaying
   await roomsStore.initialize()
 })

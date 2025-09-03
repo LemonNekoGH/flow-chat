@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { until } from '@vueuse/core'
-import { storeToRefs } from 'pinia'
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDatabaseStore } from '~/stores/database'
@@ -9,10 +7,9 @@ import { useRoomsStore } from '~/stores/rooms'
 const router = useRouter()
 const roomsStore = useRoomsStore()
 const dbStore = useDatabaseStore()
-const { db } = storeToRefs(dbStore)
 
 onMounted(async () => {
-  await until(db).toBeTruthy()
+  await dbStore.waitForDbInitialized()
 
   // Initialize rooms
   const room = await roomsStore.initialize()

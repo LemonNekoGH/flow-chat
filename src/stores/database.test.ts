@@ -22,7 +22,7 @@ describe('useDatabaseStore', () => {
     expect(store.migrating).toBe(false)
 
     // verify the migration table is created
-    const migrations = await store.db?.execute<{ id: number, executed_at: string }>(
+    const migrations = await store.db().execute<{ id: number, executed_at: string }>(
       'SELECT * FROM __migrations ORDER BY id',
     )
     expect(migrations).toBeDefined()
@@ -30,7 +30,7 @@ describe('useDatabaseStore', () => {
     expect(migrations?.[0].id).toBe(0)
 
     // verify the business tables are created
-    const tables = await store.db?.execute<{ name: string }>(
+    const tables = await store.db().execute<{ name: string }>(
       `SELECT name FROM sqlite_master
        WHERE type='table' AND name IN ('messages', 'rooms', 'templates')`,
     )
@@ -43,14 +43,14 @@ describe('useDatabaseStore', () => {
 
     await store.initialize(true)
     await store.migrate([migration1])
-    const firstMigrations = await store.db?.execute<{ id: number }>(
+    const firstMigrations = await store.db().execute<{ id: number }>(
       'SELECT * FROM __migrations',
     )
     expect(firstMigrations?.length).toBe(1)
 
     // migrate again
     await store.migrate([migration1])
-    const secondMigrations = await store.db?.execute<{ id: number }>(
+    const secondMigrations = await store.db().execute<{ id: number }>(
       'SELECT * FROM __migrations',
     )
 
@@ -68,7 +68,7 @@ describe('useDatabaseStore', () => {
     expect(store.migrating).toBe(false)
 
     // confirm the database connection is still available
-    const result = await store.db?.execute('SELECT 1')
+    const result = await store.db().execute('SELECT 1')
     expect(result).toBeDefined()
     expect(result?.[0]).toEqual({ 1: 1 })
   })
@@ -81,7 +81,7 @@ describe('useDatabaseStore', () => {
     await store.migrate([migration1])
 
     // verify the first migration is completed
-    const firstMigrations = await store.db?.execute<{ id: number }>(
+    const firstMigrations = await store.db().execute<{ id: number }>(
       'SELECT * FROM __migrations ORDER BY id',
     )
     expect(firstMigrations).toBeDefined()
@@ -89,7 +89,7 @@ describe('useDatabaseStore', () => {
     expect(firstMigrations?.[0].id).toBe(0)
 
     // verify the metadata column does not exist
-    const beforeColumns = await store.db?.execute<{ name: string, type: string }>(
+    const beforeColumns = await store.db().execute<{ name: string, type: string }>(
       `SELECT name, type FROM pragma_table_info('messages')`,
     )
     expect(beforeColumns?.find(c => c.name === 'metadata')).toBeUndefined()
@@ -98,7 +98,7 @@ describe('useDatabaseStore', () => {
     await store.migrate([migration1, migration2])
 
     // verify both migrations are completed
-    const secondMigrations = await store.db?.execute<{ id: number }>(
+    const secondMigrations = await store.db().execute<{ id: number }>(
       'SELECT * FROM __migrations ORDER BY id',
     )
     expect(secondMigrations).toBeDefined()
@@ -106,7 +106,7 @@ describe('useDatabaseStore', () => {
     expect(secondMigrations?.map(m => m.id)).toEqual([0, 1])
 
     // verify the new metadata column
-    const afterColumns = await store.db?.execute<{ name: string, type: string }>(
+    const afterColumns = await store.db().execute<{ name: string, type: string }>(
       `SELECT name, type FROM pragma_table_info('messages')`,
     )
     expect(afterColumns).toBeDefined()

@@ -31,7 +31,7 @@ export const useRoomsStore = defineStore('rooms', () => {
   // Business logic
   async function createRoom(name: string, templateId?: string) {
     const template = templateId
-      ? (await templateModel.getById(templateId))[0]
+      ? (await templateModel.getById(templateId))
       : (await templateModel.getAll())[0]
 
     const systemPrompt = template?.system_prompt || ''

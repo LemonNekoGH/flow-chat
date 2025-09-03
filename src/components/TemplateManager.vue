@@ -62,7 +62,7 @@ async function createTemplate() {
 }
 
 async function openEditDialog(id: string) {
-  const template = (await templateModel.getById(id))[0]
+  const template = await templateModel.getById(id)
   if (!template)
     return
 

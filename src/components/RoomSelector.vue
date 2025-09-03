@@ -1,8 +1,6 @@
 <script setup lang="ts">
-import { until } from '@vueuse/core'
 import { format } from 'date-fns'
 import { enUS } from 'date-fns/locale'
-import { storeToRefs } from 'pinia'
 import { nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
 import Button from '~/components/ui/button/Button.vue'
@@ -41,7 +39,6 @@ function checkMobile() {
 }
 
 const dbStore = useDatabaseStore()
-const { db } = storeToRefs(dbStore)
 
 // Set up event listeners for responsive behavior
 onMounted(async () => {
@@ -50,7 +47,7 @@ onMounted(async () => {
   // Close swipe when clicking outside
   document.addEventListener('click', handleOutsideClick)
 
-  await until(db).toBeTruthy()
+  await dbStore.waitForDbInitialized()
   await roomsStore.initialize()
 })
 
