@@ -8,6 +8,7 @@ import { computed, nextTick, ref, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 import { createTutorialRoom } from '~/utils/tutorial'
+import { useMessagesStore } from './messages'
 import { useRoomsStore } from './rooms'
 
 function useTutorial(
@@ -77,6 +78,7 @@ function useTutorial(
 
 export const useTutorialStore = defineStore('tutorial', () => {
   const roomsStore = useRoomsStore()
+  const messagesStore = useMessagesStore()
   const router = useRouter()
 
   const tutorialIdMap = ref(new Map<string, string>())
@@ -98,11 +100,11 @@ export const useTutorialStore = defineStore('tutorial', () => {
     await roomsStore.setCurrentRoom(tutorialRoom.id)
 
     tutorialIdMap.value = new Map<string, string>()
-    tutorial.messages.forEach((it) => {
-      const parentMessageId = it.parentMessageId ? tutorialIdMap.value.get(it.parentMessageId) || null : null
-      const msg = roomsStore.createMessage(it.content, it.role, parentMessageId, it.provider, it.model)
+    for (const it of tutorial.messages) {
+      const parentMessageId = it.parent_id ? tutorialIdMap.value.get(it.parent_id) ?? null : null
+      const msg = await messagesStore.newMessage(it.content, it.role, parentMessageId, it.provider, it.model, tutorialRoom.id)
       tutorialIdMap.value.set(it.id, msg.id)
-    })
+    }
   }
 
   const lastStep: DriveStep = {

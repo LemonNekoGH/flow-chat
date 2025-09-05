@@ -2,32 +2,29 @@ import type { DuckDBWasmDrizzleDatabase } from '@proj-airi/drizzle-duckdb-wasm'
 import { useLogg } from '@guiiai/logg'
 import { buildDSN, drizzle } from '@proj-airi/drizzle-duckdb-wasm'
 import { DBStorageType, DuckDBAccessMode } from '@proj-airi/duckdb-wasm'
-import { defineStore } from 'pinia'
+import { until } from '@vueuse/core'
 
+import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import * as schema from '../../db/schema'
-import migration1 from '../../drizzle/0000_next_talos.sql?raw'
+import migration1 from '../../drizzle/0000_yummy_morg.sql?raw'
 
 export const useDatabaseStore = defineStore('database', () => {
   const logger = useLogg('database')
 
   const migrating = ref(false)
-  const db = ref<DuckDBWasmDrizzleDatabase<typeof schema>>()
+  const _db = ref<DuckDBWasmDrizzleDatabase<typeof schema>>()
 
+  // TODO: use https://github.com/proj-airi/drizzle-orm-browser instead
   async function migrate(migrations?: string[]) {
-    if (!db.value) {
-      logger.warn('Database connection not initialized')
-      return
-    }
-
     migrating.value = true
-    await db.value.execute(`CREATE TABLE IF NOT EXISTS __migrations (
+    await db().execute(`CREATE TABLE IF NOT EXISTS __migrations (
       id INTEGER PRIMARY KEY,
       executed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     );`)
 
     // get executed migration ids
-    const executedMigrations = await db.value.execute<{ id: number }>('SELECT id FROM __migrations')
+    const executedMigrations = await db().execute<{ id: number }>('SELECT id FROM __migrations')
     const maxId = executedMigrations.reduce((max, migration) => Math.max(max, migration.id), -1)
 
     const m = migrations ?? [ // TODO: unit test
@@ -36,16 +33,26 @@ export const useDatabaseStore = defineStore('database', () => {
 
     for (let i = maxId + 1; i < m.length; i++) {
       logger.log('Running migration', m[i])
-      await db.value.execute(m[i])
-      await db.value.execute(`INSERT INTO __migrations (id) VALUES (${i});`)
+      await db().execute(m[i])
+      await db().execute(`INSERT INTO __migrations (id) VALUES (${i});`)
     }
+
+    await db().execute('CHECKPOINT;')
 
     logger.log('Database migrations completed')
     migrating.value = false
   }
 
+  async function clearDb() {
+    await db().execute('DROP TABLE IF EXISTS __migrations;')
+    await db().execute('DROP TABLE IF EXISTS messages;')
+    await db().execute('DROP TABLE IF EXISTS rooms;')
+    await db().execute('DROP TABLE IF EXISTS templates;')
+    await db().execute('CHECKPOINT;')
+  }
+
   async function initialize(inMemory = false) {
-    if (db.value) {
+    if (_db.value) {
       logger.warn('Database connection already initialized')
       return
     }
@@ -64,7 +71,7 @@ export const useDatabaseStore = defineStore('database', () => {
         })
     logger.log('dsn', dsn)
 
-    db.value = drizzle(dsn, { schema })
+    _db.value = drizzle(dsn, { schema })
 
     // It can only use in node environment
     // await migrate(db.value, {
@@ -76,12 +83,23 @@ export const useDatabaseStore = defineStore('database', () => {
     logger.log('Database initialized')
   }
 
-  async function persistData() {
-    if (!db.value)
-      return
+  function db() {
+    if (!_db.value) {
+      throw new Error('Database not initialized')
+    }
 
-    // force write WAL log to main database file
-    await db.value.execute('PRAGMA wal_checkpoint(FULL);')
+    return _db.value
+  }
+
+  async function withCheckpoint<T>(cb: (db: DuckDBWasmDrizzleDatabase<typeof schema>) => Promise<T>) {
+    const result = await cb(db())
+    await db().execute('CHECKPOINT;') // TODO: is this necessary?
+
+    return result
+  }
+
+  function waitForDbInitialized() {
+    return until(_db).toBeTruthy()
   }
 
   return {
@@ -89,7 +107,10 @@ export const useDatabaseStore = defineStore('database', () => {
     migrating,
 
     initialize,
+    clearDb,
     migrate,
-    persistData,
+
+    withCheckpoint,
+    waitForDbInitialized,
   }
 })

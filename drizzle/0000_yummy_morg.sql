@@ -2,6 +2,7 @@ CREATE TABLE "messages" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"content" text NOT NULL,
 	"model" text NOT NULL,
+	"provider" text NOT NULL,
 	"role" text NOT NULL,
 	"room_id" uuid,
 	"parent_id" uuid,

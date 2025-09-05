@@ -23,6 +23,7 @@ export const messages = pgTable('messages', () => ({
   id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
   content: text('content').notNull(),
   model: text('model').notNull(),
+  provider: text('provider').notNull(),
   role: text('role').notNull(),
   room_id: uuid('room_id').references(() => rooms.id),
   parent_id: uuid('parent_id'),

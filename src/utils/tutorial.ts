@@ -6,9 +6,7 @@ export interface TutorialMessage extends Message {
   id: string
   content: string
   role: 'system' | 'user' | 'assistant'
-  parentMessageId: string | null
   timestamp: number
-  roomId: string
 }
 
 // Tutorial room configuration
@@ -29,12 +27,11 @@ function createMessage(
     id,
     content,
     role,
-    parentMessageId,
+    parent_id: parentMessageId,
     timestamp: Date.now(),
-    roomId: TUTORIAL_ROOM_ID,
+    room_id: TUTORIAL_ROOM_ID,
     model,
     provider,
-    generating: false,
   }
 }
 

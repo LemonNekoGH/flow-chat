@@ -1,183 +1,79 @@
 import type { Message, MessageRole } from '~/types/messages'
-import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
-import { tutorialMessages } from '~/utils/tutorial'
-
-// Type definitions for our maps
-type MessageMap = Map<string, Message>
-type RoomMessageMap = Map<string, MessageMap>
+import { ref } from 'vue'
+import { useMessageModel } from '~/models/messages'
+import { useRoomsStore } from './rooms'
 
 export const useMessagesStore = defineStore('messages', () => {
   // Persistence layer
-  const messagesStorage = useLocalStorage<[string, [string, Message][]][]>('flow-chat-messages', [])
-
-  // Pure computed values
-  const messagesByRoom = computed<RoomMessageMap>(() => {
-    const roomMap = new Map()
-    for (const [roomId, messages] of messagesStorage.value) {
-      roomMap.set(roomId, new Map(messages))
-    }
-    return roomMap
-  })
-
-  const messages = computed(() => {
-    const allMessages: Message[] = []
-    for (const roomMessages of messagesByRoom.value.values()) {
-      allMessages.push(...roomMessages.values())
-    }
-    return allMessages
-  })
+  const roomsStore = useRoomsStore() // don't use store to ref to avoid circular dependency
+  const messageModel = useMessageModel()
+  const messages = ref<Message[]>([])
+  const generatingMessages = ref<string[]>([])
 
   // images
   // FIXME: dirty code, add a store for image
   const image = ref('')
 
-  // Pure functions for state transformations
-  function createMessageState(
-    text: string,
-    role: MessageRole,
-    parentMessageId: string | null,
-    provider: string,
-    model: string,
-    roomId: string,
-    generating: boolean,
-  ): Message {
-    return {
-      id: crypto.randomUUID(),
-      content: text,
-      role,
-      parentMessageId,
-      timestamp: Date.now(),
-      provider,
-      model,
-      roomId,
-      generating,
-    }
-  }
-
-  function appendMessageContent(message: Message, text: string): Message {
-    return {
-      ...message,
-      content: message.content + text,
-    }
-  }
-
-  // Storage operations
-  function persistMessages(newMap: RoomMessageMap) {
-    messagesStorage.value = Array.from(newMap.entries()).map(
-      ([roomId, messages]) => [roomId, Array.from(messages.entries())],
-    )
-  }
-
   // Business logic
   function newMessage(
     text: string,
     role: MessageRole,
-    parentMessageId: string | null = null,
+    parentId: string | null,
     provider: string,
     model: string,
-    roomId: string = '',
-    generating: boolean = false,
+    roomId: string,
   ) {
-    const message = createMessageState(text, role, parentMessageId, provider, model, roomId, generating)
-
-    const newMap = new Map(messagesByRoom.value)
-    const roomMessages = newMap.get(roomId) || new Map()
-    roomMessages.set(message.id, message)
-    newMap.set(roomId, roomMessages)
-
-    persistMessages(newMap)
-    return message
+    return messageModel.create({
+      content: text,
+      role,
+      parent_id: parentId,
+      provider,
+      model,
+      room_id: roomId,
+    })
   }
 
   // pass `""` to `text` to update the message without appending content
-  function updateMessage(id: string, text: string, generating?: boolean): boolean {
-    const newMap = new Map(messagesByRoom.value)
-
-    for (const [roomId, roomMessages] of newMap.entries()) {
-      const message = roomMessages.get(id)
-      if (message) {
-        const updatedMessage = appendMessageContent(message, text)
-        if (generating !== undefined) {
-          updatedMessage.generating = generating
-        }
-        roomMessages.set(id, updatedMessage)
-        newMap.set(roomId, roomMessages)
-        persistMessages(newMap)
-        return true
-      }
-    }
-
-    return false
+  function appendContent(id: string, text: string) {
+    return messageModel.appendContent(id, text)
   }
 
-  function deleteMessages(ids: string[]): boolean {
-    if (!ids.length)
-      return false
-
-    const newMap = new Map(messagesByRoom.value)
-    let hasChanges = false
-
-    for (const [roomId, roomMessages] of newMap.entries()) {
-      const newRoomMessages = new Map(roomMessages)
-      for (const id of ids) {
-        if (newRoomMessages.delete(id)) {
-          hasChanges = true
-        }
-      }
-
-      if (newRoomMessages.size === 0) {
-        newMap.delete(roomId)
-      }
-      else {
-        newMap.set(roomId, newRoomMessages)
-      }
-    }
-
-    if (hasChanges) {
-      persistMessages(newMap)
-    }
-    return hasChanges
+  function deleteMessages(ids: string[]) {
+    return messageModel.deleteByIds(ids)
   }
 
-  function deleteSubtree(id: string): boolean {
+  function deleteSubtree(id: string) {
     return deleteMessages(getSubtreeById(id))
   }
 
   // Pure query functions
-  function getMessageById(id?: string | null): Message | undefined {
-    if (!id)
+  function getMessageById(id: string | null) {
+    return messages.value.find(message => message.id === id)
+  }
+
+  function getParentMessage(msg: Message) {
+    if (!msg.parent_id)
       return undefined
 
-    for (const roomMessages of messagesByRoom.value.values()) {
-      const message = roomMessages.get(id)
-      if (message)
-        return message
-    }
-    return undefined
+    return getMessageById(msg.parent_id)
   }
 
-  function getParentMessage(msg: Message): Message | undefined {
-    return getMessageById(msg.parentMessageId)
-  }
-
-  function getChildMessagesById(id?: string | null): Message[] {
+  function getChildMessagesById(id?: string): Message[] {
     if (!id)
       return []
 
     const children: Message[] = []
-    for (const roomMessages of messagesByRoom.value.values()) {
-      for (const message of roomMessages.values()) {
-        if (message.parentMessageId === id) {
-          children.push(message)
-        }
+    for (const message of messages.value) {
+      if (message.parent_id === id) {
+        children.push(message)
       }
     }
+
     return children
   }
 
-  function getBranchById(id?: string | null) {
+  function getBranchById(id: string | null) {
     const messages: Message[] = []
     const ids = new Set<string>()
 
@@ -199,35 +95,27 @@ export const useMessagesStore = defineStore('messages', () => {
     return descendants
   }
 
-  function getMessagesByRoomId(roomId?: string | null): Message[] {
-    if (!roomId)
-      return []
-    const roomMessages = messagesByRoom.value.get(roomId)
-    return roomMessages ? Array.from(roomMessages.values()) : []
+  function isGenerating(id: string) {
+    return generatingMessages.value.includes(id)
   }
 
-  function restoreTutorial() {
-    deleteSubtree('tutorial-root')
+  async function retrieveMessages() {
+    if (!roomsStore.currentRoomId)
+      return
 
-    const newMap = new Map(messagesByRoom.value)
-    for (const message of tutorialMessages) {
-      const roomMessages = newMap.get(message.roomId) || new Map()
-      roomMessages.set(message.id, message)
-      newMap.set(message.roomId, roomMessages)
-    }
-
-    persistMessages(newMap)
-    return true
+    // TODO: try to use enum
+    messages.value = await messageModel.getByRoomId(roomsStore.currentRoomId) as Message[]
   }
 
   return {
     // State
     messages,
     image,
+    generatingMessages,
 
     // Actions
     newMessage,
-    updateMessage,
+    appendContent,
     deleteMessages,
     deleteSubtree,
 
@@ -237,7 +125,9 @@ export const useMessagesStore = defineStore('messages', () => {
     getChildMessagesById,
     getBranchById,
     getSubtreeById,
-    getMessagesByRoomId,
-    restoreTutorial,
+
+    isGenerating,
+
+    retrieveMessages,
   }
 })

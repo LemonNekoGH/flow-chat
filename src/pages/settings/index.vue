@@ -11,6 +11,7 @@ import Button from '~/components/ui/button/Button.vue'
 import Dialog from '~/components/ui/dialog/Dialog.vue'
 import DialogContent from '~/components/ui/dialog/DialogContent.vue'
 import DialogDescription from '~/components/ui/dialog/DialogDescription.vue'
+import DialogFooter from '~/components/ui/dialog/DialogFooter.vue'
 import DialogHeader from '~/components/ui/dialog/DialogHeader.vue'
 import DialogTitle from '~/components/ui/dialog/DialogTitle.vue'
 import Input from '~/components/ui/input/Input.vue'
@@ -20,6 +21,7 @@ import SelectItem from '~/components/ui/select/SelectItem.vue'
 import SelectTrigger from '~/components/ui/select/SelectTrigger.vue'
 
 import SelectValue from '~/components/ui/select/SelectValue.vue'
+import { useDatabaseStore } from '~/stores/database'
 import { useSettingsStore } from '~/stores/settings'
 import { useTutorialStore } from '~/stores/tutorial'
 
@@ -31,6 +33,8 @@ const { defaultTextModel, imageGeneration, configuredTextProviders } = storeToRe
 
 // Model selector state
 const showModelSelector = ref(false)
+const showDeleteAllMessagesDialog = ref(false)
+const dbStore = useDatabaseStore()
 
 // Handle model selection
 function handleModelSelect(selectedModelValue: string) {
@@ -55,6 +59,16 @@ function onSelectTutorial(tutorial: Tutorial) {
 
 async function resetTutorial() {
   showSelectTutorial.value = true
+}
+
+async function deleteAllMessages() {
+  showDeleteAllMessagesDialog.value = true
+}
+
+async function confirmDeleteAllMessages() {
+  await dbStore.clearDb()
+  await dbStore.migrate()
+  showDeleteAllMessagesDialog.value = false
 }
 
 onMounted(async () => {
@@ -151,6 +165,10 @@ onMounted(async () => {
       <Button id="reset-tutorial-button" variant="outline" @click="resetTutorial">
         Reset Tutorial
       </Button>
+
+      <Button id="delete-all-messages-button" variant="outline" @click="deleteAllMessages">
+        Delete all messages
+      </Button>
     </div>
 
     <Dialog v-model:open="showSelectTutorial">
@@ -165,10 +183,34 @@ onMounted(async () => {
           <Button variant="outline" class="pointer-events-auto" @click="onSelectTutorial(chat)">
             Chat
           </Button>
-          <Button variant="outline" class="pointer-events-auto" @click="onSelectTutorial(settings)">
+          <Button variant="destructive" class="pointer-events-auto" @click="onSelectTutorial(settings)">
             Settings
           </Button>
         </DialogDescription>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog :open="showDeleteAllMessagesDialog">
+      <DialogOverlay class="fixed inset-0 z-10002" />
+      <DialogContent class="fixed z-10003">
+        <DialogHeader>
+          <DialogTitle>
+            Delete all messages
+          </DialogTitle>
+        </DialogHeader>
+        <DialogDescription>
+          Are you sure you want to delete all messages?
+        </DialogDescription>
+        <DialogFooter>
+          <Button variant="outline" class="pointer-events-auto" @click="showDeleteAllMessagesDialog = false">
+            No
+          </Button>
+
+          <!-- TODO: color issue -->
+          <Button variant="destructive" class="pointer-events-auto" @click="confirmDeleteAllMessages">
+            Yes
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   </div>

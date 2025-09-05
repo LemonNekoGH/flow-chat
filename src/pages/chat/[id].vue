@@ -9,7 +9,7 @@ import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { useVueFlow, VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
-import { until, useClipboard, useEventListener } from '@vueuse/core'
+import { useClipboard, useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch, watchEffect } from 'vue'
 import { useRoute } from 'vue-router'
@@ -46,13 +46,13 @@ import { asyncIteratorFromReadableStream } from '~/utils/interator'
 
 const route = useRoute('/chat/[id]')
 const dbStore = useDatabaseStore()
-const { db } = storeToRefs(dbStore)
 
 const roomId = computed(() => {
   if (typeof route.params.id === 'string') {
     return route.params.id
   }
-  return Array.isArray(route.params.id) ? route.params.id[0] : ''
+  const id = Array.isArray(route.params.id) ? route.params.id[0] : null
+  return id || null
 })
 const { setCenter, findNode, viewport } = useVueFlow()
 
@@ -61,8 +61,10 @@ const { defaultTextModel, currentProvider } = storeToRefs(settingsStore)
 
 const messagesStore = useMessagesStore()
 const roomsStore = useRoomsStore()
+const { currentRoomId } = storeToRefs(roomsStore)
 const { layout } = useLayout()
 const { currentMode } = storeToRefs(useModeStore())
+const { messages } = storeToRefs(messagesStore)
 const defaultColor = 'rgb(240, 242, 243, 0.7)'
 const darkColor = 'rgb(34,34,34,0.7)'
 const strokeColor = computed(() => (isDark.value ? darkColor : defaultColor))
@@ -70,7 +72,7 @@ const selectedMessageId = ref<string | null>(null)
 const selectedMessage = computed(() => {
   return messagesStore.messages.find(message => message.id === selectedMessageId.value)
 })
-const generatingMessageId = ref<string | null>(null)
+const generatingMessageId = ref<string | undefined>()
 
 const inputMessage = ref('')
 
@@ -125,7 +127,7 @@ function handleNodeClick(event: NodeMouseEvent) {
   selectedMessageId.value = event.node.id
 }
 
-function handlePaneClick() {
+function handlePanelClick() {
   selectedMessageId.value = null
 }
 
@@ -182,13 +184,8 @@ const nodesAndEdges = computed(() => {
   const nodes: Node<NodeData>[] = []
   const edges: Edge[] = []
 
-  // Filter for current room's messages
-  const roomMessages = messagesStore.messages.filter(
-    msg => msg.roomId === roomId.value,
-  )
-
   // Check if we have messages with 'root' as parent
-  const hasRootParent = roomMessages.some(msg => !msg.parentMessageId)
+  const hasRootParent = messages.value.some(msg => !msg.parent_id)
 
   // Add a hidden root node if needed
   if (hasRootParent) {
@@ -197,12 +194,12 @@ const nodesAndEdges = computed(() => {
       type: 'system',
       position: { x: 0, y: 0 },
       hidden: true,
-      data: { hidden: true, message: roomMessages[0], selected: false, inactive: false, generating: false },
+      data: { hidden: true, message: messages.value[0], selected: false, inactive: false, generating: false },
     })
   }
 
-  for (const message of roomMessages) {
-    const { id, parentMessageId, role } = message
+  for (const message of messages.value) {
+    const { id, parent_id, role } = message
     const active = ids.has(id)
 
     nodes.push({
@@ -213,10 +210,10 @@ const nodesAndEdges = computed(() => {
     })
 
     // Only create an edge if we have a valid source node
-    const source = parentMessageId || 'root'
+    const source = parent_id || 'root'
     // Check if source exists in our nodes (or will exist)
     const sourceExists = source === 'root'
-      || roomMessages.some(m => m.id === source)
+      || messages.value.some(m => m.id === source)
       || nodes.some(n => n.id === source)
 
     if (sourceExists) {
@@ -252,7 +249,7 @@ useEventListener('keydown', (event) => {
 // delete the current selected node
 function deleteSelectedNode(nodeId: string) {
   // get parent node
-  const parentId = messagesStore.getMessageById(nodeId)?.parentMessageId
+  const parentId = messagesStore.getMessageById(nodeId)?.parent_id
   // delete the node and all its descendants from store
   messagesStore.deleteSubtree(nodeId)
 
@@ -283,7 +280,9 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
     return
   }
 
-  const { id: newMsgId } = roomsStore.createMessage('', 'assistant', parentId, provider, model, true)
+  const { id: newMsgId } = await messagesStore.newMessage('', 'assistant', parentId, provider, model, currentRoomId.value!)
+  await messagesStore.retrieveMessages()
+
   generatingMessageId.value = newMsgId
   const abortController = new AbortController()
   streamTextAbortControllers.value.set(newMsgId, abortController)
@@ -326,11 +325,12 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
   for await (const textPart of asyncIteratorFromReadableStream(textStream, async v => v)) {
     // check if image tool was used
     if (messagesStore.image) {
-      messagesStore.updateMessage(newMsgId, `![generated image](${messagesStore.image})`)
+      await messagesStore.appendContent(newMsgId, `![generated image](${messagesStore.image})`)
+      await messagesStore.retrieveMessages()
       messagesStore.image = ''
     }
     // textPart might be `undefined` in some cases
-    textPart && messagesStore.updateMessage(newMsgId, textPart)
+    textPart && await messagesStore.appendContent(newMsgId, textPart)
   }
 }
 
@@ -341,7 +341,9 @@ async function handleSendButton() {
 
   const { model, message } = parseMessage(inputMessage.value)
 
-  const { id } = roomsStore.createMessage(message, 'user', selectedMessageId.value, defaultTextModel.value.provider, model ?? defaultTextModel.value.model)
+  const { id } = await messagesStore.newMessage(message, 'user', selectedMessageId.value, defaultTextModel.value.provider, model ?? defaultTextModel.value.model, currentRoomId.value!)
+  await messagesStore.retrieveMessages()
+
   inputMessage.value = model ? `model=${model} ` : ''
   selectedMessageId.value = id
 
@@ -362,9 +364,10 @@ async function handleSendButton() {
   }
   finally {
     if (generatingMessageId.value) {
-      messagesStore.updateMessage(generatingMessageId.value, '', false)
+      await messagesStore.appendContent(generatingMessageId.value, '')
+      await messagesStore.retrieveMessages()
     }
-    generatingMessageId.value = null
+    generatingMessageId.value = undefined
   }
 }
 
@@ -426,17 +429,19 @@ function handleForkWith() {
 
 // Handle forking - now this just selects the message without generating
 // FIXME: feature broken
+// function handleFork(messageId: string | null, model?: string) {
 function handleFork(messageId: string | null) {
   if (messageId) {
     selectedMessageId.value = messageId
   }
 }
 
-function handleAbort(messageId: string) {
+async function handleAbort(messageId: string) {
   const abortController = streamTextAbortControllers.value.get(messageId)
   abortController?.abort('Aborted by user')
   streamTextAbortControllers.value.delete(messageId)
-  messagesStore.updateMessage(messageId, '', false)
+  await messagesStore.appendContent(messageId, '')
+  await messagesStore.retrieveMessages()
   toast.success('Generation aborted')
 }
 
@@ -449,9 +454,10 @@ function handleInit() {
 }
 
 onMounted(async () => {
-  await until(db).toBeTruthy()
+  await dbStore.waitForDbInitialized()
   // Initialize rooms before displaying
   await roomsStore.initialize()
+  await messagesStore.retrieveMessages()
 })
 </script>
 
@@ -461,7 +467,7 @@ onMounted(async () => {
     :nodes="nodesAndEdges.nodes"
     :edges="nodesAndEdges.edges"
     @node-click="handleNodeClick"
-    @pane-click="handlePaneClick"
+    @pane-click="handlePanelClick"
     @node-double-click="handleNodeDoubleClick"
     @node-context-menu="handleNodeContextMenu"
     @init="handleInit"
@@ -493,8 +499,9 @@ onMounted(async () => {
   <ConversationView
     v-if="currentMode === ChatMode.CONVERSATION"
     :messages="currentBranch.messages"
-    :selected-message-id="selectedMessageId"
-    @update:selected-message-id="selectedMessageId = $event"
+    @fork-message="handleFork"
+    @abort-message="handleAbort"
+    @send-message="handleSendButton"
   />
   <div relative w-full max-w-screen-md flex rounded-lg bg-neutral-100 p-2 shadow-lg dark:bg-neutral-900>
     <Textarea

@@ -2,6 +2,7 @@
 import type { NodeProps } from '@vue-flow/core'
 import type { NodeData } from '~/types/node'
 import { storeToRefs } from 'pinia'
+import { useMessagesStore } from '~/stores/messages'
 import { useSettingsStore } from '~/stores/settings'
 import MarkdownView from '../MarkdownView.vue'
 import Node from './Node.vue'
@@ -13,6 +14,7 @@ const emit = defineEmits<{
 }>()
 
 const { defaultTextModel } = storeToRefs(useSettingsStore())
+const messagesStore = useMessagesStore()
 </script>
 
 <template>
@@ -21,7 +23,7 @@ const { defaultTextModel } = storeToRefs(useSettingsStore())
     :inactive="data.inactive"
     :class="data.selected ? 'b-pink-300 dark:b-pink-700' : 'b-pink-200 dark:b-pink-800'"
   >
-    <div v-if="data.message.generating" bg="pink-200 dark:pink-800" flex justify-between p-2>
+    <div v-if="messagesStore.isGenerating(data.message.id)" bg="pink-200 dark:pink-800" flex justify-between p-2>
       <div class="flex items-center gap-2">
         Generating...
       </div>
