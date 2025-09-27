@@ -5,26 +5,21 @@ This app is a **chat interface with a flowchart-like conversation structure**. U
 ### 🔹 **Key Features**
 
 1. **Selecting a Message**
-
    - Click on a message to highlight its branch.
 
 2. **Deleting a Message**
-
    - Right-click on a message and select **"Delete"**.
    - This will remove the selected message **and all its child messages**.
 
 3. **Adding a New Message**
-
    - Select a message, type in your input, and press **Enter** to extend the current branch.
 
 4. **Creating a New Branch**
-
    - **By User**: Select a message, type in your input, and press **Enter**.
    - **By Assistant**: Select a message, right-click, and choose **"Fork"** to explore an alternative reply.
    - Each message can have **multiple child nodes**, forming a tree-like conversation structure.
 
 5. **Focusing on a Branch (Focus Mode)**
-
    - Right-click on a message and select **"Focus In"** to switch to a standard chat interface, displaying only the selected branch.
    - To exit Focus Mode, click the **"Jump Out"** button in the top-right corner or use the right-click menu.
 
