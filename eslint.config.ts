@@ -5,6 +5,7 @@ export default antfu(
   {
     unocss: true,
     formatters: true,
+    markdown: true,
   },
   ...oxlint.buildFromOxlintConfigFile('./.oxlintrc.json'),
 )
