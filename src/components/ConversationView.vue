@@ -4,10 +4,8 @@ import { useClipboard, useEventListener } from '@vueuse/core'
 import { computed, nextTick, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { useMessagesStore } from '~/stores/messages'
-import { useSettingsStore } from '~/stores/settings'
 import ConversationNodeContextMenu from './ConversationNodeContextMenu.vue'
 import MarkdownView from './MarkdownView.vue'
-import ModelSelector from './ModelSelector.vue'
 import SystemPrompt from './SystemPrompt.vue'
 
 const props = defineProps<{
@@ -16,36 +14,15 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'forkMessage', messageId: string, model?: string): void
   (e: 'abortMessage', messageId: string): void
-  (e: 'sendMessage', message: string): void
 }>()
 
 const messagesStore = useMessagesStore()
-const settingsStore = useSettingsStore()
 
 const containerRef = ref<HTMLDivElement>()
-const inputMessage = ref('')
-const showModelSelector = ref(false)
-const selectedModel = ref('')
 
 const userAndAssistantMessages = computed(() => {
   return props.messages.filter(message => message.role === 'user' || message.role === 'assistant')
 })
-
-// Watch for "model=" in the input
-watch(inputMessage, (newValue) => {
-  if (newValue.startsWith('model=') && !newValue.match(/\s/)) {
-    showModelSelector.value = true
-    if (settingsStore.models.length === 0) {
-      settingsStore.fetchModels()
-    }
-  }
-  else if (newValue === '') {
-    selectedModel.value = ''
-  }
-  else {
-    showModelSelector.value = false
-  }
-}, { immediate: true })
 
 // Scroll to bottom when new messages arrive
 watch(() => userAndAssistantMessages.value.length, () => {
@@ -58,14 +35,6 @@ function scrollToBottom() {
   if (containerRef.value) {
     containerRef.value.scrollTop = containerRef.value.scrollHeight
   }
-}
-
-// Generate AI response
-async function handleSendButton() {
-  if (!inputMessage.value)
-    return
-
-  emit('sendMessage', inputMessage.value)
 }
 
 // Copy message content
@@ -238,25 +207,6 @@ useEventListener('click', () => {
       @focus-in="handleContextMenuFocusIn"
       @copy="handleContextMenuCopy"
     />
-    <!-- Input area -->
-    <div class="relative w-full max-w-screen-md flex rounded-lg bg-neutral-100 p-2 shadow-lg dark:bg-neutral-900">
-      <textarea
-        v-model="inputMessage"
-        placeholder="Enter to send message, Shift+Enter for new-line"
-        class="max-h-60vh w-full resize-none border-gray-300 rounded-sm px-3 py-2 outline-none transition-all duration-200 ease-in-out dark:bg-neutral-800 focus:ring-2 focus:ring-black dark:focus:ring-white"
-        @keydown.enter.exact.prevent="handleSendButton"
-      />
-      <!-- ModelSelector -->
-      <ModelSelector
-        v-if="showModelSelector"
-        v-model:show-model-selector="showModelSelector"
-        :search-term="inputMessage.substring(6)"
-        @select-model="(model) => { inputMessage = `model=${model} `; showModelSelector = false }"
-      />
-      <button class="absolute bottom-3 right-3" @click="handleSendButton">
-        Send
-      </button>
-    </div>
   </div>
 </template>
 
