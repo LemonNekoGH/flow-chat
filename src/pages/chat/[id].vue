@@ -266,18 +266,18 @@ useEventListener('keydown', (event) => {
       = activeElement
         && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || (activeElement as HTMLElement).isContentEditable)
 
-    if (!isInputActive) {
-      deleteSelectedNode(selectedMessageId.value)
-    }
+    if (!isInputActive)
+      void deleteSelectedNode(selectedMessageId.value)
   }
 })
 
 // delete the current selected node
-function deleteSelectedNode(nodeId: string) {
+async function deleteSelectedNode(nodeId: string) {
   // get parent node
   const parentId = messagesStore.getMessageById(nodeId)?.parent_id
   // delete the node and all its descendants from store
-  messagesStore.deleteSubtree(nodeId)
+  await messagesStore.deleteSubtree(nodeId)
+  await messagesStore.retrieveMessages()
 
   // Auto select the parent node or cancel selection
   if (parentId) {
@@ -289,8 +289,9 @@ function deleteSelectedNode(nodeId: string) {
   selectedMessageId.value = null
 }
 
-function handleContextMenuDelete() {
-  selectedMessageId.value && deleteSelectedNode(selectedMessageId.value)
+async function handleContextMenuDelete() {
+  if (selectedMessageId.value)
+    await deleteSelectedNode(selectedMessageId.value)
 }
 
 const streamTextAbortControllers = ref<Map<string, AbortController>>(new Map())
