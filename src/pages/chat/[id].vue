@@ -475,7 +475,7 @@ onMounted(async () => {
 <template>
   <div class="h-full w-full flex flex-col overflow-hidden">
     <VueFlow
-      v-if="currentMode === ChatMode.FLOW"
+      v-show="currentMode === ChatMode.FLOW"
       class="flex-1"
       :nodes="nodesAndEdges.nodes"
       :edges="nodesAndEdges.edges"
@@ -510,7 +510,7 @@ onMounted(async () => {
       </template>
     </VueFlow>
     <div
-      v-if="currentMode === ChatMode.CONVERSATION"
+      v-show="currentMode === ChatMode.CONVERSATION"
       class="w-full flex flex-1 justify-center overflow-hidden px-4 sm:px-6"
     >
       <ConversationView
