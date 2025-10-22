@@ -8,6 +8,13 @@
       "when": 1756929048733,
       "tag": "0000_yummy_morg",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1756929049733,
+      "tag": "0001_room_view_state",
+      "breakpoints": false
     }
   ]
 }

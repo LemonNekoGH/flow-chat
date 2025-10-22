@@ -8,6 +8,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import * as schema from '../../db/schema'
 import migration1 from '../../drizzle/0000_yummy_morg.sql?raw'
+import migration2 from '../../drizzle/0001_room_view_state.sql?raw'
 
 export const useDatabaseStore = defineStore('database', () => {
   const logger = useLogg('database')
@@ -29,6 +30,7 @@ export const useDatabaseStore = defineStore('database', () => {
 
     const m = migrations ?? [ // TODO: unit test
       migration1,
+      migration2,
     ]
 
     for (let i = maxId + 1; i < m.length; i++) {

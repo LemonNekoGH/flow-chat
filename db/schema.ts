@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { doublePrecision, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 
 export const templates = pgTable('templates', () => ({
   id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
@@ -15,6 +15,10 @@ export const rooms = pgTable('rooms', () => ({
   name: text('name').notNull(),
   template_id: uuid('template_id').references(() => templates.id),
   default_model: text('default_model'),
+  focus_node_id: uuid('focus_node_id'),
+  viewport_x: doublePrecision('viewport_x'),
+  viewport_y: doublePrecision('viewport_y'),
+  viewport_zoom: doublePrecision('viewport_zoom'),
   created_at: timestamp('created_at').notNull().default(sql`now()`),
   updated_at: timestamp('updated_at').notNull().default(sql`now()`),
 }))

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { CapabilitiesByModel, ModelIdsByProvider, ProviderNames } from '@moeru-ai/jem'
-import type { Edge, Node, NodeMouseEvent } from '@vue-flow/core'
+import type { Edge, Node, NodeMouseEvent, TransitionOptions } from '@vue-flow/core'
 import type { AcceptableValue } from 'reka-ui'
 import type { BaseMessage } from '~/types/messages'
 import type { NodeData } from '~/types/node'
@@ -11,7 +11,7 @@ import { useVueFlow, VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
 import { useClipboard, useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch, watchEffect } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { toast } from 'vue-sonner'
 import { streamText } from 'xsai'
@@ -35,6 +35,7 @@ import SelectValue from '~/components/ui/select/SelectValue.vue'
 import Textarea from '~/components/ui/textarea/Textarea.vue'
 import { isDark } from '~/composables/dark'
 import { useLayout } from '~/composables/useLayout'
+import { useRoomViewState } from '~/composables/useRoomViewState'
 import { useDatabaseStore } from '~/stores/database'
 import { useMessagesStore } from '~/stores/messages'
 import { ChatMode, useModeStore } from '~/stores/mode'
@@ -54,7 +55,15 @@ const roomId = computed(() => {
   const id = Array.isArray(route.params.id) ? route.params.id[0] : null
   return id || null
 })
-const { setCenter, findNode, viewport } = useVueFlow()
+const {
+  setCenter,
+  setViewport,
+  findNode,
+  viewport,
+  addSelectedNodes,
+  removeSelectedNodes,
+  getSelectedNodes,
+} = useVueFlow()
 
 const settingsStore = useSettingsStore()
 const { defaultTextModel, currentProvider } = storeToRefs(settingsStore)
@@ -82,22 +91,12 @@ const showModelSelector = ref(false)
 const inlineModelCommandValue = ref('')
 const inlineModelCommandProvider = ref<ProviderNames | null>(null)
 
-// Watch for route changes to update current room
-watchEffect(() => {
-  if (roomId.value) {
-    void roomsStore.setCurrentRoom(roomId.value)
-  }
-})
-
-watch(currentRoomId, async (newRoomId, previousRoomId) => {
-  await dbStore.waitForDbInitialized()
-  if (newRoomId) {
-    await messagesStore.retrieveMessages()
-  }
-  else if (previousRoomId) {
-    messagesStore.resetState()
-  }
-}, { flush: 'post' })
+const easeOut = (t: number) => 1 - (1 - t) ** 3
+const smoothViewportTransition: TransitionOptions = {
+  duration: 300,
+  ease: easeOut,
+  interpolate: 'linear',
+}
 
 // Watch for "model=" in the input
 watch(inputMessage, (newValue) => {
@@ -142,8 +141,6 @@ function handlePanelClick() {
   selectedMessageId.value = null
 }
 
-const easeOut = (t: number) => 1 - (1 - t) ** 3
-
 function setCenterToNode(node: Node<NodeData> | string) {
   let nodeToCenter: Node<NodeData> | undefined
   if (typeof node === 'string') {
@@ -158,12 +155,14 @@ function setCenterToNode(node: Node<NodeData> | string) {
     return
   }
 
-  setCenter(nodeToCenter.position.x + 100, nodeToCenter.position.y + innerHeight / 4, {
-    zoom: viewport.value.zoom,
-    interpolate: 'linear',
-    duration: 500,
-    ease: easeOut,
-  })
+  setCenter(
+    nodeToCenter.position.x + 100,
+    nodeToCenter.position.y + innerHeight / 4,
+    {
+      ...smoothViewportTransition,
+      zoom: viewport.value.zoom,
+    },
+  )
 }
 
 function handleNodeDoubleClick(event: NodeMouseEvent) {
@@ -238,6 +237,22 @@ const nodesAndEdges = computed(() => {
   }
 
   return { nodes: layout(nodes, edges), edges }
+})
+
+const { handleInit, focusFlowNode } = useRoomViewState({
+  roomId,
+  currentRoomId,
+  selectedMessageId,
+  nodesAndEdges,
+  viewport,
+  smoothViewportTransition,
+  setCenterToNode,
+  setViewport,
+  findNode,
+  addSelectedNodes,
+  removeSelectedNodes,
+  getSelectedNodes,
+  stores: { dbStore, roomsStore, messagesStore },
 })
 
 useEventListener('click', () => {
@@ -331,7 +346,16 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
 
   // auto select the answer
   selectedMessageId.value = newMsgId
-  setCenterToNode(newMsgId)
+  focusFlowNode(newMsgId, { center: true })
+  if (currentRoomId.value) {
+    try {
+      await dbStore.waitForDbInitialized()
+      await roomsStore.updateRoomState(currentRoomId.value, { focusNodeId: newMsgId })
+    }
+    catch (error) {
+      console.error('Failed to persist focus node', error)
+    }
+  }
 
   for await (const textPart of asyncIteratorFromReadableStream(textStream, async v => v)) {
     // check if image tool was used
@@ -454,14 +478,6 @@ async function handleAbort(messageId: string) {
   await messagesStore.appendContent(messageId, '')
   await messagesStore.retrieveMessages()
   toast.success('Generation aborted')
-}
-
-function handleInit() {
-  const firstNode = nodesAndEdges.value.nodes[0]
-  if (!firstNode) {
-    return
-  }
-  setCenterToNode(firstNode)
 }
 
 onMounted(async () => {
