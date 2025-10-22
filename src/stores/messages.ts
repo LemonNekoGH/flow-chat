@@ -107,6 +107,12 @@ export const useMessagesStore = defineStore('messages', () => {
     messages.value = await messageModel.getByRoomId(roomsStore.currentRoomId) as Message[]
   }
 
+  function resetState() {
+    messages.value = []
+    generatingMessages.value = []
+    image.value = ''
+  }
+
   return {
     // State
     messages,
@@ -129,5 +135,6 @@ export const useMessagesStore = defineStore('messages', () => {
     isGenerating,
 
     retrieveMessages,
+    resetState,
   }
 })

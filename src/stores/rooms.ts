@@ -11,19 +11,25 @@ import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useRoomModel } from '~/models/rooms'
+import { useDatabaseStore } from './database'
 import { useMessagesStore } from './messages'
 
 export const useRoomsStore = defineStore('rooms', () => {
   const route = useRoute()
   const roomModel = useRoomModel()
+  const dbStore = useDatabaseStore()
   const rooms = ref<Room[]>([])
   const currentRoomId = useLocalStorage<string | undefined>('flow-chat-current-room', undefined)
-  const currentRoomIdFromRoute = (route.params as { id: string }).id
-  watch(() => currentRoomIdFromRoute, (newId) => {
-    if (newId) {
-      setCurrentRoom(newId)
-    }
-  })
+  watch(
+    () => (route.params as { id?: string }).id,
+    async (newId) => {
+      if (newId) {
+        await dbStore.waitForDbInitialized()
+        await setCurrentRoom(newId)
+      }
+    },
+    { immediate: true },
+  )
 
   const messagesStore = useMessagesStore()
   const router = useRouter()
@@ -35,7 +41,7 @@ export const useRoomsStore = defineStore('rooms', () => {
   async function createRoom(name: string, templateId?: string) {
     // debugger
     const room = await roomModel.create(name, templateId)
-    setCurrentRoom(room.id)
+    await setCurrentRoom(room.id)
 
     rooms.value = await roomModel.getAll()
 
@@ -59,33 +65,46 @@ export const useRoomsStore = defineStore('rooms', () => {
 
     // Handle message cleanup
     if (room.template_id) {
-      messagesStore.deleteSubtree(room.template_id)
-    }
-
-    // Handle current room change
-    if (currentRoomId.value === id) {
-      const firstRoom = rooms.value[0]
-      if (firstRoom) {
-        setCurrentRoom(firstRoom.id)
-      }
+      await messagesStore.deleteSubtree(room.template_id)
     }
 
     rooms.value = await roomModel.getAll()
 
+    // Handle current room change
+    if (currentRoomId.value === id) {
+      const fallback = rooms.value[0]
+      if (fallback) {
+        await setCurrentRoom(fallback.id)
+      }
+      else {
+        currentRoomId.value = undefined
+        messagesStore.resetState()
+        const routeRoomId = (route.params as { id?: string }).id
+        if (routeRoomId === id) {
+          await router.replace('/')
+        }
+      }
+    }
     return true
   }
 
   async function setCurrentRoom(id: string) {
-    if (id === currentRoomId.value)
-      return true
+    let room = rooms.value.find(room => room.id === id)
+    if (!room) {
+      rooms.value = await roomModel.getAll()
+      room = rooms.value.find(r => r.id === id)
+    }
 
-    const room = rooms.value.find(room => room.id === id)
     if (!room)
       return false
 
     currentRoomId.value = id
 
-    await router.replace(`/chat/${id}`)
+    const routeRoomId = (route.params as { id?: string }).id
+    if (routeRoomId !== id) {
+      await router.replace(`/chat/${id}`)
+    }
+
     return true
   }
 
@@ -152,6 +171,11 @@ export const useRoomsStore = defineStore('rooms', () => {
     return groups.filter(group => group.rooms.length > 0)
   })
 
+  function resetState() {
+    rooms.value = []
+    currentRoomId.value = undefined
+  }
+
   return {
     // State
     rooms,
@@ -166,5 +190,6 @@ export const useRoomsStore = defineStore('rooms', () => {
     setCurrentRoom,
     getRoomSystemPrompt,
     initialize,
+    resetState,
   }
 })
