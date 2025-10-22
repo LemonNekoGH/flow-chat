@@ -19,6 +19,7 @@ const emit = defineEmits<{
 const messagesStore = useMessagesStore()
 
 const containerRef = ref<HTMLDivElement>()
+const selectedText = ref('')
 
 const userAndAssistantMessages = computed(() => {
   return props.messages.filter(message => message.role === 'user' || message.role === 'assistant')
@@ -39,14 +40,18 @@ function scrollToBottom() {
 
 // Copy message content
 const { copy } = useClipboard()
-async function copyMessage(message: Message) {
+async function copyContent(content: string) {
   try {
-    await copy(message.content)
+    await copy(content)
     toast.success('Copied to clipboard')
   }
   catch {
     toast.error('Failed to copy message')
   }
+}
+
+async function copyMessage(message: Message) {
+  await copyContent(message.content)
 }
 
 // Fork from a message
@@ -63,9 +68,28 @@ const contextMenu = ref({
   role: undefined as MessageRole | undefined,
 })
 
+function extractSelectionFrom(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement))
+    return ''
+
+  const selection = window.getSelection()
+  if (!selection || selection.rangeCount === 0 || selection.isCollapsed)
+    return ''
+
+  const range = selection.getRangeAt(0)
+  const { startContainer, endContainer } = range
+
+  if (!target.contains(startContainer) || !target.contains(endContainer))
+    return ''
+
+  const text = selection.toString()
+  return text.trim() ? text : ''
+}
+
 // Handle right-click on message
 function handleContextMenu(event: MouseEvent, message: Message) {
   event.preventDefault()
+  selectedText.value = extractSelectionFrom(event.currentTarget)
   contextMenu.value = {
     show: true,
     x: event.clientX,
@@ -75,12 +99,17 @@ function handleContextMenu(event: MouseEvent, message: Message) {
   }
 }
 
+function closeContextMenu() {
+  contextMenu.value.show = false
+  selectedText.value = ''
+}
+
 function handleContextMenuFork() {
   const messageId = contextMenu.value.messageId
+  closeContextMenu()
   if (messageId) {
     forkMessage(messageId)
   }
-  contextMenu.value.show = false
 }
 
 function handleContextMenuForkWith() {
@@ -88,19 +117,26 @@ function handleContextMenuForkWith() {
   handleContextMenuFork()
 }
 
-function handleContextMenuCopy() {
+async function handleContextMenuCopy() {
   const messageId = contextMenu.value.messageId
+  const text = selectedText.value
+  closeContextMenu()
+
+  if (text) {
+    await copyContent(text)
+    return
+  }
+
   if (messageId) {
     const message = messagesStore.getMessageById(messageId)
     if (message) {
-      copyMessage(message)
+      await copyMessage(message)
     }
   }
-  contextMenu.value.show = false
 }
 
 function handleContextMenuFocusIn() {
-  contextMenu.value.show = false
+  closeContextMenu()
 }
 
 // Abort generation
@@ -109,9 +145,7 @@ function handleAbort(messageId: string) {
 }
 
 // Close context menu on click outside
-useEventListener('click', () => {
-  contextMenu.value.show = false
-})
+useEventListener('click', closeContextMenu)
 </script>
 
 <template>
