@@ -161,7 +161,7 @@ useEventListener('click', () => {
               :class="message.role === 'user' ? 'text-white/70' : 'text-gray-500'"
             >
               <button
-                class="h-7 w-7 flex items-center justify-center rounded-full hover:bg-black/10"
+                class="copy-icon-btn"
                 title="Copy"
                 @click="copyMessage(message)"
               >
@@ -170,7 +170,7 @@ useEventListener('click', () => {
 
               <button
                 v-if="message.role !== 'system'"
-                class="h-7 w-7 flex items-center justify-center rounded-full hover:bg-black/10"
+                class="copy-icon-btn"
                 title="Fork"
                 @click="forkMessage(message.id)"
               >
@@ -178,7 +178,7 @@ useEventListener('click', () => {
               </button>
               <button
                 v-if="messagesStore.isGenerating(message.id)"
-                class="h-7 w-7 flex items-center justify-center rounded-full hover:bg-black/10"
+                class="copy-icon-btn"
                 title="Abort"
                 @click="handleAbort(message.id)"
               >
