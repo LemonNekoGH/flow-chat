@@ -84,9 +84,19 @@ const inlineModelCommandProvider = ref<ProviderNames | null>(null)
 // Watch for route changes to update current room
 watchEffect(() => {
   if (roomId.value) {
-    roomsStore.setCurrentRoom(roomId.value)
+    void roomsStore.setCurrentRoom(roomId.value)
   }
 })
+
+watch(currentRoomId, async (newRoomId, previousRoomId) => {
+  await dbStore.waitForDbInitialized()
+  if (newRoomId) {
+    await messagesStore.retrieveMessages()
+  }
+  else if (previousRoomId) {
+    messagesStore.resetState()
+  }
+}, { flush: 'post' })
 
 // Watch for "model=" in the input
 watch(inputMessage, (newValue) => {
