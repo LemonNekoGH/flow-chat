@@ -42,6 +42,8 @@
     "pinia": "^3.0.3",
     "rehype-highlight": "^7.0.2",
     "reka-ui": "^2.5.1",
+    "remark-gfm": "^4.0.1",
+    "unist-util-visit": "^5.0.0",
     "vue": "3.6.0-alpha.1",
     "vue-demi": "^0.14.10",
     "vue-i18n": "^11.1.12",
