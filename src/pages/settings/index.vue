@@ -22,12 +22,16 @@ import SelectTrigger from '~/components/ui/select/SelectTrigger.vue'
 
 import SelectValue from '~/components/ui/select/SelectValue.vue'
 import { useDatabaseStore } from '~/stores/database'
+import { useMessagesStore } from '~/stores/messages'
+import { useRoomsStore } from '~/stores/rooms'
 import { useSettingsStore } from '~/stores/settings'
 import { useTutorialStore } from '~/stores/tutorial'
 
 const router = useRouter()
 const settingsStore = useSettingsStore()
 const tutorialStore = useTutorialStore()
+const roomsStore = useRoomsStore()
+const messagesStore = useMessagesStore()
 const { showSelectTutorial, chat, settings } = storeToRefs(tutorialStore)
 const { defaultTextModel, imageGeneration, configuredTextProviders } = storeToRefs(settingsStore)
 
@@ -68,6 +72,8 @@ async function deleteAllMessages() {
 async function confirmDeleteAllMessages() {
   await dbStore.clearDb()
   await dbStore.migrate()
+  roomsStore.resetState()
+  messagesStore.resetState()
   showDeleteAllMessagesDialog.value = false
 }
 

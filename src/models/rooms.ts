@@ -21,6 +21,10 @@ export function useRoomModel() {
     const cleanData = {
       ...data,
       ...(data.template_id !== undefined && { template_id: data.template_id || null }),
+      ...(data.focus_node_id !== undefined && { focus_node_id: data.focus_node_id || null }),
+      ...(data.viewport_x !== undefined && { viewport_x: data.viewport_x ?? null }),
+      ...(data.viewport_y !== undefined && { viewport_y: data.viewport_y ?? null }),
+      ...(data.viewport_zoom !== undefined && { viewport_zoom: data.viewport_zoom ?? null }),
     }
 
     return dbStore.withCheckpoint((db) => {

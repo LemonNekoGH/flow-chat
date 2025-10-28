@@ -39,12 +39,19 @@ export const useMessagesStore = defineStore('messages', () => {
     return messageModel.appendContent(id, text)
   }
 
-  function deleteMessages(ids: string[]) {
-    return messageModel.deleteByIds(ids)
+  async function deleteMessages(ids: string[]) {
+    if (ids.length === 0)
+      return
+
+    await messageModel.deleteByIds(ids)
+
+    const idSet = new Set(ids)
+    messages.value = messages.value.filter(message => !idSet.has(message.id))
   }
 
-  function deleteSubtree(id: string) {
-    return deleteMessages(getSubtreeById(id))
+  async function deleteSubtree(id: string) {
+    const ids = getSubtreeById(id)
+    await deleteMessages(ids)
   }
 
   // Pure query functions
@@ -107,6 +114,12 @@ export const useMessagesStore = defineStore('messages', () => {
     messages.value = await messageModel.getByRoomId(roomsStore.currentRoomId) as Message[]
   }
 
+  function resetState() {
+    messages.value = []
+    generatingMessages.value = []
+    image.value = ''
+  }
+
   return {
     // State
     messages,
@@ -129,5 +142,6 @@ export const useMessagesStore = defineStore('messages', () => {
     isGenerating,
 
     retrieveMessages,
+    resetState,
   }
 })

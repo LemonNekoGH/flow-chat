@@ -4,10 +4,8 @@ import { useClipboard, useEventListener } from '@vueuse/core'
 import { computed, nextTick, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { useMessagesStore } from '~/stores/messages'
-import { useSettingsStore } from '~/stores/settings'
 import ConversationNodeContextMenu from './ConversationNodeContextMenu.vue'
 import MarkdownView from './MarkdownView.vue'
-import ModelSelector from './ModelSelector.vue'
 import SystemPrompt from './SystemPrompt.vue'
 
 const props = defineProps<{
@@ -16,36 +14,16 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'forkMessage', messageId: string, model?: string): void
   (e: 'abortMessage', messageId: string): void
-  (e: 'sendMessage', message: string): void
 }>()
 
 const messagesStore = useMessagesStore()
-const settingsStore = useSettingsStore()
 
 const containerRef = ref<HTMLDivElement>()
-const inputMessage = ref('')
-const showModelSelector = ref(false)
-const selectedModel = ref('')
+const selectedText = ref('')
 
 const userAndAssistantMessages = computed(() => {
   return props.messages.filter(message => message.role === 'user' || message.role === 'assistant')
 })
-
-// Watch for "model=" in the input
-watch(inputMessage, (newValue) => {
-  if (newValue.startsWith('model=') && !newValue.match(/\s/)) {
-    showModelSelector.value = true
-    if (settingsStore.models.length === 0) {
-      settingsStore.fetchModels()
-    }
-  }
-  else if (newValue === '') {
-    selectedModel.value = ''
-  }
-  else {
-    showModelSelector.value = false
-  }
-}, { immediate: true })
 
 // Scroll to bottom when new messages arrive
 watch(() => userAndAssistantMessages.value.length, () => {
@@ -60,24 +38,20 @@ function scrollToBottom() {
   }
 }
 
-// Generate AI response
-async function handleSendButton() {
-  if (!inputMessage.value)
-    return
-
-  emit('sendMessage', inputMessage.value)
-}
-
 // Copy message content
 const { copy } = useClipboard()
-async function copyMessage(message: Message) {
+async function copyContent(content: string) {
   try {
-    await copy(message.content)
+    await copy(content)
     toast.success('Copied to clipboard')
   }
   catch {
     toast.error('Failed to copy message')
   }
+}
+
+async function copyMessage(message: Message) {
+  await copyContent(message.content)
 }
 
 // Fork from a message
@@ -94,9 +68,28 @@ const contextMenu = ref({
   role: undefined as MessageRole | undefined,
 })
 
+function extractSelectionFrom(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement))
+    return ''
+
+  const selection = window.getSelection()
+  if (!selection || selection.rangeCount === 0 || selection.isCollapsed)
+    return ''
+
+  const range = selection.getRangeAt(0)
+  const { startContainer, endContainer } = range
+
+  if (!target.contains(startContainer) || !target.contains(endContainer))
+    return ''
+
+  const text = selection.toString()
+  return text.trim() ? text : ''
+}
+
 // Handle right-click on message
 function handleContextMenu(event: MouseEvent, message: Message) {
   event.preventDefault()
+  selectedText.value = extractSelectionFrom(event.currentTarget)
   contextMenu.value = {
     show: true,
     x: event.clientX,
@@ -106,12 +99,17 @@ function handleContextMenu(event: MouseEvent, message: Message) {
   }
 }
 
+function closeContextMenu() {
+  contextMenu.value.show = false
+  selectedText.value = ''
+}
+
 function handleContextMenuFork() {
   const messageId = contextMenu.value.messageId
+  closeContextMenu()
   if (messageId) {
     forkMessage(messageId)
   }
-  contextMenu.value.show = false
 }
 
 function handleContextMenuForkWith() {
@@ -119,19 +117,26 @@ function handleContextMenuForkWith() {
   handleContextMenuFork()
 }
 
-function handleContextMenuCopy() {
+async function handleContextMenuCopy() {
   const messageId = contextMenu.value.messageId
+  const text = selectedText.value
+  closeContextMenu()
+
+  if (text) {
+    await copyContent(text)
+    return
+  }
+
   if (messageId) {
     const message = messagesStore.getMessageById(messageId)
     if (message) {
-      copyMessage(message)
+      await copyMessage(message)
     }
   }
-  contextMenu.value.show = false
 }
 
 function handleContextMenuFocusIn() {
-  contextMenu.value.show = false
+  closeContextMenu()
 }
 
 // Abort generation
@@ -140,9 +145,7 @@ function handleAbort(messageId: string) {
 }
 
 // Close context menu on click outside
-useEventListener('click', () => {
-  contextMenu.value.show = false
-})
+useEventListener('click', closeContextMenu)
 </script>
 
 <template>
@@ -192,7 +195,7 @@ useEventListener('click', () => {
               :class="message.role === 'user' ? 'text-white/70' : 'text-gray-500'"
             >
               <button
-                class="h-7 w-7 flex items-center justify-center rounded-full hover:bg-black/10"
+                class="copy-icon-btn"
                 title="Copy"
                 @click="copyMessage(message)"
               >
@@ -201,7 +204,7 @@ useEventListener('click', () => {
 
               <button
                 v-if="message.role !== 'system'"
-                class="h-7 w-7 flex items-center justify-center rounded-full hover:bg-black/10"
+                class="copy-icon-btn"
                 title="Fork"
                 @click="forkMessage(message.id)"
               >
@@ -209,7 +212,7 @@ useEventListener('click', () => {
               </button>
               <button
                 v-if="messagesStore.isGenerating(message.id)"
-                class="h-7 w-7 flex items-center justify-center rounded-full hover:bg-black/10"
+                class="copy-icon-btn"
                 title="Abort"
                 @click="handleAbort(message.id)"
               >
@@ -238,25 +241,6 @@ useEventListener('click', () => {
       @focus-in="handleContextMenuFocusIn"
       @copy="handleContextMenuCopy"
     />
-    <!-- Input area -->
-    <div class="relative w-full max-w-screen-md flex rounded-lg bg-neutral-100 p-2 shadow-lg dark:bg-neutral-900">
-      <textarea
-        v-model="inputMessage"
-        placeholder="Enter to send message, Shift+Enter for new-line"
-        class="max-h-60vh w-full resize-none border-gray-300 rounded-sm px-3 py-2 outline-none transition-all duration-200 ease-in-out dark:bg-neutral-800 focus:ring-2 focus:ring-black dark:focus:ring-white"
-        @keydown.enter.exact.prevent="handleSendButton"
-      />
-      <!-- ModelSelector -->
-      <ModelSelector
-        v-if="showModelSelector"
-        v-model:show-model-selector="showModelSelector"
-        :search-term="inputMessage.substring(6)"
-        @select-model="(model) => { inputMessage = `model=${model} `; showModelSelector = false }"
-      />
-      <button class="absolute bottom-3 right-3" @click="handleSendButton">
-        Send
-      </button>
-    </div>
   </div>
 </template>
 

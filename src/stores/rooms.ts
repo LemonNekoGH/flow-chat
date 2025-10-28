@@ -1,3 +1,4 @@
+import type { ViewportTransform } from '@vue-flow/core'
 import type { Room } from '~/types/rooms'
 import { useLocalStorage } from '@vueuse/core'
 import {
@@ -11,19 +12,32 @@ import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useRoomModel } from '~/models/rooms'
+import { useDatabaseStore } from './database'
 import { useMessagesStore } from './messages'
+
+export interface RoomViewState {
+  focusNodeId: string | null
+  viewport: ViewportTransform | null
+}
+
+export type RoomViewStatePatch = Partial<RoomViewState>
 
 export const useRoomsStore = defineStore('rooms', () => {
   const route = useRoute()
   const roomModel = useRoomModel()
+  const dbStore = useDatabaseStore()
   const rooms = ref<Room[]>([])
   const currentRoomId = useLocalStorage<string | undefined>('flow-chat-current-room', undefined)
-  const currentRoomIdFromRoute = (route.params as { id: string }).id
-  watch(() => currentRoomIdFromRoute, (newId) => {
-    if (newId) {
-      setCurrentRoom(newId)
-    }
-  })
+  watch(
+    () => (route.params as { id?: string }).id,
+    async (newId) => {
+      if (newId) {
+        await dbStore.waitForDbInitialized()
+        await setCurrentRoom(newId)
+      }
+    },
+    { immediate: true },
+  )
 
   const messagesStore = useMessagesStore()
   const router = useRouter()
@@ -35,7 +49,7 @@ export const useRoomsStore = defineStore('rooms', () => {
   async function createRoom(name: string, templateId?: string) {
     // debugger
     const room = await roomModel.create(name, templateId)
-    setCurrentRoom(room.id)
+    await setCurrentRoom(room.id)
 
     rooms.value = await roomModel.getAll()
 
@@ -59,33 +73,46 @@ export const useRoomsStore = defineStore('rooms', () => {
 
     // Handle message cleanup
     if (room.template_id) {
-      messagesStore.deleteSubtree(room.template_id)
-    }
-
-    // Handle current room change
-    if (currentRoomId.value === id) {
-      const firstRoom = rooms.value[0]
-      if (firstRoom) {
-        setCurrentRoom(firstRoom.id)
-      }
+      await messagesStore.deleteSubtree(room.template_id)
     }
 
     rooms.value = await roomModel.getAll()
 
+    // Handle current room change
+    if (currentRoomId.value === id) {
+      const fallback = rooms.value[0]
+      if (fallback) {
+        await setCurrentRoom(fallback.id)
+      }
+      else {
+        currentRoomId.value = undefined
+        messagesStore.resetState()
+        const routeRoomId = (route.params as { id?: string }).id
+        if (routeRoomId === id) {
+          await router.replace('/')
+        }
+      }
+    }
     return true
   }
 
   async function setCurrentRoom(id: string) {
-    if (id === currentRoomId.value)
-      return true
+    let room = rooms.value.find(room => room.id === id)
+    if (!room) {
+      rooms.value = await roomModel.getAll()
+      room = rooms.value.find(r => r.id === id)
+    }
 
-    const room = rooms.value.find(room => room.id === id)
     if (!room)
       return false
 
     currentRoomId.value = id
 
-    await router.replace(`/chat/${id}`)
+    const routeRoomId = (route.params as { id?: string }).id
+    if (routeRoomId !== id) {
+      await router.replace(`/chat/${id}`)
+    }
+
     return true
   }
 
@@ -152,6 +179,114 @@ export const useRoomsStore = defineStore('rooms', () => {
     return groups.filter(group => group.rooms.length > 0)
   })
 
+  function resetState() {
+    rooms.value = []
+    currentRoomId.value = undefined
+  }
+
+  function toViewportTransform(room: Room | undefined): ViewportTransform | null {
+    if (!room) {
+      return null
+    }
+
+    const { viewport_x, viewport_y, viewport_zoom } = room
+
+    if (
+      typeof viewport_x !== 'number'
+      || Number.isNaN(viewport_x)
+      || typeof viewport_y !== 'number'
+      || Number.isNaN(viewport_y)
+      || typeof viewport_zoom !== 'number'
+      || Number.isNaN(viewport_zoom)
+    ) {
+      return null
+    }
+
+    return {
+      x: viewport_x,
+      y: viewport_y,
+      zoom: viewport_zoom,
+    }
+  }
+
+  function isViewportEqual(
+    a: ViewportTransform | null | undefined,
+    b: ViewportTransform | null | undefined,
+  ) {
+    if (!a && !b) {
+      return true
+    }
+
+    if (!a || !b) {
+      return false
+    }
+
+    return a.x === b.x && a.y === b.y && a.zoom === b.zoom
+  }
+
+  function getRoomState(id: string | null | undefined): RoomViewState {
+    if (!id) {
+      return {
+        focusNodeId: null,
+        viewport: null,
+      }
+    }
+
+    const room = rooms.value.find(item => item.id === id)
+
+    return {
+      focusNodeId: room?.focus_node_id ?? null,
+      viewport: toViewportTransform(room),
+    }
+  }
+
+  async function updateRoomState(
+    id: string,
+    patch: RoomViewStatePatch,
+  ) {
+    const index = rooms.value.findIndex(room => room.id === id)
+    const existing = index === -1 ? undefined : rooms.value[index]
+    const updatePayload: Partial<Pick<Room, 'focus_node_id' | 'viewport_x' | 'viewport_y' | 'viewport_zoom'>> = {}
+
+    if (Object.prototype.hasOwnProperty.call(patch, 'focusNodeId')) {
+      const nextFocus = patch.focusNodeId ?? null
+
+      if (!existing || existing.focus_node_id !== nextFocus) {
+        updatePayload.focus_node_id = nextFocus
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(patch, 'viewport')) {
+      const targetViewport = patch.viewport ?? null
+      const currentViewport = toViewportTransform(existing)
+
+      if (!isViewportEqual(currentViewport, targetViewport)) {
+        updatePayload.viewport_x = targetViewport?.x ?? null
+        updatePayload.viewport_y = targetViewport?.y ?? null
+        updatePayload.viewport_zoom = targetViewport?.zoom ?? null
+      }
+    }
+
+    if (Object.keys(updatePayload).length === 0) {
+      return existing
+    }
+
+    const [updated] = await roomModel.update(id, updatePayload)
+
+    if (index === -1) {
+      return updated ?? existing
+    }
+
+    const previous = rooms.value[index]
+    rooms.value[index] = {
+      ...previous,
+      ...updatePayload,
+      updated_at: updated?.updated_at ?? previous.updated_at,
+    }
+
+    return rooms.value[index]
+  }
+
   return {
     // State
     rooms,
@@ -166,5 +301,8 @@ export const useRoomsStore = defineStore('rooms', () => {
     setCurrentRoom,
     getRoomSystemPrompt,
     initialize,
+    resetState,
+    getRoomState,
+    updateRoomState,
   }
 })

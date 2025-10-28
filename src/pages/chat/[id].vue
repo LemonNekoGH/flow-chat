@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { CapabilitiesByModel, ModelIdsByProvider, ProviderNames } from '@moeru-ai/jem'
-import type { Edge, Node, NodeMouseEvent } from '@vue-flow/core'
+import type { Edge, Node, NodeMouseEvent, TransitionOptions } from '@vue-flow/core'
 import type { AcceptableValue } from 'reka-ui'
 import type { BaseMessage } from '~/types/messages'
 import type { NodeData } from '~/types/node'
@@ -11,7 +11,7 @@ import { useVueFlow, VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
 import { useClipboard, useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch, watchEffect } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { toast } from 'vue-sonner'
 import { streamText } from 'xsai'
@@ -35,6 +35,7 @@ import SelectValue from '~/components/ui/select/SelectValue.vue'
 import Textarea from '~/components/ui/textarea/Textarea.vue'
 import { isDark } from '~/composables/dark'
 import { useLayout } from '~/composables/useLayout'
+import { useRoomViewState } from '~/composables/useRoomViewState'
 import { useDatabaseStore } from '~/stores/database'
 import { useMessagesStore } from '~/stores/messages'
 import { ChatMode, useModeStore } from '~/stores/mode'
@@ -54,7 +55,15 @@ const roomId = computed(() => {
   const id = Array.isArray(route.params.id) ? route.params.id[0] : null
   return id || null
 })
-const { setCenter, findNode, viewport } = useVueFlow()
+const {
+  setCenter,
+  setViewport,
+  findNode,
+  viewport,
+  addSelectedNodes,
+  removeSelectedNodes,
+  getSelectedNodes,
+} = useVueFlow()
 
 const settingsStore = useSettingsStore()
 const { defaultTextModel, currentProvider } = storeToRefs(settingsStore)
@@ -75,18 +84,19 @@ const selectedMessage = computed(() => {
 const generatingMessageId = ref<string | undefined>()
 
 const inputMessage = ref('')
+const isConversationMode = computed(() => currentMode.value === ChatMode.CONVERSATION)
 
 // Model selection
 const showModelSelector = ref(false)
 const inlineModelCommandValue = ref('')
 const inlineModelCommandProvider = ref<ProviderNames | null>(null)
 
-// Watch for route changes to update current room
-watchEffect(() => {
-  if (roomId.value) {
-    roomsStore.setCurrentRoom(roomId.value)
-  }
-})
+const easeOut = (t: number) => 1 - (1 - t) ** 3
+const smoothViewportTransition: TransitionOptions = {
+  duration: 300,
+  ease: easeOut,
+  interpolate: 'linear',
+}
 
 // Watch for "model=" in the input
 watch(inputMessage, (newValue) => {
@@ -131,8 +141,6 @@ function handlePanelClick() {
   selectedMessageId.value = null
 }
 
-const easeOut = (t: number) => 1 - (1 - t) ** 3
-
 function setCenterToNode(node: Node<NodeData> | string) {
   let nodeToCenter: Node<NodeData> | undefined
   if (typeof node === 'string') {
@@ -147,12 +155,14 @@ function setCenterToNode(node: Node<NodeData> | string) {
     return
   }
 
-  setCenter(nodeToCenter.position.x + 100, nodeToCenter.position.y + innerHeight / 4, {
-    zoom: viewport.value.zoom,
-    interpolate: 'linear',
-    duration: 500,
-    ease: easeOut,
-  })
+  setCenter(
+    nodeToCenter.position.x + 100,
+    nodeToCenter.position.y + innerHeight / 4,
+    {
+      ...smoothViewportTransition,
+      zoom: viewport.value.zoom,
+    },
+  )
 }
 
 function handleNodeDoubleClick(event: NodeMouseEvent) {
@@ -229,6 +239,22 @@ const nodesAndEdges = computed(() => {
   return { nodes: layout(nodes, edges), edges }
 })
 
+const { handleInit, focusFlowNode } = useRoomViewState({
+  roomId,
+  currentRoomId,
+  selectedMessageId,
+  nodesAndEdges,
+  viewport,
+  smoothViewportTransition,
+  setCenterToNode,
+  setViewport,
+  findNode,
+  addSelectedNodes,
+  removeSelectedNodes,
+  getSelectedNodes,
+  stores: { dbStore, roomsStore, messagesStore },
+})
+
 useEventListener('click', () => {
   contextMenu.value.show = false
 })
@@ -240,18 +266,18 @@ useEventListener('keydown', (event) => {
       = activeElement
         && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || (activeElement as HTMLElement).isContentEditable)
 
-    if (!isInputActive) {
-      deleteSelectedNode(selectedMessageId.value)
-    }
+    if (!isInputActive)
+      void deleteSelectedNode(selectedMessageId.value)
   }
 })
 
 // delete the current selected node
-function deleteSelectedNode(nodeId: string) {
+async function deleteSelectedNode(nodeId: string) {
   // get parent node
   const parentId = messagesStore.getMessageById(nodeId)?.parent_id
   // delete the node and all its descendants from store
-  messagesStore.deleteSubtree(nodeId)
+  await messagesStore.deleteSubtree(nodeId)
+  await messagesStore.retrieveMessages()
 
   // Auto select the parent node or cancel selection
   if (parentId) {
@@ -263,8 +289,9 @@ function deleteSelectedNode(nodeId: string) {
   selectedMessageId.value = null
 }
 
-function handleContextMenuDelete() {
-  selectedMessageId.value && deleteSelectedNode(selectedMessageId.value)
+async function handleContextMenuDelete() {
+  if (selectedMessageId.value)
+    await deleteSelectedNode(selectedMessageId.value)
 }
 
 const streamTextAbortControllers = ref<Map<string, AbortController>>(new Map())
@@ -320,7 +347,16 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
 
   // auto select the answer
   selectedMessageId.value = newMsgId
-  setCenterToNode(newMsgId)
+  focusFlowNode(newMsgId, { center: true })
+  if (currentRoomId.value) {
+    try {
+      await dbStore.waitForDbInitialized()
+      await roomsStore.updateRoomState(currentRoomId.value, { focusNodeId: newMsgId })
+    }
+    catch (error) {
+      console.error('Failed to persist focus node', error)
+    }
+  }
 
   for await (const textPart of asyncIteratorFromReadableStream(textStream, async v => v)) {
     // check if image tool was used
@@ -445,14 +481,6 @@ async function handleAbort(messageId: string) {
   toast.success('Generation aborted')
 }
 
-function handleInit() {
-  const firstNode = nodesAndEdges.value.nodes[0]
-  if (!firstNode) {
-    return
-  }
-  setCenterToNode(firstNode)
-}
-
 onMounted(async () => {
   await dbStore.waitForDbInitialized()
   // Initialize rooms before displaying
@@ -462,99 +490,114 @@ onMounted(async () => {
 </script>
 
 <template>
-  <VueFlow
-    v-if="currentMode === ChatMode.FLOW"
-    :nodes="nodesAndEdges.nodes"
-    :edges="nodesAndEdges.edges"
-    @node-click="handleNodeClick"
-    @pane-click="handlePanelClick"
-    @node-double-click="handleNodeDoubleClick"
-    @node-context-menu="handleNodeContextMenu"
-    @init="handleInit"
-  >
-    <Background />
-    <Controls />
-    <MiniMap :mask-color="strokeColor" zoomable pannable />
-    <NodeContextMenu
-      v-if="contextMenu.show"
-      :x="contextMenu.x"
-      :y="contextMenu.y"
-      :role="selectedMessage?.role"
-      @fork="handleFork(selectedMessageId)"
-      @focus-in="handleContextMenuFocusIn"
-      @delete="handleContextMenuDelete"
-      @copy="handleContextMenuCopy"
-      @fork-with="handleContextMenuForkWith"
-    />
-    <template #node-assistant="props">
-      <AssistantNode v-bind="props" class="nodrag" @abort="handleAbort(props.id)" />
-    </template>
-    <template #node-system="props">
-      <SystemNode v-bind="props" class="nodrag" />
-    </template>
-    <template #node-user="props">
-      <UserNode v-bind="props" class="nodrag" />
-    </template>
-  </VueFlow>
-  <ConversationView
-    v-if="currentMode === ChatMode.CONVERSATION"
-    :messages="currentBranch.messages"
-    @fork-message="handleFork"
-    @abort-message="handleAbort"
-    @send-message="handleSendButton"
-  />
-  <div relative w-full max-w-screen-md flex rounded-lg bg-neutral-100 p-2 shadow-lg dark:bg-neutral-900>
-    <Textarea
-      v-model="inputMessage"
-      placeholder="Enter to send message, Shift+Enter for new-line"
-      max-h-60vh w-full resize-none border-gray-300 rounded-sm px-3 py-2 outline-none dark:bg-neutral-800 focus:ring-2 focus:ring-black dark:focus:ring-white
-      transition="all duration-200 ease-in-out"
-      @keydown.enter.exact.prevent="handleSendButton"
-    />
-    <ModelSelector
-      v-if="showModelSelector"
-      v-model:show-model-selector="showModelSelector"
-      :search-term="inputMessage.substring(6)"
-      @select-model="handleModelSelect"
-    />
-    <Button absolute bottom-3 right-3 @click="handleSendButton">
-      Send
-    </Button>
-    <Dialog v-model:open="showForkWithModelDialog">
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Fork With</DialogTitle>
-        </DialogHeader>
-        <div>
-          <Select
-            :model-value="defaultTextModel.provider as ProviderNames"
-            @update:model-value="handleForkWithProviderChange"
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem v-for="provider in settingsStore.configuredTextProviders" :key="provider.name" :value="provider.name">
-                {{ provider.name }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          <Input
-            id="model" v-model="forkWithModel" placeholder="Search models..."
-            @click.stop="showForkWithModelSelector = true"
-          />
-          <ModelSelector
-            v-if="showForkWithModelSelector"
-            v-model:show-model-selector="showForkWithModelSelector"
-            :search-term="forkWithModel"
-            @select-model="forkWithModel = $event"
-          />
-        </div>
-        <Button @click="handleForkWith">
-          Fork
+  <div class="h-full w-full flex flex-col overflow-hidden">
+    <VueFlow
+      v-show="currentMode === ChatMode.FLOW"
+      class="flex-1"
+      :nodes="nodesAndEdges.nodes"
+      :edges="nodesAndEdges.edges"
+      @node-click="handleNodeClick"
+      @pane-click="handlePanelClick"
+      @node-double-click="handleNodeDoubleClick"
+      @node-context-menu="handleNodeContextMenu"
+      @init="handleInit"
+    >
+      <Background />
+      <Controls />
+      <MiniMap :mask-color="strokeColor" zoomable pannable />
+      <NodeContextMenu
+        v-if="contextMenu.show"
+        :x="contextMenu.x"
+        :y="contextMenu.y"
+        :role="selectedMessage?.role"
+        @fork="handleFork(selectedMessageId)"
+        @focus-in="handleContextMenuFocusIn"
+        @delete="handleContextMenuDelete"
+        @copy="handleContextMenuCopy"
+        @fork-with="handleContextMenuForkWith"
+      />
+      <template #node-assistant="props">
+        <AssistantNode v-bind="props" class="nodrag" @abort="handleAbort(props.id)" />
+      </template>
+      <template #node-system="props">
+        <SystemNode v-bind="props" class="nodrag" />
+      </template>
+      <template #node-user="props">
+        <UserNode v-bind="props" class="nodrag" />
+      </template>
+    </VueFlow>
+    <div
+      v-show="currentMode === ChatMode.CONVERSATION"
+      class="w-full flex flex-1 justify-center overflow-hidden px-4 sm:px-6"
+    >
+      <ConversationView
+        class="w-full max-w-screen-md flex-1"
+        :messages="currentBranch.messages"
+        @fork-message="handleFork"
+        @abort-message="handleAbort"
+      />
+    </div>
+    <div
+      class="mt-auto w-full px-4 pb-6 pt-2 transition-colors duration-200 sm:px-6"
+      :class="{
+        'sticky bottom-0 left-0 right-0 z-20 bg-neutral-100/95 backdrop-blur-md dark:bg-neutral-900/95': isConversationMode,
+        'bg-neutral-100 dark:bg-neutral-900': !isConversationMode,
+      }"
+    >
+      <div class="relative mx-auto w-full max-w-screen-md flex rounded-lg bg-neutral-100 p-2 shadow-lg transition-colors dark:bg-neutral-900">
+        <Textarea
+          v-model="inputMessage"
+          placeholder="Enter to send message, Shift+Enter for new-line"
+          max-h-60vh w-full resize-none border-gray-300 rounded-sm px-3 py-2 outline-none dark:bg-neutral-800 focus:ring-2 focus:ring-black dark:focus:ring-white
+          transition="all duration-200 ease-in-out"
+          @keydown.enter.exact.prevent="handleSendButton"
+        />
+        <ModelSelector
+          v-if="showModelSelector"
+          v-model:show-model-selector="showModelSelector"
+          :search-term="inputMessage.substring(6)"
+          @select-model="handleModelSelect"
+        />
+        <Button absolute bottom-3 right-3 @click="handleSendButton">
+          Send
         </Button>
-      </DialogContent>
-    </Dialog>
+        <Dialog v-model:open="showForkWithModelDialog">
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Fork With</DialogTitle>
+            </DialogHeader>
+            <div>
+              <Select
+                :model-value="defaultTextModel.provider as ProviderNames"
+                @update:model-value="handleForkWithProviderChange"
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="provider in settingsStore.configuredTextProviders" :key="provider.name" :value="provider.name">
+                    {{ provider.name }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                id="model" v-model="forkWithModel" placeholder="Search models..."
+                @click.stop="showForkWithModelSelector = true"
+              />
+              <ModelSelector
+                v-if="showForkWithModelSelector"
+                v-model:show-model-selector="showForkWithModelSelector"
+                :search-term="forkWithModel"
+                @select-model="forkWithModel = $event"
+              />
+            </div>
+            <Button @click="handleForkWith">
+              Fork
+            </Button>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </div>
   </div>
 </template>
 
