@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { doublePrecision, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { doublePrecision, index, pgTable, text, timestamp, uuid, vector } from 'drizzle-orm/pg-core'
 
 export const templates = pgTable('templates', () => ({
   id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
@@ -34,3 +34,14 @@ export const messages = pgTable('messages', () => ({
   created_at: timestamp('created_at').notNull().default(sql`now()`),
   updated_at: timestamp('updated_at').notNull().default(sql`now()`),
 }))
+
+export const embeddings = pgTable('embeddings', () => ({
+  id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
+  message_id: uuid('message_id').references(() => messages.id),
+  content: text('content').notNull(),
+  embedding: vector('embedding', { dimensions: 1024 }).notNull(),
+  created_at: timestamp('created_at').notNull().default(sql`now()`),
+  updated_at: timestamp('updated_at').notNull().default(sql`now()`),
+}), table => [
+  index('embeddings_message_id_index').using('hnsw', table.embedding.op('vector_cosine_ops')),
+])

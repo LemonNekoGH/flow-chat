@@ -36,7 +36,7 @@ export const useSettingsStore = defineStore('settings', () => {
     // API key is not required for public models
     const provider = configuredTextProviders.value.find(p => p.name === defaultTextModel.value.provider)
     if (!provider) {
-      console.error('Provider not found')
+      console.error('Provider not found when fetching models')
       return
     }
 

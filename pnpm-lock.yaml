@@ -14,6 +14,9 @@ importers:
       '@dagrejs/dagre':
         specifier: ^1.1.5
         version: 1.1.5
+      '@electric-sql/pglite':
+        specifier: ^0.3.14
+        version: 0.3.14
       '@guiiai/logg':
         specifier: 1.0.6
         version: 1.0.6
@@ -22,10 +25,10 @@ importers:
         version: 0.1.3-beta.6
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: ^0.4.29
-        version: 0.4.29(drizzle-orm@0.44.6(gel@2.0.2))(web-worker@1.5.0)
+        version: 0.4.29(drizzle-orm@0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2))(web-worker@1.5.0)
       '@proj-airi/duckdb-wasm':
         specifier: ^0.4.29
-        version: 0.4.29(drizzle-orm@0.44.6(gel@2.0.2))(web-worker@1.5.0)
+        version: 0.4.29(drizzle-orm@0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2))(web-worker@1.5.0)
       '@unhead/vue':
         specifier: ^2.0.19
         version: 2.0.19(vue@3.6.0-alpha.1(typescript@5.9.3))
@@ -64,7 +67,7 @@ importers:
         version: 1.3.6
       drizzle-orm:
         specifier: ^0.44.6
-        version: 0.44.6(gel@2.0.2)
+        version: 0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2)
       lucide-vue-next:
         specifier: ^0.545.0
         version: 0.545.0(vue@3.6.0-alpha.1(typescript@5.9.3))
@@ -100,7 +103,7 @@ importers:
         version: 4.5.1(vue@3.6.0-alpha.1(typescript@5.9.3))
       vue-sonner:
         specifier: ^2.0.9
-        version: 2.0.9(@nuxt/kit@4.0.3(magicast@0.3.5))(@nuxt/schema@4.0.3)(nuxt@4.0.3(@netlify/blobs@9.1.2)(@parcel/watcher@2.5.1)(@types/node@24.7.2)(@vue/compiler-sfc@3.6.0-alpha.1)(db0@0.3.2(drizzle-orm@0.44.6(gel@2.0.2)))(drizzle-orm@0.44.6(gel@2.0.2))(eslint@9.37.0(jiti@2.5.1))(ioredis@5.7.0)(lightningcss@1.30.2)(magicast@0.3.5)(rolldown-vite@7.1.16(@types/node@24.7.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.8.1))(rolldown@1.0.0-beta.11-commit.0a985f3)(rollup@2.79.1)(terser@5.17.6)(tsx@4.19.2)(typescript@5.9.3)(vue-tsc@3.1.1(typescript@5.9.3))(yaml@2.8.1))
+        version: 2.0.9(@nuxt/kit@4.0.3(magicast@0.3.5))(@nuxt/schema@4.0.3)(nuxt@4.0.3(@electric-sql/pglite@0.3.14)(@netlify/blobs@9.1.2)(@parcel/watcher@2.5.1)(@types/node@24.7.2)(@vue/compiler-sfc@3.6.0-alpha.1)(db0@0.3.2(@electric-sql/pglite@0.3.14)(drizzle-orm@0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2)))(drizzle-orm@0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2))(eslint@9.37.0(jiti@2.5.1))(ioredis@5.7.0)(lightningcss@1.30.2)(magicast@0.3.5)(rolldown-vite@7.1.16(@types/node@24.7.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.8.1))(rolldown@1.0.0-beta.11-commit.0a985f3)(rollup@2.79.1)(terser@5.17.6)(tsx@4.19.2)(typescript@5.9.3)(vue-tsc@3.1.1(typescript@5.9.3))(yaml@2.8.1))
       workbox-build:
         specifier: ^7.3.0
         version: 7.3.0
@@ -126,6 +129,12 @@ importers:
       '@intlify/unplugin-vue-i18n':
         specifier: ^11.0.1
         version: 11.0.1(@vue/compiler-dom@3.5.22)(eslint@9.37.0(jiti@2.5.1))(rollup@2.79.1)(typescript@5.9.3)(vue-i18n@11.1.12(vue@3.6.0-alpha.1(typescript@5.9.3)))(vue@3.6.0-alpha.1(typescript@5.9.3))
+      '@proj-airi/drizzle-orm-browser-migrator':
+        specifier: ^0.1.3
+        version: 0.1.3(drizzle-orm@0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2))
+      '@proj-airi/unplugin-drizzle-orm-migrations':
+        specifier: ^0.1.3
+        version: 0.1.3(magicast@0.3.5)(rolldown-vite@7.1.16(@types/node@24.7.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.8.1))
       '@shikijs/markdown-it':
         specifier: ^3.13.0
         version: 3.13.0(markdown-it-async@2.2.0)
@@ -1085,6 +1094,9 @@ packages:
   '@duckdb/duckdb-wasm@1.29.1-dev68.0':
     resolution: {integrity: sha512-UttGAEDiCjSrn3anOlBwwrc+rDBY4jwyg+m9ZbNqazVWlanInQ8p6gZE1ZGDYp3Z0GG7fGSrkXs+bdT/mXSHEQ==}
 
+  '@electric-sql/pglite@0.3.14':
+    resolution: {integrity: sha512-3DB258dhqdsArOI1fIt7cb9RpUOgcDg5hXWVgVHAeqVQ/qxtFy605QKs4gx6mFq3jWsSPqDN8TgSEsqC3OfV9Q==}
+
   '@emnapi/core@1.5.0':
     resolution: {integrity: sha512-sbP8GzB1WDzacS8fgNPpHlp6C9VZe+SJP3F90W9rLemaQj2PzIuTEl1qDOYQf58YIpyjViI24y9aPWCjEzY2cg==}
 
@@ -1783,6 +1795,9 @@ packages:
 
   '@guiiai/logg@1.0.6':
     resolution: {integrity: sha512-x2dibX7Nr3sTCCJTsA3wgFSrZCtFA2k0vbg2fy+eG+fCAHKXjiSUNLAD94PpXcM7Jqbo4cJqzkOeCAgFZSjT0w==}
+
+  '@guiiai/logg@1.2.6':
+    resolution: {integrity: sha512-KGw2ZbDyUZ2eyImSFZd4RduByzpjLxIfYPjHIadw+Kgp4oRwsNMOwyqvD+WZ/fLq6A/t1duZunmhcfLWGVBANg==}
 
   '@humanfs/core@0.19.1':
     resolution: {integrity: sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA==}
@@ -2567,6 +2582,11 @@ packages:
       web-worker:
         optional: true
 
+  '@proj-airi/drizzle-orm-browser-migrator@0.1.3':
+    resolution: {integrity: sha512-E3G0tWqd/mmiQA8pohZx4jJboOuVYJwklWzBG+aWfsm3Bvys1+7xoMO1r9k1OBTn7zKF0Ioxuzos6SwXXF5F5A==}
+    peerDependencies:
+      drizzle-orm: '>=0.44.0'
+
   '@proj-airi/duckdb-wasm@0.4.29':
     resolution: {integrity: sha512-NWpUHLgzzvTftRYr1vHePHUFjt0LbYM6DbHHI0hI94Y0c+7QezNgIoYasWp9XhZS4dEBm3J2efiH2LqbMayNaA==}
     peerDependencies:
@@ -2574,6 +2594,14 @@ packages:
       web-worker: ^1.5.0
     peerDependenciesMeta:
       web-worker:
+        optional: true
+
+  '@proj-airi/unplugin-drizzle-orm-migrations@0.1.3':
+    resolution: {integrity: sha512-4yeDAmuoUh+ibg1gIxYV0tQGd+DzaLu9JyMRqtLUahCAuoTX6YLIqIFzOv/kKAs0zLpCVcHaXpHj36FW7jf4Uw==}
+    peerDependencies:
+      vite: ^2.9.0 || ^3.0.0-0 || ^4.0.0 || ^5.0.0-0 || ^6.0.0-0
+    peerDependenciesMeta:
+      vite:
         optional: true
 
   '@quansync/fs@0.1.5':
@@ -5013,6 +5041,9 @@ packages:
 
   error-stack-parser-es@1.0.5:
     resolution: {integrity: sha512-5qucVt2XcuGMcEGgWI7i+yZpmpByQ8J1lHhcL7PwqCwu9FPP3VUXzT4ltHe5i2z9dePwEHcDVOAfSnHsOlCXRA==}
+
+  error-stack-parser@2.1.4:
+    resolution: {integrity: sha512-Sk5V6wVazPhq5MhpO+AUxJn5x7XSXGl1R93Vn7i+zS15KDVxQijejNCrz8340/2bgLBjR9GtEG8ZVKONDjcqGQ==}
 
   errx@0.1.0:
     resolution: {integrity: sha512-fZmsRiDNv07K6s2KkKFTiD2aIvECa7++PKyD5NC32tpRw46qZA3sOz+aM+/V9V0GDHxVTKLziveV4JhzBHDp9Q==}
@@ -7888,6 +7919,9 @@ packages:
   stackback@0.0.2:
     resolution: {integrity: sha512-1XMJE5fQo1jGH6Y/7ebnwPOBEkIEnT4QF32d5R1+VXdXveM0IBMJt8zfaxX1P3QhVwrYe+576+jkANtSS2mBbw==}
 
+  stackframe@1.3.4:
+    resolution: {integrity: sha512-oeVtt7eWQS+Na6F//S4kJ2K2VbRlS9D43mAlMyVpVWovy9o+jfgH8O9agzANzaiLjclA0oYzUXEM4PurhSUChw==}
+
   standard-as-callback@2.1.0:
     resolution: {integrity: sha512-qoRRSyROncaz1z0mvYqIE4lCd9p2R90i6GxW3uZv5ucSu8tU7B5HXUP1gG8pVZsYNVaXjk8ClXHPttLyxAL48A==}
 
@@ -10175,6 +10209,8 @@ snapshots:
     dependencies:
       apache-arrow: 17.0.0
 
+  '@electric-sql/pglite@0.3.14': {}
+
   '@emnapi/core@1.5.0':
     dependencies:
       '@emnapi/wasi-threads': 1.1.0
@@ -10621,6 +10657,11 @@ snapshots:
     dependencies:
       chalk: 5.4.1
       date-fns: 4.1.0
+
+  '@guiiai/logg@1.2.6':
+    dependencies:
+      error-stack-parser: 2.1.4
+      pathe: 2.0.3
 
   '@humanfs/core@0.19.1': {}
 
@@ -11504,22 +11545,27 @@ snapshots:
   '@poppinss/exception@1.2.2':
     optional: true
 
-  '@proj-airi/drizzle-duckdb-wasm@0.4.29(drizzle-orm@0.44.6(gel@2.0.2))(web-worker@1.5.0)':
+  '@proj-airi/drizzle-duckdb-wasm@0.4.29(drizzle-orm@0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2))(web-worker@1.5.0)':
     dependencies:
       '@date-fns/tz': 1.4.1
       '@duckdb/duckdb-wasm': 1.29.1-dev68.0
       '@moeru/std': 0.1.0-beta.1
-      '@proj-airi/duckdb-wasm': 0.4.29(drizzle-orm@0.44.6(gel@2.0.2))(web-worker@1.5.0)
+      '@proj-airi/duckdb-wasm': 0.4.29(drizzle-orm@0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2))(web-worker@1.5.0)
       apache-arrow: 21.1.0
       date-fns: 4.1.0
-      drizzle-orm: 0.44.6(gel@2.0.2)
+      drizzle-orm: 0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2)
       es-toolkit: 1.40.0
     optionalDependencies:
       web-worker: 1.5.0
     transitivePeerDependencies:
       - '@75lb/nature'
 
-  '@proj-airi/duckdb-wasm@0.4.29(drizzle-orm@0.44.6(gel@2.0.2))(web-worker@1.5.0)':
+  '@proj-airi/drizzle-orm-browser-migrator@0.1.3(drizzle-orm@0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2))':
+    dependencies:
+      '@guiiai/logg': 1.2.6
+      drizzle-orm: 0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2)
+
+  '@proj-airi/duckdb-wasm@0.4.29(drizzle-orm@0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2))(web-worker@1.5.0)':
     dependencies:
       '@date-fns/tz': 1.4.1
       '@duckdb/duckdb-wasm': 1.29.1-dev68.0
@@ -11527,12 +11573,22 @@ snapshots:
       apache-arrow: 21.1.0
       date-fns: 4.1.0
       defu: 6.1.4
-      drizzle-orm: 0.44.6(gel@2.0.2)
+      drizzle-orm: 0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2)
       es-toolkit: 1.40.0
     optionalDependencies:
       web-worker: 1.5.0
     transitivePeerDependencies:
       - '@75lb/nature'
+
+  '@proj-airi/unplugin-drizzle-orm-migrations@0.1.3(magicast@0.3.5)(rolldown-vite@7.1.16(@types/node@24.7.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.8.1))':
+    dependencies:
+      c12: 3.2.0(magicast@0.3.5)
+      uncrypto: 0.1.3
+      unplugin: 2.3.10
+    optionalDependencies:
+      vite: rolldown-vite@7.1.16(@types/node@24.7.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.8.1)
+    transitivePeerDependencies:
+      - magicast
 
   '@quansync/fs@0.1.5':
     dependencies:
@@ -13684,7 +13740,6 @@ snapshots:
       rc9: 2.1.2
     optionalDependencies:
       magicast: 0.3.5
-    optional: true
 
   cac@6.7.14: {}
 
@@ -13778,7 +13833,6 @@ snapshots:
   citty@0.1.6:
     dependencies:
       consola: 3.4.2
-    optional: true
 
   class-variance-authority@0.7.1:
     dependencies:
@@ -14171,9 +14225,10 @@ snapshots:
 
   date-fns@4.1.0: {}
 
-  db0@0.3.2(drizzle-orm@0.44.6(gel@2.0.2)):
+  db0@0.3.2(@electric-sql/pglite@0.3.14)(drizzle-orm@0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2)):
     optionalDependencies:
-      drizzle-orm: 0.44.6(gel@2.0.2)
+      '@electric-sql/pglite': 0.3.14
+      drizzle-orm: 0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2)
     optional: true
 
   de-indent@1.0.2: {}
@@ -14354,8 +14409,7 @@ snapshots:
   dotenv@16.6.1:
     optional: true
 
-  dotenv@17.2.1:
-    optional: true
+  dotenv@17.2.1: {}
 
   driver.js@1.3.6: {}
 
@@ -14368,8 +14422,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  drizzle-orm@0.44.6(gel@2.0.2):
+  drizzle-orm@0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2):
     optionalDependencies:
+      '@electric-sql/pglite': 0.3.14
       gel: 2.0.2
 
   dunder-proto@1.0.1:
@@ -14437,6 +14492,10 @@ snapshots:
   environment@1.1.0: {}
 
   error-stack-parser-es@1.0.5: {}
+
+  error-stack-parser@2.1.4:
+    dependencies:
+      stackframe: 1.3.4
 
   errx@0.1.0:
     optional: true
@@ -15303,7 +15362,6 @@ snapshots:
       node-fetch-native: 1.6.7
       nypm: 0.6.1
       pathe: 2.0.3
-    optional: true
 
   git-up@8.1.1:
     dependencies:
@@ -16689,7 +16747,7 @@ snapshots:
       qs: 6.11.0
     optional: true
 
-  nitropack@2.12.4(@netlify/blobs@9.1.2)(drizzle-orm@0.44.6(gel@2.0.2))(rolldown@1.0.0-beta.11-commit.0a985f3):
+  nitropack@2.12.4(@electric-sql/pglite@0.3.14)(@netlify/blobs@9.1.2)(drizzle-orm@0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2))(rolldown@1.0.0-beta.11-commit.0a985f3):
     dependencies:
       '@cloudflare/kv-asset-handler': 0.4.0
       '@netlify/functions': 3.1.10(rollup@4.49.0)
@@ -16711,7 +16769,7 @@ snapshots:
       cookie-es: 2.0.0
       croner: 9.1.0
       crossws: 0.3.5
-      db0: 0.3.2(drizzle-orm@0.44.6(gel@2.0.2))
+      db0: 0.3.2(@electric-sql/pglite@0.3.14)(drizzle-orm@0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2))
       defu: 6.1.4
       destr: 2.0.5
       dot-prop: 9.0.0
@@ -16757,7 +16815,7 @@ snapshots:
       unenv: 2.0.0-rc.19
       unimport: 5.2.0
       unplugin-utils: 0.2.4
-      unstorage: 1.17.0(@netlify/blobs@9.1.2)(db0@0.3.2(drizzle-orm@0.44.6(gel@2.0.2)))(ioredis@5.7.0)
+      unstorage: 1.17.0(@netlify/blobs@9.1.2)(db0@0.3.2(@electric-sql/pglite@0.3.14)(drizzle-orm@0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2)))(ioredis@5.7.0)
       untyped: 2.0.0
       unwasm: 0.3.11
       youch: 4.1.0-beta.8
@@ -16869,7 +16927,7 @@ snapshots:
     dependencies:
       boolbase: 1.0.0
 
-  nuxt@4.0.3(@netlify/blobs@9.1.2)(@parcel/watcher@2.5.1)(@types/node@24.7.2)(@vue/compiler-sfc@3.6.0-alpha.1)(db0@0.3.2(drizzle-orm@0.44.6(gel@2.0.2)))(drizzle-orm@0.44.6(gel@2.0.2))(eslint@9.37.0(jiti@2.5.1))(ioredis@5.7.0)(lightningcss@1.30.2)(magicast@0.3.5)(rolldown-vite@7.1.16(@types/node@24.7.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.8.1))(rolldown@1.0.0-beta.11-commit.0a985f3)(rollup@2.79.1)(terser@5.17.6)(tsx@4.19.2)(typescript@5.9.3)(vue-tsc@3.1.1(typescript@5.9.3))(yaml@2.8.1):
+  nuxt@4.0.3(@electric-sql/pglite@0.3.14)(@netlify/blobs@9.1.2)(@parcel/watcher@2.5.1)(@types/node@24.7.2)(@vue/compiler-sfc@3.6.0-alpha.1)(db0@0.3.2(@electric-sql/pglite@0.3.14)(drizzle-orm@0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2)))(drizzle-orm@0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2))(eslint@9.37.0(jiti@2.5.1))(ioredis@5.7.0)(lightningcss@1.30.2)(magicast@0.3.5)(rolldown-vite@7.1.16(@types/node@24.7.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.8.1))(rolldown@1.0.0-beta.11-commit.0a985f3)(rollup@2.79.1)(terser@5.17.6)(tsx@4.19.2)(typescript@5.9.3)(vue-tsc@3.1.1(typescript@5.9.3))(yaml@2.8.1):
     dependencies:
       '@nuxt/cli': 3.28.0(magicast@0.3.5)
       '@nuxt/devalue': 2.0.2
@@ -16904,7 +16962,7 @@ snapshots:
       mlly: 1.7.4
       mocked-exports: 0.1.1
       nanotar: 0.2.0
-      nitropack: 2.12.4(@netlify/blobs@9.1.2)(drizzle-orm@0.44.6(gel@2.0.2))(rolldown@1.0.0-beta.11-commit.0a985f3)
+      nitropack: 2.12.4(@electric-sql/pglite@0.3.14)(@netlify/blobs@9.1.2)(drizzle-orm@0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2))(rolldown@1.0.0-beta.11-commit.0a985f3)
       nypm: 0.6.1
       ofetch: 1.4.1
       ohash: 2.0.11
@@ -16929,7 +16987,7 @@ snapshots:
       unimport: 5.2.0
       unplugin: 2.3.10
       unplugin-vue-router: 0.15.0(@vue/compiler-sfc@3.6.0-alpha.1)(typescript@5.9.3)(vue-router@4.5.1(vue@3.6.0-alpha.1(typescript@5.9.3)))(vue@3.5.20(typescript@5.9.3))
-      unstorage: 1.17.0(@netlify/blobs@9.1.2)(db0@0.3.2(drizzle-orm@0.44.6(gel@2.0.2)))(ioredis@5.7.0)
+      unstorage: 1.17.0(@netlify/blobs@9.1.2)(db0@0.3.2(@electric-sql/pglite@0.3.14)(drizzle-orm@0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2)))(ioredis@5.7.0)
       untyped: 2.0.0
       vue: 3.5.20(typescript@5.9.3)
       vue-bundle-renderer: 2.1.2
@@ -17004,7 +17062,6 @@ snapshots:
       pathe: 2.0.3
       pkg-types: 2.3.0
       tinyexec: 1.0.1
-    optional: true
 
   object-assign@4.1.1: {}
 
@@ -17652,7 +17709,6 @@ snapshots:
     dependencies:
       defu: 6.1.4
       destr: 2.0.5
-    optional: true
 
   read-package-up@11.0.0:
     dependencies:
@@ -18296,6 +18352,8 @@ snapshots:
 
   stackback@0.0.2: {}
 
+  stackframe@1.3.4: {}
+
   standard-as-callback@2.1.0:
     optional: true
 
@@ -18706,8 +18764,7 @@ snapshots:
       jiti: 2.5.1
       quansync: 0.2.11
 
-  uncrypto@0.1.3:
-    optional: true
+  uncrypto@0.1.3: {}
 
   unctx@2.4.1:
     dependencies:
@@ -19011,7 +19068,7 @@ snapshots:
       picomatch: 4.0.3
       webpack-virtual-modules: 0.6.2
 
-  unstorage@1.17.0(@netlify/blobs@9.1.2)(db0@0.3.2(drizzle-orm@0.44.6(gel@2.0.2)))(ioredis@5.7.0):
+  unstorage@1.17.0(@netlify/blobs@9.1.2)(db0@0.3.2(@electric-sql/pglite@0.3.14)(drizzle-orm@0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2)))(ioredis@5.7.0):
     dependencies:
       anymatch: 3.1.3
       chokidar: 4.0.3
@@ -19023,7 +19080,7 @@ snapshots:
       ufo: 1.6.1
     optionalDependencies:
       '@netlify/blobs': 9.1.2
-      db0: 0.3.2(drizzle-orm@0.44.6(gel@2.0.2))
+      db0: 0.3.2(@electric-sql/pglite@0.3.14)(drizzle-orm@0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2))
       ioredis: 5.7.0
     optional: true
 
@@ -19369,11 +19426,11 @@ snapshots:
       '@vue/devtools-api': 6.6.4
       vue: 3.6.0-alpha.1(typescript@5.9.3)
 
-  vue-sonner@2.0.9(@nuxt/kit@4.0.3(magicast@0.3.5))(@nuxt/schema@4.0.3)(nuxt@4.0.3(@netlify/blobs@9.1.2)(@parcel/watcher@2.5.1)(@types/node@24.7.2)(@vue/compiler-sfc@3.6.0-alpha.1)(db0@0.3.2(drizzle-orm@0.44.6(gel@2.0.2)))(drizzle-orm@0.44.6(gel@2.0.2))(eslint@9.37.0(jiti@2.5.1))(ioredis@5.7.0)(lightningcss@1.30.2)(magicast@0.3.5)(rolldown-vite@7.1.16(@types/node@24.7.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.8.1))(rolldown@1.0.0-beta.11-commit.0a985f3)(rollup@2.79.1)(terser@5.17.6)(tsx@4.19.2)(typescript@5.9.3)(vue-tsc@3.1.1(typescript@5.9.3))(yaml@2.8.1)):
+  vue-sonner@2.0.9(@nuxt/kit@4.0.3(magicast@0.3.5))(@nuxt/schema@4.0.3)(nuxt@4.0.3(@electric-sql/pglite@0.3.14)(@netlify/blobs@9.1.2)(@parcel/watcher@2.5.1)(@types/node@24.7.2)(@vue/compiler-sfc@3.6.0-alpha.1)(db0@0.3.2(@electric-sql/pglite@0.3.14)(drizzle-orm@0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2)))(drizzle-orm@0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2))(eslint@9.37.0(jiti@2.5.1))(ioredis@5.7.0)(lightningcss@1.30.2)(magicast@0.3.5)(rolldown-vite@7.1.16(@types/node@24.7.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.8.1))(rolldown@1.0.0-beta.11-commit.0a985f3)(rollup@2.79.1)(terser@5.17.6)(tsx@4.19.2)(typescript@5.9.3)(vue-tsc@3.1.1(typescript@5.9.3))(yaml@2.8.1)):
     optionalDependencies:
       '@nuxt/kit': 4.0.3(magicast@0.3.5)
       '@nuxt/schema': 4.0.3
-      nuxt: 4.0.3(@netlify/blobs@9.1.2)(@parcel/watcher@2.5.1)(@types/node@24.7.2)(@vue/compiler-sfc@3.6.0-alpha.1)(db0@0.3.2(drizzle-orm@0.44.6(gel@2.0.2)))(drizzle-orm@0.44.6(gel@2.0.2))(eslint@9.37.0(jiti@2.5.1))(ioredis@5.7.0)(lightningcss@1.30.2)(magicast@0.3.5)(rolldown-vite@7.1.16(@types/node@24.7.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.8.1))(rolldown@1.0.0-beta.11-commit.0a985f3)(rollup@2.79.1)(terser@5.17.6)(tsx@4.19.2)(typescript@5.9.3)(vue-tsc@3.1.1(typescript@5.9.3))(yaml@2.8.1)
+      nuxt: 4.0.3(@electric-sql/pglite@0.3.14)(@netlify/blobs@9.1.2)(@parcel/watcher@2.5.1)(@types/node@24.7.2)(@vue/compiler-sfc@3.6.0-alpha.1)(db0@0.3.2(@electric-sql/pglite@0.3.14)(drizzle-orm@0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2)))(drizzle-orm@0.44.6(@electric-sql/pglite@0.3.14)(gel@2.0.2))(eslint@9.37.0(jiti@2.5.1))(ioredis@5.7.0)(lightningcss@1.30.2)(magicast@0.3.5)(rolldown-vite@7.1.16(@types/node@24.7.2)(esbuild@0.25.9)(jiti@2.5.1)(terser@5.17.6)(tsx@4.19.2)(yaml@2.8.1))(rolldown@1.0.0-beta.11-commit.0a985f3)(rollup@2.79.1)(terser@5.17.6)(tsx@4.19.2)(typescript@5.9.3)(vue-tsc@3.1.1(typescript@5.9.3))(yaml@2.8.1)
 
   vue-tsc@3.1.1(typescript@5.9.3):
     dependencies:
