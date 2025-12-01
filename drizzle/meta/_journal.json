@@ -15,6 +15,20 @@
       "when": 1756929049733,
       "tag": "0001_room_view_state",
       "breakpoints": false
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1764232489272,
+      "tag": "0002_nasty_wendigo",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1764241549359,
+      "tag": "0003_curvy_starjammers",
+      "breakpoints": true
     }
   ]
 }

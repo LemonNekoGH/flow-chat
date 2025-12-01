@@ -1,5 +1,6 @@
 import path from 'node:path'
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
+import DrizzleORMMigrations from '@proj-airi/unplugin-drizzle-orm-migrations/vite'
 import Shiki from '@shikijs/markdown-it'
 import Vue from '@vitejs/plugin-vue'
 import LinkAttributes from 'markdown-it-link-attributes'
@@ -108,13 +109,14 @@ export default defineConfig({
 
     // https://github.com/webfansplz/vite-plugin-vue-devtools
     VueDevTools(),
+
+    DrizzleORMMigrations(),
   ],
 
   optimizeDeps: {
     exclude: [
-      '@proj-airi/duckdb-wasm',
-      '@proj-airi/drizzle-duckdb-wasm',
-      '@proj-airi/drizzle-duckdb-wasm/*',
+      '@electric-sql/pglite',
+      '@proj-airi/drizzle-orm-browser-migrator',
     ],
   },
 

@@ -1,43 +1,27 @@
-import type { DuckDBWasmDrizzleDatabase } from '@proj-airi/drizzle-duckdb-wasm'
+import type { PgliteDatabase } from 'drizzle-orm/pglite'
+import { IdbFs, PGlite } from '@electric-sql/pglite'
+import { vector } from '@electric-sql/pglite/vector'
 import { useLogg } from '@guiiai/logg'
-import { buildDSN, drizzle } from '@proj-airi/drizzle-duckdb-wasm'
-import { DBStorageType, DuckDBAccessMode } from '@proj-airi/duckdb-wasm'
-import { until } from '@vueuse/core'
 
+import { migrate as migrateInternal } from '@proj-airi/drizzle-orm-browser-migrator/pglite'
+import { until } from '@vueuse/core'
+import { drizzle } from 'drizzle-orm/pglite'
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import migrations from 'virtual:drizzle-migrations.sql'
+import { ref, toRaw } from 'vue'
 import * as schema from '../../db/schema'
-import migration1 from '../../drizzle/0000_yummy_morg.sql?raw'
-import migration2 from '../../drizzle/0001_room_view_state.sql?raw'
 
 export const useDatabaseStore = defineStore('database', () => {
   const logger = useLogg('database')
 
   const migrating = ref(false)
-  const _db = ref<DuckDBWasmDrizzleDatabase<typeof schema>>()
+  const _db = ref<PgliteDatabase<typeof schema>>()
 
-  // TODO: use https://github.com/proj-airi/drizzle-orm-browser instead
-  async function migrate(migrations?: string[]) {
+  async function migrate() {
     migrating.value = true
-    await db().execute(`CREATE TABLE IF NOT EXISTS __migrations (
-      id INTEGER PRIMARY KEY,
-      executed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-    );`)
+    logger.log('Running database migrations')
 
-    // get executed migration ids
-    const executedMigrations = await db().execute<{ id: number }>('SELECT id FROM __migrations')
-    const maxId = executedMigrations.reduce((max, migration) => Math.max(max, migration.id), -1)
-
-    const m = migrations ?? [ // TODO: unit test
-      migration1,
-      migration2,
-    ]
-
-    for (let i = maxId + 1; i < m.length; i++) {
-      logger.log('Running migration', m[i])
-      await db().execute(m[i])
-      await db().execute(`INSERT INTO __migrations (id) VALUES (${i});`)
-    }
+    await migrateInternal(db(), migrations)
 
     await db().execute('CHECKPOINT;')
 
@@ -59,21 +43,12 @@ export const useDatabaseStore = defineStore('database', () => {
       return
     }
 
-    const dsn = inMemory
-      ? 'duckdb-wasm:'
-      : buildDSN({
-          scheme: 'duckdb-wasm:',
-          bundles: 'import-url',
-          logger: true,
-          storage: {
-            type: DBStorageType.ORIGIN_PRIVATE_FS,
-            path: 'flow_chat.db',
-            accessMode: DuckDBAccessMode.READ_WRITE,
-          },
-        })
-    logger.log('dsn', dsn)
+    const pgClient = new PGlite({
+      fs: inMemory ? undefined : new IdbFs('flow-chat'),
+      extensions: { vector },
+    })
 
-    _db.value = drizzle(dsn, { schema })
+    _db.value = drizzle({ client: pgClient, schema })
 
     // It can only use in node environment
     // await migrate(db.value, {
@@ -90,10 +65,10 @@ export const useDatabaseStore = defineStore('database', () => {
       throw new Error('Database not initialized')
     }
 
-    return _db.value
+    return toRaw(_db.value)
   }
 
-  async function withCheckpoint<T>(cb: (db: DuckDBWasmDrizzleDatabase<typeof schema>) => Promise<T>) {
+  async function withCheckpoint<T>(cb: (db: PgliteDatabase<typeof schema>) => Promise<T>) {
     const result = await cb(db())
     await db().execute('CHECKPOINT;') // TODO: is this necessary?
 
