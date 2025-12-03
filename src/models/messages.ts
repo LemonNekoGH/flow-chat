@@ -1,5 +1,5 @@
 import type { Message } from '~/types/messages'
-import { eq, inArray, sql } from 'drizzle-orm'
+import { and, eq, ilike, inArray, sql } from 'drizzle-orm'
 import { useDatabaseStore } from '~/stores/database'
 import * as schema from '../../db/schema'
 
@@ -40,6 +40,19 @@ export function useMessageModel() {
     })
   }
 
+  function searchByContent(keyword: string, roomId?: string) {
+    const conditions = [ilike(schema.messages.content, `%${keyword}%`)]
+
+    if (roomId) {
+      conditions.push(eq(schema.messages.room_id, roomId))
+    }
+
+    return dbStore.db()
+      .select()
+      .from(schema.messages)
+      .where(and(...conditions))
+  }
+
   return {
     getAll,
     getByRoomId,
@@ -47,5 +60,6 @@ export function useMessageModel() {
     create,
     update,
     appendContent,
+    searchByContent,
   }
 }

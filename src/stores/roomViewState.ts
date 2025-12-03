@@ -1,10 +1,16 @@
 import type { Edge, Node, TransitionOptions, ViewportTransform } from '@vue-flow/core'
-import type { ComputedRef, Ref } from 'vue'
 import type { RoomViewStatePatch } from '~/stores/rooms'
-import type { BaseMessage } from '~/types/messages'
 import type { NodeData } from '~/types/node'
+import { useVueFlow } from '@vue-flow/core'
 import { useDebounceFn } from '@vueuse/core'
-import { nextTick, ref, watch, watchEffect } from 'vue'
+import { defineStore, storeToRefs } from 'pinia'
+import { computed, nextTick, ref, watch, watchEffect } from 'vue'
+import { useRoute } from 'vue-router'
+import { isDark } from '~/composables/dark'
+import { useDatabaseStore } from '~/stores/database'
+import { useMessagesStore } from '~/stores/messages'
+import { useRoomsStore } from '~/stores/rooms'
+import { useLayout } from '../composables/useLayout'
 
 interface FocusAction {
   id: string | null
@@ -15,44 +21,6 @@ interface PendingViewportAction {
   roomId: string
   snapshot: ViewportTransform | null
   preferFocus: boolean
-}
-
-interface RoomStores {
-  dbStore: {
-    waitForDbInitialized: () => Promise<unknown>
-  }
-  roomsStore: {
-    setCurrentRoom: (id: string) => Promise<unknown> | unknown
-    updateRoomState: (id: string, patch: RoomViewStatePatch) => Promise<unknown>
-    getRoomState: (id: string | null | undefined) => {
-      focusNodeId: string | null
-      viewport: ViewportTransform | null
-    }
-  }
-  messagesStore: {
-    retrieveMessages: () => Promise<void>
-    resetState: () => void
-    getMessageById: (id: string) => BaseMessage | undefined
-  }
-}
-
-export interface UseRoomViewStateOptions {
-  roomId: ComputedRef<string | null>
-  currentRoomId: Ref<string | null | undefined>
-  selectedMessageId: Ref<string | null>
-  nodesAndEdges: ComputedRef<{ nodes: Node<NodeData>[], edges: Edge[] }>
-  viewport: Ref<ViewportTransform>
-  smoothViewportTransition: TransitionOptions
-  setCenterToNode: (node: Node<NodeData> | string) => void
-  setViewport: (
-    snapshot: ViewportTransform,
-    transition?: TransitionOptions,
-  ) => Promise<unknown> | void
-  findNode: (id: string) => Node<NodeData> | undefined
-  addSelectedNodes: (nodes: any[]) => void
-  removeSelectedNodes: (nodes: any[]) => void
-  getSelectedNodes: Ref<any[]>
-  stores: RoomStores
 }
 
 function cloneViewportSnapshot(snapshot: ViewportTransform): ViewportTransform {
@@ -78,22 +46,92 @@ function areViewportEqual(
   return a.x === b.x && a.y === b.y && a.zoom === b.zoom
 }
 
-export function useRoomViewState(options: UseRoomViewStateOptions) {
+export const useRoomViewStateStore = defineStore('roomViewState', () => {
+  const route = useRoute('/chat/[id]')
+
+  const dbStore = useDatabaseStore()
+
+  const roomsStore = useRoomsStore()
+  const { currentRoomId } = storeToRefs(roomsStore)
+
+  const messagesStore = useMessagesStore()
+  const { messages } = storeToRefs(messagesStore)
+
+  const { layout } = useLayout()
+
+  const selectedMessageId = ref<string | null>(null)
+
+  const currentBranch = computed(() => {
+    return messagesStore.getBranchById(selectedMessageId.value)
+  })
+
+  const roomId = computed(() => {
+    if (typeof route.params.id === 'string') {
+      return route.params.id
+    }
+    const id = Array.isArray(route.params.id) ? route.params.id[0] : null
+    return id || null
+  })
+
+  const nodesAndEdges = computed(() => {
+    const { ids } = currentBranch.value
+    const nodes: Node<NodeData>[] = []
+    const edges: Edge[] = []
+
+    // Check if we have messages with 'root' as parent
+    const hasRootParent = messages.value.some(msg => !msg.parent_id)
+
+    // Add a hidden root node if needed
+    if (hasRootParent) {
+      nodes.push({
+        id: 'root',
+        type: 'system',
+        position: { x: 0, y: 0 },
+        hidden: true,
+        data: { hidden: true, message: messages.value[0], selected: false, inactive: false, generating: false },
+      })
+    }
+
+    for (const message of messages.value) {
+      const { id, parent_id, role } = message
+      const active = ids.has(id)
+
+      nodes.push({
+        id,
+        type: role,
+        position: { x: 0, y: 0 },
+        data: { message, selected: selectedMessageId.value === id, inactive: !!selectedMessageId.value && !active, hidden: false, generating: false },
+      })
+
+      // Only create an edge if we have a valid source node
+      const source = parent_id || 'root'
+      // Check if source exists in our nodes (or will exist)
+      const sourceExists = source === 'root'
+        || messages.value.some(m => m.id === source)
+        || nodes.some(n => n.id === source)
+
+      if (sourceExists) {
+        edges.push({
+          id: `${source}-${id}`,
+          source,
+          target: id,
+          style: active ? { stroke: isDark?.value ? '#fff' : '#000', strokeWidth: '2' } : {},
+        })
+      }
+    }
+
+    return { nodes: layout(nodes, edges), edges }
+  })
+
   const {
-    roomId,
-    currentRoomId,
-    selectedMessageId,
-    nodesAndEdges,
-    viewport,
-    smoothViewportTransition,
-    setCenterToNode,
+    setCenter,
     setViewport,
     findNode,
+    viewport,
     addSelectedNodes,
     removeSelectedNodes,
     getSelectedNodes,
-    stores: { dbStore, roomsStore, messagesStore },
-  } = options
+  } = useVueFlow()
 
   const isFlowReady = ref(false)
   const pendingFocusAction = ref<FocusAction | null>(null)
@@ -114,6 +152,37 @@ export function useRoomViewState(options: UseRoomViewStateOptions) {
     }
 
     removeSelectedNodes(selectedNodes)
+  }
+
+  const easeOut = (t: number) => 1 - (1 - t) ** 3
+  const smoothViewportTransition: TransitionOptions = {
+    duration: 300,
+    ease: easeOut,
+    interpolate: 'linear',
+  }
+
+  function setCenterToNode(node: Node<NodeData> | string) {
+    let nodeToCenter: Node<NodeData> | undefined
+    if (typeof node === 'string') {
+      nodeToCenter = findNode(node)
+    }
+    else {
+      nodeToCenter = node
+    }
+
+    if (!nodeToCenter) {
+      console.warn('Node not found', node)
+      return
+    }
+
+    setCenter(
+      nodeToCenter.position.x + 100,
+      nodeToCenter.position.y + innerHeight / 4,
+      {
+        ...smoothViewportTransition,
+        zoom: viewport.value.zoom,
+      },
+    )
   }
 
   function applyFlowSelection(nodeId: string, center: boolean) {
@@ -354,7 +423,15 @@ export function useRoomViewState(options: UseRoomViewStateOptions) {
   }
 
   return {
+    selectedMessageId,
+    currentRoomId,
+    currentBranch,
+    nodesAndEdges,
+    route,
+
     focusFlowNode,
     handleInit,
+    setCenterToNode,
+    findNode,
   }
-}
+})

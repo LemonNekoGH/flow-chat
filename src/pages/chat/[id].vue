@@ -1,18 +1,17 @@
 <script setup lang="ts">
 import type { CapabilitiesByModel, ModelIdsByProvider, ProviderNames } from '@moeru-ai/jem'
-import type { Edge, Node, NodeMouseEvent, TransitionOptions } from '@vue-flow/core'
+import type { NodeMouseEvent } from '@vue-flow/core'
 import type { AcceptableValue } from 'reka-ui'
 import type { BaseMessage } from '~/types/messages'
-import type { NodeData } from '~/types/node'
 import { hasCapabilities } from '@moeru-ai/jem'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
-import { useVueFlow, VueFlow } from '@vue-flow/core'
+import { VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
 import { useClipboard, useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 import { streamText } from 'xsai'
 import ConversationView from '~/components/ConversationView.vue'
@@ -34,50 +33,39 @@ import SelectTrigger from '~/components/ui/select/SelectTrigger.vue'
 import SelectValue from '~/components/ui/select/SelectValue.vue'
 import Textarea from '~/components/ui/textarea/Textarea.vue'
 import { isDark } from '~/composables/dark'
-import { useLayout } from '~/composables/useLayout'
-import { useRoomViewState } from '~/composables/useRoomViewState'
 import { useDatabaseStore } from '~/stores/database'
 import { useMessagesStore } from '~/stores/messages'
 import { ChatMode, useModeStore } from '~/stores/mode'
 import { useRoomsStore } from '~/stores/rooms'
+import { useRoomViewStateStore } from '~/stores/roomViewState'
 import { useSettingsStore } from '~/stores/settings'
 import { createImageTools } from '~/tools'
 import { parseMessage } from '~/utils/chat'
 import { asyncIteratorFromReadableStream } from '~/utils/interator'
 
 const route = useRoute('/chat/[id]')
+const router = useRouter()
 const dbStore = useDatabaseStore()
-
-const roomId = computed(() => {
-  if (typeof route.params.id === 'string') {
-    return route.params.id
-  }
-  const id = Array.isArray(route.params.id) ? route.params.id[0] : null
-  return id || null
-})
-const {
-  setCenter,
-  setViewport,
-  findNode,
-  viewport,
-  addSelectedNodes,
-  removeSelectedNodes,
-  getSelectedNodes,
-} = useVueFlow()
 
 const settingsStore = useSettingsStore()
 const { defaultTextModel, currentProvider } = storeToRefs(settingsStore)
 
 const messagesStore = useMessagesStore()
 const roomsStore = useRoomsStore()
-const { currentRoomId } = storeToRefs(roomsStore)
-const { layout } = useLayout()
+
 const { currentMode } = storeToRefs(useModeStore())
-const { messages } = storeToRefs(messagesStore)
+
+const roomViewStateStore = useRoomViewStateStore()
+const {
+  selectedMessageId,
+  currentRoomId,
+  currentBranch,
+  nodesAndEdges,
+} = storeToRefs(roomViewStateStore)
+
 const defaultColor = 'rgb(240, 242, 243, 0.7)'
 const darkColor = 'rgb(34,34,34,0.7)'
 const strokeColor = computed(() => (isDark.value ? darkColor : defaultColor))
-const selectedMessageId = ref<string | null>(null)
 const selectedMessage = computed(() => {
   return messagesStore.messages.find(message => message.id === selectedMessageId.value)
 })
@@ -90,13 +78,6 @@ const isConversationMode = computed(() => currentMode.value === ChatMode.CONVERS
 const showModelSelector = ref(false)
 const inlineModelCommandValue = ref('')
 const inlineModelCommandProvider = ref<ProviderNames | null>(null)
-
-const easeOut = (t: number) => 1 - (1 - t) ** 3
-const smoothViewportTransition: TransitionOptions = {
-  duration: 300,
-  ease: easeOut,
-  interpolate: 'linear',
-}
 
 // Watch for "model=" in the input
 watch(inputMessage, (newValue) => {
@@ -141,37 +122,13 @@ function handlePanelClick() {
   selectedMessageId.value = null
 }
 
-function setCenterToNode(node: Node<NodeData> | string) {
-  let nodeToCenter: Node<NodeData> | undefined
-  if (typeof node === 'string') {
-    nodeToCenter = findNode(node)
-  }
-  else {
-    nodeToCenter = node
-  }
-
-  if (!nodeToCenter) {
-    console.warn('Node not found', node)
-    return
-  }
-
-  setCenter(
-    nodeToCenter.position.x + 100,
-    nodeToCenter.position.y + innerHeight / 4,
-    {
-      ...smoothViewportTransition,
-      zoom: viewport.value.zoom,
-    },
-  )
-}
-
 function handleNodeDoubleClick(event: NodeMouseEvent) {
-  const node = findNode(event.node.id)
+  const node = roomViewStateStore.findNode(event.node.id)
   if (!node) {
     return
   }
 
-  setCenterToNode(node)
+  roomViewStateStore.setCenterToNode(node)
 }
 function handleNodeContextMenu(event: NodeMouseEvent) {
   selectedMessageId.value = event.node.id
@@ -184,76 +141,6 @@ function handleNodeContextMenu(event: NodeMouseEvent) {
   }
 }
 // #endregion
-
-const currentBranch = computed(() => {
-  return messagesStore.getBranchById(selectedMessageId.value)
-})
-
-const nodesAndEdges = computed(() => {
-  const { ids } = currentBranch.value
-  const nodes: Node<NodeData>[] = []
-  const edges: Edge[] = []
-
-  // Check if we have messages with 'root' as parent
-  const hasRootParent = messages.value.some(msg => !msg.parent_id)
-
-  // Add a hidden root node if needed
-  if (hasRootParent) {
-    nodes.push({
-      id: 'root',
-      type: 'system',
-      position: { x: 0, y: 0 },
-      hidden: true,
-      data: { hidden: true, message: messages.value[0], selected: false, inactive: false, generating: false },
-    })
-  }
-
-  for (const message of messages.value) {
-    const { id, parent_id, role } = message
-    const active = ids.has(id)
-
-    nodes.push({
-      id,
-      type: role,
-      position: { x: 0, y: 0 },
-      data: { message, selected: selectedMessageId.value === id, inactive: !!selectedMessageId.value && !active, hidden: false, generating: false },
-    })
-
-    // Only create an edge if we have a valid source node
-    const source = parent_id || 'root'
-    // Check if source exists in our nodes (or will exist)
-    const sourceExists = source === 'root'
-      || messages.value.some(m => m.id === source)
-      || nodes.some(n => n.id === source)
-
-    if (sourceExists) {
-      edges.push({
-        id: `${source}-${id}`,
-        source,
-        target: id,
-        style: active ? { stroke: isDark?.value ? '#fff' : '#000', strokeWidth: '2' } : {},
-      })
-    }
-  }
-
-  return { nodes: layout(nodes, edges), edges }
-})
-
-const { handleInit, focusFlowNode } = useRoomViewState({
-  roomId,
-  currentRoomId,
-  selectedMessageId,
-  nodesAndEdges,
-  viewport,
-  smoothViewportTransition,
-  setCenterToNode,
-  setViewport,
-  findNode,
-  addSelectedNodes,
-  removeSelectedNodes,
-  getSelectedNodes,
-  stores: { dbStore, roomsStore, messagesStore },
-})
 
 useEventListener('click', () => {
   contextMenu.value.show = false
@@ -282,7 +169,7 @@ async function deleteSelectedNode(nodeId: string) {
   // Auto select the parent node or cancel selection
   if (parentId) {
     selectedMessageId.value = parentId
-    setCenterToNode(parentId)
+    roomViewStateStore.setCenterToNode(parentId)
     return
   }
 
@@ -347,7 +234,7 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
 
   // auto select the answer
   selectedMessageId.value = newMsgId
-  focusFlowNode(newMsgId, { center: true })
+  roomViewStateStore.focusFlowNode(newMsgId, { center: true })
   if (currentRoomId.value) {
     try {
       await dbStore.waitForDbInitialized()
@@ -486,6 +373,23 @@ onMounted(async () => {
   // Initialize rooms before displaying
   await roomsStore.initialize()
   await messagesStore.retrieveMessages()
+
+  // Handle messageId query parameter for navigation from search
+  const messageId = route.query.messageId as string | undefined
+  if (messageId) {
+    const message = messagesStore.getMessageById(messageId)
+    if (message) {
+      selectedMessageId.value = messageId
+      await nextTick()
+      roomViewStateStore.setCenterToNode(messageId)
+      // Update room state to focus on this message
+      if (currentRoomId.value) {
+        await roomsStore.updateRoomState(currentRoomId.value, { focusNodeId: messageId })
+      }
+      // Remove query parameter from URL
+      await router.replace({ query: {} })
+    }
+  }
 })
 </script>
 
@@ -500,7 +404,7 @@ onMounted(async () => {
       @pane-click="handlePanelClick"
       @node-double-click="handleNodeDoubleClick"
       @node-context-menu="handleNodeContextMenu"
-      @init="handleInit"
+      @init="roomViewStateStore.handleInit"
     >
       <Background />
       <Controls />
