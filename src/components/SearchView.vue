@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Message } from '~/types/messages'
+import type { Message, MessageRole } from '~/types/messages'
 import { watchDebounced } from '@vueuse/core'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -36,7 +36,7 @@ async function performSearch() {
     await dbStore.waitForDbInitialized()
 
     const roomId = searchScope.value === 'current' ? roomsStore.currentRoomId : undefined
-    const results = await messageModel.searchByContent(keyword, roomId || undefined)
+    const results = await messageModel.searchByContent(keyword, roomId)
     searchResults.value = results as Message[]
   }
   catch (error) {
@@ -46,6 +46,15 @@ async function performSearch() {
   finally {
     isSearching.value = false
   }
+}
+
+function formatRole(role: MessageRole): string {
+  const roleMap: Record<MessageRole, string> = {
+    user: 'User',
+    assistant: 'Assistant',
+    system: 'System',
+  }
+  return roleMap[role] ?? 'Unknown'
 }
 
 watchDebounced(searchKeyword, (newValue) => {
@@ -161,7 +170,7 @@ onMounted(async () => {
                 {{ getRoomName(message.room_id) }}
               </span>
               <span class="text-xs text-muted-foreground">
-                {{ message.role === 'user' ? 'User' : message.role === 'assistant' ? 'Assistant' : 'System' }}
+                {{ formatRole(message.role) }}
               </span>
             </div>
             <div class="line-clamp-2 text-sm">

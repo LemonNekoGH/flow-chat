@@ -10,8 +10,7 @@ import { VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
 import { useClipboard, useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, onMounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { streamText } from 'xsai'
 import ConversationView from '~/components/ConversationView.vue'
@@ -43,8 +42,6 @@ import { createImageTools } from '~/tools'
 import { parseMessage } from '~/utils/chat'
 import { asyncIteratorFromReadableStream } from '~/utils/interator'
 
-const route = useRoute('/chat/[id]')
-const router = useRouter()
 const dbStore = useDatabaseStore()
 
 const settingsStore = useSettingsStore()
@@ -373,23 +370,6 @@ onMounted(async () => {
   // Initialize rooms before displaying
   await roomsStore.initialize()
   await messagesStore.retrieveMessages()
-
-  // Handle messageId query parameter for navigation from search
-  const messageId = route.query.messageId as string | undefined
-  if (messageId) {
-    const message = messagesStore.getMessageById(messageId)
-    if (message) {
-      selectedMessageId.value = messageId
-      await nextTick()
-      roomViewStateStore.setCenterToNode(messageId)
-      // Update room state to focus on this message
-      if (currentRoomId.value) {
-        await roomsStore.updateRoomState(currentRoomId.value, { focusNodeId: messageId })
-      }
-      // Remove query parameter from URL
-      await router.replace({ query: {} })
-    }
-  }
 })
 </script>
 
