@@ -4,7 +4,7 @@ import { ref, watchEffect } from 'vue'
 import { useRouter } from 'vue-router'
 import { Toaster } from 'vue-sonner'
 import RoomSelector from '~/components/RoomSelector.vue'
-import TemplateManager from '~/components/TemplateManager.vue'
+import SearchView from '~/components/SearchView.vue'
 import Button from '~/components/ui/button/Button.vue'
 import Tabs from '~/components/ui/tabs/Tabs.vue'
 import TabsContent from '~/components/ui/tabs/TabsContent.vue'
@@ -104,15 +104,15 @@ const router = useRouter()
           <TabsTrigger value="chats">
             Chats
           </TabsTrigger>
-          <TabsTrigger value="templates">
-            Templates
+          <TabsTrigger value="search">
+            Search
           </TabsTrigger>
         </TabsList>
         <TabsContent value="chats" class="mt-4">
           <RoomSelector />
         </TabsContent>
-        <TabsContent value="templates" class="mt-4">
-          <TemplateManager />
+        <TabsContent value="search" class="mt-4">
+          <SearchView />
         </TabsContent>
       </Tabs>
     </aside>
