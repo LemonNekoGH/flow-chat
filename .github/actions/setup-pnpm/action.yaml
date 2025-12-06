@@ -1,0 +1,15 @@
+name: Setup pnpm
+description: Private action to setup pnpm
+
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v3
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 24.0.2
+        cache: pnpm
+
+    - name: Install
+      shell: bash
+      run: pnpm install

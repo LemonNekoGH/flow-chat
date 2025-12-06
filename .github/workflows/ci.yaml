@@ -15,14 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v3
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24.0.2
-          cache: pnpm
-
-      - name: Install
-        run: pnpm install
+      - uses: ./.github/actions/setup-pnpm
 
       - name: Lint
         run: pnpm run lint
@@ -32,14 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v3
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24.0.2
-          cache: pnpm
-
-      - name: Install
-        run: pnpm install
+      - uses: ./.github/actions/setup-pnpm
 
       - name: Build
         run: pnpm run build
@@ -49,14 +35,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v3
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24.0.2
-          cache: pnpm
-
-      - name: Install
-        run: pnpm install
+      - uses: ./.github/actions/setup-pnpm
 
       - name: Typecheck
         run: pnpm run typecheck
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-pnpm
+
+      - name: Test
+        run: pnpm run test

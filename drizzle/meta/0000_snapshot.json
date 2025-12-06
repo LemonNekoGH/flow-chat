@@ -1,5 +1,5 @@
 {
-  "id": "31580580-fad1-44e5-b6ff-6c0a01548d09",
+  "id": "7c4599b7-62ff-416b-bc74-b72cac7c0b9c",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -51,6 +51,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "embedding": {
+          "name": "embedding",
+          "type": "vector(1024)",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -66,7 +72,24 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "embeddingIndex": {
+          "name": "embeddingIndex",
+          "columns": [
+            {
+              "expression": "embedding",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": "vector_cosine_ops"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "hnsw",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "messages_room_id_rooms_id_fk": {
           "name": "messages_room_id_rooms_id_fk",
@@ -122,6 +145,30 @@
         "default_model": {
           "name": "default_model",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "focus_node_id": {
+          "name": "focus_node_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "viewport_x": {
+          "name": "viewport_x",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "viewport_y": {
+          "name": "viewport_y",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "viewport_zoom": {
+          "name": "viewport_zoom",
+          "type": "double precision",
           "primaryKey": false,
           "notNull": false
         },
