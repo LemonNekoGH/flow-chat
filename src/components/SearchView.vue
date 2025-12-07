@@ -1,21 +1,33 @@
 <script setup lang="ts">
 import type { Message, MessageRole } from '~/types/messages'
+import { useLogg } from '@guiiai/logg'
+import { defineInvoke } from '@moeru/eventa'
+import { createContext } from '@moeru/eventa/adapters/webworkers'
 import { watchDebounced } from '@vueuse/core'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import Button from '~/components/ui/button/Button.vue'
 import Input from '~/components/ui/input/Input.vue'
+import { embeddingExtractInvoke, embeddingLoadModelInvoke } from '~/events/embedding-worker'
 import { useMessageModel } from '~/models/messages'
 import { useDatabaseStore } from '~/stores/database'
 import { useRoomsStore } from '~/stores/rooms'
 import { useRoomViewStateStore } from '~/stores/roomViewState'
+import EmbeddingWorker from '~/workers/embedding-worker?worker'
+
+const logger = useLogg('search-view')
+
+const context = createContext(new EmbeddingWorker()).context
+const embeddingLoadModel = defineInvoke(context, embeddingLoadModelInvoke)
+const embeddingExtract = defineInvoke(context, embeddingExtractInvoke)
 
 const router = useRouter()
 const dbStore = useDatabaseStore()
 const roomsStore = useRoomsStore()
-const messageModel = useMessageModel()
 const roomViewStateStore = useRoomViewStateStore()
+const messageModel = useMessageModel()
 
+const loadingModel = ref(false)
 const searchKeyword = ref('')
 const searchResults = ref<Message[]>([])
 const isSearching = ref(false)
@@ -35,8 +47,25 @@ async function performSearch() {
   try {
     await dbStore.waitForDbInitialized()
 
-    const roomId = searchScope.value === 'current' ? roomsStore.currentRoomId : undefined
-    const results = await messageModel.searchByContent(keyword, roomId)
+    loadingModel.value = true
+    await embeddingLoadModel()
+    loadingModel.value = false
+
+    const embeddingToSearch = await embeddingExtract({ text: keyword })
+
+    const messagesNotEmbedded = await messageModel.notEmbeddedMessages()
+    const messageContentsNotEmbedded = messagesNotEmbedded.map(m => m.content)
+    if (messageContentsNotEmbedded.length > 0) {
+      const embeddings = await embeddingExtract({ text: messageContentsNotEmbedded })
+      const valueToInsert = embeddings.map((it, index) => {
+        const msg = messagesNotEmbedded[index]
+        return { id: msg.id, embedding: it }
+      })
+      await Promise.all(valueToInsert.map(v => messageModel.updateEmbedding(v.id, v.embedding)))
+      logger.debug('Embedded messages', valueToInsert.map(v => v.id))
+    }
+
+    const results = (await messageModel.vectorSimilaritySearch(embeddingToSearch[0], 10))
     searchResults.value = results as Message[]
   }
   catch (error) {
@@ -58,6 +87,9 @@ function formatRole(role: MessageRole): string {
 }
 
 watchDebounced(searchKeyword, (newValue) => {
+  if (loadingModel.value) {
+    return
+  }
   if (newValue.trim()) {
     performSearch()
   }

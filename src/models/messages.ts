@@ -1,5 +1,5 @@
 import type { Message } from '~/types/messages'
-import { and, eq, ilike, inArray, sql } from 'drizzle-orm'
+import { and, cosineDistance, desc, eq, getTableColumns, gt, ilike, inArray, isNull, sql } from 'drizzle-orm'
 import { useDatabaseStore } from '~/stores/database'
 import * as schema from '../../db/schema'
 
@@ -53,6 +53,26 @@ export function useMessageModel() {
       .where(and(...conditions))
   }
 
+  function notEmbeddedMessages() {
+    return dbStore.db().select().from(schema.messages).where(isNull(schema.messages.embedding))
+  }
+
+  function updateEmbedding(id: string, embedding: number[]) {
+    return dbStore.withCheckpoint((db) => {
+      return db.update(schema.messages).set({ embedding }).where(eq(schema.messages.id, id))
+    })
+  }
+
+  function vectorSimilaritySearch(embedding: number[], limit: number = 10) {
+    const similarity = sql<number>`1 - (${cosineDistance(schema.messages.embedding, embedding)})`
+    return dbStore.db()
+      .select({ similarity, ...getTableColumns(schema.messages) })
+      .from(schema.messages)
+      .where(gt(similarity, 0.7))
+      .orderBy(t => desc(t.similarity))
+      .limit(limit)
+  }
+
   return {
     getAll,
     getByRoomId,
@@ -61,5 +81,8 @@ export function useMessageModel() {
     update,
     appendContent,
     searchByContent,
+    notEmbeddedMessages,
+    updateEmbedding,
+    vectorSimilaritySearch,
   }
 }

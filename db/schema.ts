@@ -23,7 +23,7 @@ export const rooms = pgTable('rooms', () => ({
   updated_at: timestamp('updated_at').notNull().default(sql`now()`),
 }))
 
-export const messages = pgTable('messages', () => ({
+export const messages = pgTable('messages', {
   id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
   content: text('content').notNull(),
   model: text('model').notNull(),
@@ -31,17 +31,9 @@ export const messages = pgTable('messages', () => ({
   role: text('role').notNull(),
   room_id: uuid('room_id').references(() => rooms.id),
   parent_id: uuid('parent_id'),
+  embedding: vector('embedding', { dimensions: 1024 }),
   created_at: timestamp('created_at').notNull().default(sql`now()`),
   updated_at: timestamp('updated_at').notNull().default(sql`now()`),
-}))
-
-export const embeddings = pgTable('embeddings', () => ({
-  id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
-  message_id: uuid('message_id').references(() => messages.id),
-  content: text('content').notNull(),
-  embedding: vector('embedding', { dimensions: 1024 }).notNull(),
-  created_at: timestamp('created_at').notNull().default(sql`now()`),
-  updated_at: timestamp('updated_at').notNull().default(sql`now()`),
-}), table => [
-  index('embeddings_message_id_index').using('hnsw', table.embedding.op('vector_cosine_ops')),
+}, table => [
+  index('embeddingIndex').using('hnsw', table.embedding.op('vector_cosine_ops')),
 ])
