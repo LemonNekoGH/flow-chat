@@ -1,5 +1,5 @@
 import type { Message } from '~/types/messages'
-import { and, cosineDistance, desc, eq, getTableColumns, gt, ilike, inArray, isNull, sql } from 'drizzle-orm'
+import { and, cosineDistance, desc, eq, getTableColumns, ilike, inArray, isNull, sql } from 'drizzle-orm'
 import { useDatabaseStore } from '~/stores/database'
 import * as schema from '../../db/schema'
 
@@ -68,7 +68,6 @@ export function useMessageModel() {
     return dbStore.db()
       .select({ similarity, ...getTableColumns(schema.messages) })
       .from(schema.messages)
-      .where(gt(similarity, 0.7))
       .orderBy(t => desc(t.similarity))
       .limit(limit)
   }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { ref, watchEffect } from 'vue'
 import { useRouter } from 'vue-router'
@@ -6,10 +7,6 @@ import { Toaster } from 'vue-sonner'
 import RoomSelector from '~/components/RoomSelector.vue'
 import SearchView from '~/components/SearchView.vue'
 import Button from '~/components/ui/button/Button.vue'
-import Tabs from '~/components/ui/tabs/Tabs.vue'
-import TabsContent from '~/components/ui/tabs/TabsContent.vue'
-import TabsList from '~/components/ui/tabs/TabsList.vue'
-import TabsTrigger from '~/components/ui/tabs/TabsTrigger.vue'
 import { isDark, toggleDark } from '~/composables/dark'
 import { ChatMode, useModeStore } from '~/stores/mode'
 
@@ -33,8 +30,23 @@ watchEffect(() => {
   else showSidebar.value = true
 })
 
-// Sidebar tab state
-const sidebarTab = ref('chats')
+// Search dialog state
+const showSearchDialog = ref(false)
+
+// Keyboard shortcut handler
+function handleKeyDown(event: KeyboardEvent) {
+  // Cmd/Ctrl + K to open search
+  if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+    event.preventDefault()
+    showSearchDialog.value = !showSearchDialog.value
+  }
+  // Escape to close search
+  if (event.key === 'Escape' && showSearchDialog.value) {
+    showSearchDialog.value = false
+  }
+}
+
+useEventListener('keydown', handleKeyDown)
 
 const router = useRouter()
 </script>
@@ -51,6 +63,17 @@ const router = useRouter()
         Flow Chat
       </div>
       <div class="flex-1" />
+      <Button
+        variant="outline"
+        class="hidden border rounded-md bg-white px-2 color-black shadow-sm transition-colors duration-200 sm:inline-flex hover:bg-gray-200 hover:color-dark"
+        @click="showSearchDialog = true"
+      >
+        <span class="i-carbon-search mr-2" />
+        Search
+        <kbd class="pointer-events-none ml-2 hidden select-none items-center gap-1 border rounded bg-muted px-1.5 text-[10px] font-medium font-mono opacity-100 sm:flex">
+          <span class="text-xs">⌘</span>K
+        </kbd>
+      </Button>
       <Button v-if="currentMode === ChatMode.CONVERSATION" variant="outline" class="hidden sm:inline-flex" @click="currentMode = ChatMode.FLOW">
         Jump Out
       </Button>
@@ -99,28 +122,15 @@ const router = useRouter()
           <span class="i-carbon-settings mr-2" /> Settings
         </Button>
       </div>
-      <Tabs v-model="sidebarTab" class="w-full">
-        <TabsList class="grid grid-cols-2 w-full">
-          <TabsTrigger value="chats">
-            Chats
-          </TabsTrigger>
-          <TabsTrigger value="search">
-            Search
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="chats" class="mt-4">
-          <RoomSelector />
-        </TabsContent>
-        <TabsContent value="search" class="mt-4">
-          <SearchView />
-        </TabsContent>
-      </Tabs>
+      <RoomSelector />
     </aside>
     <!-- Main content -->
     <main class="w-full flex flex-1 flex-col place-items-center overflow-auto">
       <RouterView />
     </main>
   </div>
+  <!-- Search Dialog -->
+  <SearchView v-model:open="showSearchDialog" />
 </template>
 
 <style>
