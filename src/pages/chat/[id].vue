@@ -66,7 +66,6 @@ const strokeColor = computed(() => (isDark.value ? darkColor : defaultColor))
 const selectedMessage = computed(() => {
   return messagesStore.messages.find(message => message.id === selectedMessageId.value)
 })
-const generatingMessageId = ref<string | undefined>()
 
 const inputMessage = ref('')
 const isSending = ref(false)
@@ -195,7 +194,6 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
   const { id: newMsgId } = await messagesStore.newMessage('', 'assistant', parentId, provider, model, currentRoomId.value!)
   await messagesStore.retrieveMessages()
 
-  generatingMessageId.value = newMsgId
   const abortController = new AbortController()
   streamTextAbortControllers.value.set(newMsgId, abortController)
 
@@ -243,15 +241,22 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
     }
   }
 
-  for await (const textPart of asyncIteratorFromReadableStream(textStream, async v => v)) {
-    // check if image tool was used
-    if (messagesStore.image) {
-      await messagesStore.appendContent(newMsgId, `![generated image](${messagesStore.image})`)
-      await messagesStore.retrieveMessages()
-      messagesStore.image = ''
+  try {
+    for await (const textPart of asyncIteratorFromReadableStream(textStream, async v => v)) {
+      // check if image tool was used
+      if (messagesStore.image) {
+        await messagesStore.appendContent(newMsgId, `![generated image](${messagesStore.image})`)
+        await messagesStore.retrieveMessages()
+        messagesStore.image = ''
+      }
+      // textPart might be `undefined` in some cases
+      textPart && await messagesStore.appendContent(newMsgId, textPart)
     }
-    // textPart might be `undefined` in some cases
-    textPart && await messagesStore.appendContent(newMsgId, textPart)
+  }
+  finally {
+    streamTextAbortControllers.value.delete(newMsgId)
+    await messagesStore.appendContent(newMsgId, '')
+    await messagesStore.retrieveMessages()
   }
 }
 
@@ -259,6 +264,10 @@ async function handleSendButton() {
   if (!inputMessage.value || isSending.value) {
     return
   }
+
+  const parentId = selectedMessageId.value
+  if (parentId && streamTextAbortControllers.value.has(parentId))
+    return
 
   isSending.value = true
 
@@ -286,13 +295,6 @@ async function handleSendButton() {
     }
     console.error(error)
     toast.error('Failed to generate response') // TODO: show error in message
-  }
-  finally {
-    if (generatingMessageId.value) {
-      await messagesStore.appendContent(generatingMessageId.value, '')
-      await messagesStore.retrieveMessages()
-    }
-    generatingMessageId.value = undefined
   }
 }
 
