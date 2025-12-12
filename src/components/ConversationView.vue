@@ -33,14 +33,9 @@ const messagesContentSignature = computed(() => {
     .join('|')
 })
 
-// Scroll to bottom when new messages arrive
-watch(() => userAndAssistantMessages.value.length, () => {
-  void requestAutoScroll()
-}, { immediate: true })
-
 watch(messagesContentSignature, () => {
   void requestAutoScroll()
-})
+}, { immediate: true })
 
 function scrollToBottom() {
   if (containerRef.value) {
