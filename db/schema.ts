@@ -29,7 +29,7 @@ export const messages = pgTable('messages', {
   model: text('model').notNull(),
   provider: text('provider').notNull(),
   role: text('role').notNull(),
-  room_id: uuid('room_id').references(() => rooms.id),
+  room_id: uuid('room_id').references(() => rooms.id, { onDelete: 'cascade' }),
   parent_id: uuid('parent_id'),
   embedding: vector('embedding', { dimensions: 1024 }),
   created_at: timestamp('created_at').notNull().default(sql`now()`),
