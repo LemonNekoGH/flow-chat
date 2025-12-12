@@ -20,22 +20,59 @@ const messagesStore = useMessagesStore()
 
 const containerRef = ref<HTMLDivElement>()
 const selectedText = ref('')
+const shouldAutoScroll = ref(true) // if user is at the bottom of the conversation, auto scroll
+const scrollRafId = ref<number | null>(null)
 
 const userAndAssistantMessages = computed(() => {
   return props.messages.filter(message => message.role === 'user' || message.role === 'assistant')
 })
 
+const messagesContentSignature = computed(() => {
+  return userAndAssistantMessages.value
+    .map(message => `${message.id}:${message.content.length}`)
+    .join('|')
+})
+
 // Scroll to bottom when new messages arrive
 watch(() => userAndAssistantMessages.value.length, () => {
-  nextTick(() => {
-    scrollToBottom()
-  })
+  void requestAutoScroll()
 }, { immediate: true })
+
+watch(messagesContentSignature, () => {
+  void requestAutoScroll()
+})
 
 function scrollToBottom() {
   if (containerRef.value) {
-    containerRef.value.scrollTop = containerRef.value.scrollHeight
+    containerRef.value.scrollTo({ top: containerRef.value.scrollHeight, behavior: 'smooth' })
   }
+}
+
+function updateShouldAutoScroll() {
+  const el = containerRef.value
+  if (!el) {
+    shouldAutoScroll.value = true
+    return
+  }
+
+  const distanceToBottom = el.scrollHeight - (el.scrollTop + el.clientHeight)
+  shouldAutoScroll.value = distanceToBottom <= 24
+}
+
+async function requestAutoScroll() {
+  if (!shouldAutoScroll.value) {
+    return
+  }
+
+  if (scrollRafId.value !== null) {
+    cancelAnimationFrame(scrollRafId.value)
+  }
+
+  scrollRafId.value = requestAnimationFrame(async () => {
+    scrollRafId.value = null
+    await nextTick()
+    scrollToBottom()
+  })
 }
 
 // Copy message content
@@ -146,6 +183,8 @@ function handleAbort(messageId: string) {
 
 // Close context menu on click outside
 useEventListener('click', closeContextMenu)
+
+useEventListener(containerRef, 'scroll', updateShouldAutoScroll)
 </script>
 
 <template>
