@@ -69,6 +69,7 @@ const selectedMessage = computed(() => {
 const generatingMessageId = ref<string | undefined>()
 
 const inputMessage = ref('')
+const isSending = ref(false)
 const isConversationMode = computed(() => currentMode.value === ChatMode.CONVERSATION)
 
 // Model selection
@@ -255,22 +256,26 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
 }
 
 async function handleSendButton() {
-  if (!inputMessage.value) {
+  if (!inputMessage.value || isSending.value) {
     return
   }
 
+  isSending.value = true
+
   const { model, message } = parseMessage(inputMessage.value)
 
-  const { id } = await messagesStore.newMessage(message, 'user', selectedMessageId.value, defaultTextModel.value.provider, model ?? defaultTextModel.value.model, currentRoomId.value!)
-  await messagesStore.retrieveMessages()
-
-  inputMessage.value = model ? `model=${model} ` : ''
-  selectedMessageId.value = id
-
   try {
+    const { id } = await messagesStore.newMessage(message, 'user', selectedMessageId.value, defaultTextModel.value.provider, model ?? defaultTextModel.value.model, currentRoomId.value!)
+    await messagesStore.retrieveMessages()
+
+    inputMessage.value = model ? `model=${model} ` : ''
+    selectedMessageId.value = id
+    isSending.value = false
+
     await generateResponse(id, defaultTextModel.value.provider as ProviderNames, model ?? defaultTextModel.value.model)
   }
   catch (error) {
+    isSending.value = false
     const err = error as Error
     if (err.message.includes('BodyStreamBuffer was aborted')) {
       return
