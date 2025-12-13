@@ -10,7 +10,7 @@ import { VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
 import { useClipboard, useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { streamText } from 'xsai'
 import ConversationView from '~/components/ConversationView.vue'
@@ -363,10 +363,20 @@ function handleForkWithProviderChange(provider: AcceptableValue) {
   settingsStore.fetchModels()
 }
 
-function handleForkWith() {
+async function handleForkWith() {
   showForkWithModelDialog.value = false
   showForkWithModelSelector.value = false
-  generateResponse(selectedMessageId.value, forkWithProvider.value as ProviderNames, forkWithModel.value)
+  try {
+    await generateResponse(selectedMessageId.value, forkWithProvider.value as ProviderNames, forkWithModel.value)
+  }
+  catch (error) {
+    const err = error as Error
+    if (err.message.includes('BodyStreamBuffer was aborted')) {
+      return
+    }
+    console.error(error)
+    toast.error('Failed to fork response')
+  }
 }
 
 // Handle forking - now this just selects the message without generating
@@ -392,7 +402,17 @@ async function handleRegenerate(messageId: string) {
   if (!message)
     return
 
-  await generateResponse(message.parent_id, message.provider as ProviderNames, message.model, messageId) // Note: generateResponse supports 4th arg now? Wait, check generateResponse signature.
+  try {
+    await generateResponse(message.parent_id, message.provider as ProviderNames, message.model, messageId)
+  }
+  catch (error) {
+    const err = error as Error
+    if (err.message.includes('BodyStreamBuffer was aborted')) {
+      return
+    }
+    console.error(error)
+    toast.error('Failed to regenerate response')
+  }
 }
 
 async function handleSummarize(messageId: string) {
@@ -439,6 +459,10 @@ async function handleSummarize(messageId: string) {
     }
   }
   catch (error) {
+    const err = error as Error
+    if (err.message.includes('BodyStreamBuffer was aborted')) {
+      return
+    }
     console.error('Summarization failed', error)
     toast.error('Summarization failed')
   }
@@ -452,28 +476,14 @@ async function handleSummarize(messageId: string) {
   }
 }
 
-async function applyLayout() {
-  if (!isFlowInitialized.value)
-    return
-
-  const value = nodesAndEdges.value
-  if (!value.nodes.length)
-    return
-
-  flowNodes.value = value.nodes
+watch(nodesAndEdges, async () => {
   await nextTick()
-  flowNodes.value = layout(value.nodes, value.edges)
-}
+})
 
 function handleFlowInit() {
-  isFlowInitialized.value = true
   roomViewStateStore.handleInit()
-  void applyLayout()
 }
 
-watch(nodesAndEdges, () => {
-  void applyLayout()
-})
 onMounted(async () => {
   await dbStore.waitForDbInitialized()
   // Initialize rooms before displaying
