@@ -203,6 +203,7 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
 
   await messagesStore.retrieveMessages()
 
+  messagesStore.generatingMessages.push(newMsgId)
   const abortController = new AbortController()
   streamTextAbortControllers.value.set(newMsgId, abortController)
 
@@ -263,7 +264,12 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
     }
   }
   finally {
+    const index = messagesStore.generatingMessages.indexOf(newMsgId)
+    if (index > -1) {
+      messagesStore.generatingMessages.splice(index, 1)
+    }
     streamTextAbortControllers.value.delete(newMsgId)
+
     await messagesStore.appendContent(newMsgId, '')
     await messagesStore.retrieveMessages()
   }
