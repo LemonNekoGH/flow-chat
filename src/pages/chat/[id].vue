@@ -41,6 +41,7 @@ import { useSettingsStore } from '~/stores/settings'
 import { createImageTools } from '~/tools'
 import { parseMessage } from '~/utils/chat'
 import { asyncIteratorFromReadableStream } from '~/utils/interator'
+import { SUMMARY_PROMPT } from '~/utils/prompts'
 
 const dbStore = useDatabaseStore()
 
@@ -180,7 +181,7 @@ async function handleContextMenuDelete() {
 
 const streamTextAbortControllers = ref<Map<string, AbortController>>(new Map())
 
-async function generateResponse(parentId: string | null, provider: ProviderNames, model: string) {
+async function generateResponse(parentId: string | null, provider: ProviderNames, model: string, regenerateId?: string) {
   if (!model) {
     toast.error('Please select a model')
     return
@@ -191,7 +192,15 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
     return
   }
 
-  const { id: newMsgId } = await messagesStore.newMessage('', 'assistant', parentId, provider, model, currentRoomId.value!)
+  let newMsgId = regenerateId
+  if (!newMsgId) {
+    const { id } = await messagesStore.newMessage('', 'assistant', parentId, provider, model, currentRoomId.value!)
+    newMsgId = id
+  }
+  else {
+    await messagesStore.setContent(newMsgId, '')
+  }
+
   await messagesStore.retrieveMessages()
 
   const abortController = new AbortController()
@@ -372,6 +381,93 @@ async function handleAbort(messageId: string) {
   toast.success('Generation aborted')
 }
 
+async function handleRegenerate(messageId: string) {
+  const message = messagesStore.getMessageById(messageId)
+  if (!message)
+    return
+
+  await generateResponse(message.parent_id, message.provider as ProviderNames, message.model, messageId) // Note: generateResponse supports 4th arg now? Wait, check generateResponse signature.
+}
+
+async function handleSummarize(messageId: string) {
+  const message = messagesStore.getMessageById(messageId)
+  if (!message)
+    return
+
+  // Clear previous summary if any
+  await messagesStore.updateSummary(messageId, '')
+  await messagesStore.retrieveMessages()
+
+  const defaultProvider = defaultTextModel.value.provider
+  const defaultModel = defaultTextModel.value.model
+  const summaryProvider = settingsStore.summaryTextModel.provider
+  const summaryModel = settingsStore.summaryTextModel.model
+
+  const provider = (summaryProvider || defaultProvider) as ProviderNames
+  const model = summaryModel || defaultModel
+
+  if (!provider || !model) {
+    toast.error('Please select a provider/model')
+    return
+  }
+
+  // Set generating status
+  messagesStore.generatingMessages.push(messageId)
+
+  const abortController = new AbortController()
+  streamTextAbortControllers.value.set(messageId, abortController)
+
+  try {
+    const { textStream } = await streamText({
+      apiKey: currentProvider.value?.apiKey,
+      baseURL: currentProvider.value?.baseURL,
+      model,
+      messages: [
+        { role: 'user', content: `${SUMMARY_PROMPT}\n\n${message.content}` },
+      ],
+      abortSignal: abortController.signal,
+    })
+
+    for await (const textPart of asyncIteratorFromReadableStream(textStream, async v => v)) {
+      textPart && await messagesStore.appendSummary(messageId, textPart)
+    }
+  }
+  catch (error) {
+    console.error('Summarization failed', error)
+    toast.error('Summarization failed')
+  }
+  finally {
+    streamTextAbortControllers.value.delete(messageId)
+    const index = messagesStore.generatingMessages.indexOf(messageId)
+    if (index > -1) {
+      messagesStore.generatingMessages.splice(index, 1)
+    }
+    await messagesStore.retrieveMessages()
+  }
+}
+
+async function applyLayout() {
+  if (!isFlowInitialized.value)
+    return
+
+  const value = nodesAndEdges.value
+  if (!value.nodes.length)
+    return
+
+  flowNodes.value = value.nodes
+  await nextTick()
+  flowNodes.value = layout(value.nodes, value.edges)
+}
+
+function handleFlowInit() {
+  isFlowInitialized.value = true
+  roomViewStateStore.handleInit()
+  void applyLayout()
+}
+
+watch(nodesAndEdges, () => {
+  void applyLayout()
+})
 onMounted(async () => {
   await dbStore.waitForDbInitialized()
   // Initialize rooms before displaying
@@ -391,7 +487,7 @@ onMounted(async () => {
       @pane-click="handlePanelClick"
       @node-double-click="handleNodeDoubleClick"
       @node-context-menu="handleNodeContextMenu"
-      @init="roomViewStateStore.handleInit"
+      @init="handleFlowInit"
     >
       <Background />
       <Controls />
@@ -408,7 +504,7 @@ onMounted(async () => {
         @fork-with="handleContextMenuForkWith"
       />
       <template #node-assistant="props">
-        <AssistantNode v-bind="props" class="nodrag" @abort="handleAbort(props.id)" />
+        <AssistantNode v-bind="props" class="nodrag" @abort="handleAbort(props.id)" @regenerate="handleRegenerate(props.id)" @summarize="handleSummarize(props.id)" />
       </template>
       <template #node-system="props">
         <SystemNode v-bind="props" class="nodrag" />

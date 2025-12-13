@@ -40,6 +40,23 @@ export function useMessageModel() {
     })
   }
 
+  function updateContent(id: string, content: string) {
+    return dbStore.withCheckpoint((db) => {
+      return db.update(schema.messages).set({ content }).where(eq(schema.messages.id, id))
+    })
+  }
+
+  function appendSummary(id: string, summary: string) {
+    return dbStore.withCheckpoint((db) => {
+      return db.execute(sql`UPDATE messages SET summary = COALESCE(summary, '') || ${summary} WHERE id = ${id}`)
+    })
+  }
+
+  function updateSummary(id: string, summary: string) {
+    return dbStore.withCheckpoint((db) => {
+      return db.update(schema.messages).set({ summary }).where(eq(schema.messages.id, id))
+    })
+  }
   function searchByContent(keyword: string, roomId?: string) {
     const conditions = [ilike(schema.messages.content, `%${keyword}%`)]
 
@@ -83,5 +100,9 @@ export function useMessageModel() {
     notEmbeddedMessages,
     updateEmbedding,
     vectorSimilaritySearch,
+    updateContent,
+    appendSummary,
+    updateSummary,
+
   }
 }

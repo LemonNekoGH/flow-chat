@@ -32,6 +32,7 @@ export const messages = pgTable('messages', {
   room_id: uuid('room_id').references(() => rooms.id),
   parent_id: uuid('parent_id'),
   embedding: vector('embedding', { dimensions: 1024 }),
+  summary: text('summary'),
   created_at: timestamp('created_at').notNull().default(sql`now()`),
   updated_at: timestamp('updated_at').notNull().default(sql`now()`),
 }, table => [

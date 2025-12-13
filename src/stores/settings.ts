@@ -22,6 +22,10 @@ export const useSettingsStore = defineStore('settings', () => {
     provider: '',
     model: '',
   })
+  const summaryTextModel = useLocalStorage<ModelInfo>('settings/summaryTextModel', {
+    provider: '',
+    model: '',
+  })
 
   const currentProvider = computed(() => {
     return configuredTextProviders.value.find(p => p.name === defaultTextModel.value.provider)
@@ -61,6 +65,7 @@ export const useSettingsStore = defineStore('settings', () => {
     configuredImageProviders,
     defaultTextModel,
     defaultImageModel, // TODO: sort keys
+    summaryTextModel,
     imageGeneration,
     defaultTemplateId,
     models,

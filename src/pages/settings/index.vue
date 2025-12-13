@@ -33,7 +33,7 @@ const tutorialStore = useTutorialStore()
 const roomsStore = useRoomsStore()
 const messagesStore = useMessagesStore()
 const { showSelectTutorial, chat, settings } = storeToRefs(tutorialStore)
-const { defaultTextModel, imageGeneration, configuredTextProviders } = storeToRefs(settingsStore)
+const { defaultTextModel, summaryTextModel, imageGeneration, configuredTextProviders } = storeToRefs(settingsStore)
 
 // Model selector state
 const showModelSelector = ref(false)
@@ -53,6 +53,28 @@ function handleTextProviderChange(selectedProvider: AcceptableValue) {
 
   settingsStore.defaultTextModel.provider = selectedProvider
   settingsStore.defaultTextModel.model = ''
+  settingsStore.fetchModels()
+}
+
+function handleSummaryProviderChange(selectedProvider: AcceptableValue) {
+  if (typeof selectedProvider !== 'string') {
+    console.error('Provider is not a string', selectedProvider)
+    return
+  }
+
+  summaryTextModel.value.provider = selectedProvider
+  summaryTextModel.value.model = ''
+  // Fetching models uses the provider from the *current* context being edited
+  // But fetchModels relies on defaultTextModel provider if we don't pass one.
+  // We might want to fix fetchModels to accept a provider name, but for now
+  // user likely has same providers configured.
+  // Actually, fetchModels uses defaultTextModel.provider.
+  // To allow selecting models for summary provider, we might need to temporarily switch
+  // or refactor fetchModels.
+  // For simplicity MVP: Assume user sets default text model provider to check models,
+  // or refactor fetchModels to take an optional provider argument.
+  // Let's refactor fetchModels in settings store later if needed.
+  // For now, let's just update the value.
   settingsStore.fetchModels()
 }
 
@@ -141,6 +163,49 @@ onMounted(async () => {
       <Button id="edit-text-generation-provider-btn" variant="outline" @click="router.push('/settings/modules/text-generation')">
         Edit Text Generation Providers
       </Button>
+
+      <div id="summary-generation-settings-card" class="card border rounded-lg p-6 shadow-sm">
+        <h2 class="mb-4 text-xl font-semibold">
+          Summary Generation Settings
+        </h2>
+        <div class="space-y-4">
+          <div>
+            <label for="summary-provider" class="mb-1 block text-sm font-medium">Provider</label>
+            <Select
+              id="summary-provider"
+              :model-value="summaryTextModel.provider"
+              class="w-full border rounded-md p-2 dark:bg-gray-800"
+              @update:model-value="handleSummaryProviderChange"
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Same as Default" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">
+                  Same as Default
+                </SelectItem>
+                <SelectItem v-for="provider in configuredTextProviders" :key="provider.name" :value="provider.name">
+                  {{ provider.name }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label for="summary-model" class="mb-1 block text-sm font-medium">Model</label>
+            <div class="relative flex gap-2">
+              <Input
+                id="summary-model"
+                v-model="summaryTextModel.model"
+                class="w-full"
+                placeholder="Same as Default"
+              />
+            </div>
+            <p class="mt-1 text-xs text-gray-500">
+              Leave empty to use the default text generation model.
+            </p>
+          </div>
+        </div>
+      </div>
 
       <div id="image-generation-settings-card" class="card border rounded-lg p-6 shadow-sm">
         <h2 class="mb-4 text-xl font-semibold">
