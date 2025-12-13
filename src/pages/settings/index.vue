@@ -39,6 +39,7 @@ const { defaultTextModel, summaryTextModel, imageGeneration, configuredTextProvi
 const showModelSelector = ref(false)
 const showDeleteAllMessagesDialog = ref(false)
 const dbStore = useDatabaseStore()
+const SAME_AS_DEFAULT_PROVIDER = '__same_as_default__'
 
 // Handle model selection
 function handleModelSelect(selectedModelValue: string) {
@@ -62,7 +63,7 @@ function handleSummaryProviderChange(selectedProvider: AcceptableValue) {
     return
   }
 
-  summaryTextModel.value.provider = selectedProvider
+  summaryTextModel.value.provider = selectedProvider === SAME_AS_DEFAULT_PROVIDER ? '' : selectedProvider
   summaryTextModel.value.model = ''
   // Fetching models uses the provider from the *current* context being edited
   // But fetchModels relies on defaultTextModel provider if we don't pass one.
@@ -173,7 +174,7 @@ onMounted(async () => {
             <label for="summary-provider" class="mb-1 block text-sm font-medium">Provider</label>
             <Select
               id="summary-provider"
-              :model-value="summaryTextModel.provider"
+              :model-value="summaryTextModel.provider || SAME_AS_DEFAULT_PROVIDER"
               class="w-full border rounded-md p-2 dark:bg-gray-800"
               @update:model-value="handleSummaryProviderChange"
             >
@@ -181,7 +182,7 @@ onMounted(async () => {
                 <SelectValue placeholder="Same as Default" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">
+                <SelectItem :value="SAME_AS_DEFAULT_PROVIDER">
                   Same as Default
                 </SelectItem>
                 <SelectItem v-for="provider in configuredTextProviders" :key="provider.name" :value="provider.name">
