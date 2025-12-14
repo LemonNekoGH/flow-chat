@@ -424,16 +424,18 @@ async function handleSummarize(messageId: string) {
   await messagesStore.updateSummary(messageId, '')
   await messagesStore.retrieveMessages()
 
-  const defaultProvider = defaultTextModel.value.provider
   const defaultModel = defaultTextModel.value.model
-  const summaryProvider = settingsStore.summaryTextModel.provider
   const summaryModel = settingsStore.summaryTextModel.model
 
-  const provider = (summaryProvider || defaultProvider) as ProviderNames
   const model = summaryModel || defaultModel
 
-  if (!provider || !model) {
-    toast.error('Please select a provider/model')
+  if (!model) {
+    toast.error('Please select a model')
+    return
+  }
+
+  if (!currentProvider.value?.baseURL) {
+    toast.error('Please select a provider')
     return
   }
 
