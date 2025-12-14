@@ -8,6 +8,13 @@
       "when": 1765033772031,
       "tag": "0000_goofy_rocket_racer",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1765730362567,
+      "tag": "0001_furry_hitman",
+      "breakpoints": true
     }
   ]
 }
