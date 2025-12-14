@@ -78,6 +78,17 @@ export const useMessagesStore = defineStore('messages', () => {
 
     msg.summary = summary
   }
+
+  async function updateShowSummary(id: string, show_summary: boolean) {
+    await messageModel.updateShowSummary(id, show_summary)
+
+    const msg = messages.value.find(message => message.id === id)
+    if (!msg) {
+      return
+    }
+
+    msg.show_summary = show_summary
+  }
   async function deleteMessages(ids: string[]) {
     if (ids.length === 0)
       return
@@ -185,6 +196,7 @@ export const useMessagesStore = defineStore('messages', () => {
     resetState,
     appendSummary,
     updateSummary,
+    updateShowSummary,
 
   }
 })

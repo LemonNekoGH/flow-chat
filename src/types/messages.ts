@@ -12,4 +12,5 @@ export interface Message extends BaseMessage {
   provider: string // provider used to generate this message
   model: string // model used to generate this message
   summary?: string
+  show_summary?: boolean
 }

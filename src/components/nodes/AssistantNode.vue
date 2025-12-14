@@ -2,7 +2,7 @@
 import type { NodeProps } from '@vue-flow/core'
 import type { NodeData } from '~/types/node'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useMessagesStore } from '~/stores/messages'
 import { useSettingsStore } from '~/stores/settings'
 import MarkdownView from '../MarkdownView.vue'
@@ -19,24 +19,24 @@ const emit = defineEmits<{
 const { defaultTextModel } = storeToRefs(useSettingsStore())
 const messagesStore = useMessagesStore()
 
-const showSummary = ref(false)
 const hasSummary = computed(() => !!props.data.message.summary)
 const isGenerating = computed(() => messagesStore.isGenerating(props.data.message.id))
+const showSummary = computed(() => props.data.message.show_summary ?? false)
 
 function toggleSummary() {
   if (!hasSummary.value && !isGenerating.value) {
     emit('summarize')
-    showSummary.value = true // Switch immediately to show "Summarizing..." or stream
+    void messagesStore.updateShowSummary(props.data.message.id, true) // Switch immediately to show "Summarizing..." or stream
   }
   else {
-    showSummary.value = !showSummary.value
+    void messagesStore.updateShowSummary(props.data.message.id, !showSummary.value)
   }
 }
 
 // Auto-switch to summary view if summary starts generating
 watch(() => props.data.message.summary, (newVal, oldVal) => {
   if (newVal && !oldVal && isGenerating.value) {
-    showSummary.value = true
+    void messagesStore.updateShowSummary(props.data.message.id, true)
   }
 })
 </script>
