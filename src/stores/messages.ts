@@ -35,8 +35,15 @@ export const useMessagesStore = defineStore('messages', () => {
   }
 
   // pass `""` to `text` to update the message without appending content
-  function appendContent(id: string, text: string) {
-    return messageModel.appendContent(id, text)
+  async function appendContent(id: string, text: string) {
+    await messageModel.appendContent(id, text)
+
+    const msg = messages.value.find(message => message.id === id)
+    if (!msg) {
+      return
+    }
+
+    msg.content += text
   }
 
   async function deleteMessages(ids: string[]) {
