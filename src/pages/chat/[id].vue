@@ -402,6 +402,11 @@ async function handleRegenerate(messageId: string) {
   if (!message)
     return
 
+  if (message.show_summary ?? false) {
+    await handleSummarize(messageId)
+    return
+  }
+
   try {
     await generateResponse(message.parent_id, message.provider as ProviderNames, message.model, messageId)
   }
