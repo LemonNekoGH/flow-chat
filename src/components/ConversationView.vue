@@ -14,6 +14,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'forkMessage', messageId: string, model?: string): void
   (e: 'abortMessage', messageId: string): void
+  (e: 'regenerateMessage', messageId: string): void
 }>()
 
 const messagesStore = useMessagesStore()
@@ -251,6 +252,15 @@ useEventListener(containerRef, 'scroll', updateShouldAutoScroll)
                 @click="handleAbort(message.id)"
               >
                 <div class="i-solar-stop-bold text-sm" />
+              </button>
+
+              <button
+                v-if="message.role === 'assistant' && !messagesStore.isGenerating(message.id)"
+                class="copy-icon-btn"
+                title="Regenerate"
+                @click="emit('regenerateMessage', message.id)"
+              >
+                <div class="i-solar-restart-bold text-sm" />
               </button>
             </div>
           </div>

@@ -587,6 +587,7 @@ onMounted(async () => {
         :messages="currentBranch.messages"
         @fork-message="handleFork"
         @abort-message="handleAbort"
+        @regenerate-message="handleRegenerate"
       />
     </div>
     <div
