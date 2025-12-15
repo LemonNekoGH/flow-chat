@@ -189,6 +189,17 @@ function nextStreamRunId(messageId: string) {
   return next
 }
 
+function hasGeneratingAncestor(messageId: string) {
+  let currentId = messagesStore.getMessageById(messageId)?.parent_id
+  while (currentId) {
+    if (messagesStore.isGenerating(currentId))
+      return true
+
+    currentId = messagesStore.getMessageById(currentId)?.parent_id
+  }
+  return false
+}
+
 async function generateResponse(parentId: string | null, provider: ProviderNames, model: string, regenerateId?: string) {
   if (!model) {
     toast.error('Please select a model')
@@ -423,6 +434,11 @@ async function handleRegenerate(messageId: string) {
   if (!message)
     return
 
+  if (hasGeneratingAncestor(messageId)) {
+    toast.warning('Please wait for the previous generation to finish')
+    return
+  }
+
   if (message.show_summary ?? false) {
     await handleSummarize(messageId)
     return
@@ -445,6 +461,11 @@ async function handleSummarize(messageId: string) {
   const message = messagesStore.getMessageById(messageId)
   if (!message)
     return
+
+  if (hasGeneratingAncestor(messageId)) {
+    toast.warning('Please wait for the previous generation to finish')
+    return
+  }
 
   // Clear previous summary if any
   await messagesStore.updateSummary(messageId, '')
