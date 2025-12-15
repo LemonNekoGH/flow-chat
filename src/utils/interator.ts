@@ -14,6 +14,11 @@ export async function* asyncIteratorFromReadableStream<T, F = Uint8Array>(
     }
   }
   finally {
+    try {
+      await reader.cancel()
+    }
+    catch {
+    }
     reader.releaseLock()
   }
 }

@@ -180,6 +180,14 @@ async function handleContextMenuDelete() {
 }
 
 const streamTextAbortControllers = ref<Map<string, AbortController>>(new Map())
+const streamTextRunIds = ref<Map<string, number>>(new Map())
+
+function nextStreamRunId(messageId: string) {
+  const current = streamTextRunIds.value.get(messageId) ?? 0
+  const next = current + 1
+  streamTextRunIds.value.set(messageId, next)
+  return next
+}
 
 async function generateResponse(parentId: string | null, provider: ProviderNames, model: string, regenerateId?: string) {
   if (!model) {
@@ -204,6 +212,9 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
   await messagesStore.retrieveMessages()
 
   messagesStore.generatingMessages.push(newMsgId)
+  const prevAbortController = streamTextAbortControllers.value.get(newMsgId)
+  prevAbortController?.abort('Superseded by new generation')
+  const runId = nextStreamRunId(newMsgId)
   const abortController = new AbortController()
   streamTextAbortControllers.value.set(newMsgId, abortController)
 
@@ -253,25 +264,36 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
 
   try {
     for await (const textPart of asyncIteratorFromReadableStream(textStream, async v => v)) {
+      if (streamTextRunIds.value.get(newMsgId) !== runId || abortController.signal.aborted)
+        break
       // check if image tool was used
       if (messagesStore.image) {
+        if (streamTextRunIds.value.get(newMsgId) !== runId || abortController.signal.aborted)
+          break
         await messagesStore.appendContent(newMsgId, `![generated image](${messagesStore.image})`)
         await messagesStore.retrieveMessages()
         messagesStore.image = ''
       }
       // textPart might be `undefined` in some cases
-      textPart && await messagesStore.appendContent(newMsgId, textPart)
+      if (textPart) {
+        if (streamTextRunIds.value.get(newMsgId) !== runId || abortController.signal.aborted)
+          break
+        await messagesStore.appendContent(newMsgId, textPart)
+      }
     }
   }
   finally {
-    const index = messagesStore.generatingMessages.indexOf(newMsgId)
-    if (index > -1) {
-      messagesStore.generatingMessages.splice(index, 1)
-    }
-    streamTextAbortControllers.value.delete(newMsgId)
+    if (streamTextRunIds.value.get(newMsgId) === runId) {
+      const index = messagesStore.generatingMessages.indexOf(newMsgId)
+      if (index > -1) {
+        messagesStore.generatingMessages.splice(index, 1)
+      }
+      streamTextAbortControllers.value.delete(newMsgId)
+      streamTextRunIds.value.delete(newMsgId)
 
-    await messagesStore.appendContent(newMsgId, '')
-    await messagesStore.retrieveMessages()
+      await messagesStore.appendContent(newMsgId, '')
+      await messagesStore.retrieveMessages()
+    }
   }
 }
 
@@ -392,6 +414,11 @@ async function handleAbort(messageId: string) {
   const abortController = streamTextAbortControllers.value.get(messageId)
   abortController?.abort('Aborted by user')
   streamTextAbortControllers.value.delete(messageId)
+  streamTextRunIds.value.delete(messageId)
+  const index = messagesStore.generatingMessages.indexOf(messageId)
+  if (index > -1) {
+    messagesStore.generatingMessages.splice(index, 1)
+  }
   await messagesStore.appendContent(messageId, '')
   await messagesStore.retrieveMessages()
   toast.success('Generation aborted')
@@ -447,6 +474,9 @@ async function handleSummarize(messageId: string) {
   // Set generating status
   messagesStore.generatingMessages.push(messageId)
 
+  const prevAbortController = streamTextAbortControllers.value.get(messageId)
+  prevAbortController?.abort('Superseded by new summarization')
+  const runId = nextStreamRunId(messageId)
   const abortController = new AbortController()
   streamTextAbortControllers.value.set(messageId, abortController)
 
@@ -462,7 +492,13 @@ async function handleSummarize(messageId: string) {
     })
 
     for await (const textPart of asyncIteratorFromReadableStream(textStream, async v => v)) {
-      textPart && await messagesStore.appendSummary(messageId, textPart)
+      if (streamTextRunIds.value.get(messageId) !== runId || abortController.signal.aborted)
+        break
+      if (textPart) {
+        if (streamTextRunIds.value.get(messageId) !== runId || abortController.signal.aborted)
+          break
+        await messagesStore.appendSummary(messageId, textPart)
+      }
     }
   }
   catch (error) {
@@ -474,12 +510,15 @@ async function handleSummarize(messageId: string) {
     toast.error('Summarization failed')
   }
   finally {
-    streamTextAbortControllers.value.delete(messageId)
-    const index = messagesStore.generatingMessages.indexOf(messageId)
-    if (index > -1) {
-      messagesStore.generatingMessages.splice(index, 1)
+    if (streamTextRunIds.value.get(messageId) === runId) {
+      streamTextAbortControllers.value.delete(messageId)
+      streamTextRunIds.value.delete(messageId)
+      const index = messagesStore.generatingMessages.indexOf(messageId)
+      if (index > -1) {
+        messagesStore.generatingMessages.splice(index, 1)
+      }
+      await messagesStore.retrieveMessages()
     }
-    await messagesStore.retrieveMessages()
   }
 }
 
