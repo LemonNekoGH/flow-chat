@@ -10,7 +10,7 @@ import { VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
 import { useClipboard, useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { streamText } from 'xsai'
 import ConversationView from '~/components/ConversationView.vue'
@@ -477,10 +477,6 @@ async function handleSummarize(messageId: string) {
     await messagesStore.retrieveMessages()
   }
 }
-
-watch(nodesAndEdges, async () => {
-  await nextTick()
-})
 
 function handleFlowInit() {
   roomViewStateStore.handleInit()
