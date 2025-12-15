@@ -279,16 +279,12 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
         break
       // check if image tool was used
       if (messagesStore.image) {
-        if (streamTextRunIds.value.get(newMsgId) !== runId || abortController.signal.aborted)
-          break
         await messagesStore.appendContent(newMsgId, `![generated image](${messagesStore.image})`)
         await messagesStore.retrieveMessages()
         messagesStore.image = ''
       }
       // textPart might be `undefined` in some cases
       if (textPart) {
-        if (streamTextRunIds.value.get(newMsgId) !== runId || abortController.signal.aborted)
-          break
         await messagesStore.appendContent(newMsgId, textPart)
       }
     }
@@ -510,8 +506,6 @@ async function handleSummarize(messageId: string) {
       if (streamTextRunIds.value.get(messageId) !== runId || abortController.signal.aborted)
         break
       if (textPart) {
-        if (streamTextRunIds.value.get(messageId) !== runId || abortController.signal.aborted)
-          break
         await messagesStore.appendSummary(messageId, textPart)
       }
     }

@@ -40,12 +40,14 @@ function selectModel(model: string) {
 }
 
 // Fetch models if needed
-watch(() => props.showModelSelector, (show) => {
+watch([() => props.showModelSelector, () => props.providerName], ([show, newProvider], [oldShow, oldProvider]) => {
   if (!show)
     return
 
-  const targetProvider = props.providerName ?? settingsStore.defaultTextModel.provider
-  const shouldFetch = settingsStore.models.length === 0 || settingsStore.modelsProvider !== targetProvider
+  const targetProvider = newProvider ?? settingsStore.defaultTextModel.provider
+  const providerChanged = newProvider !== oldProvider && oldShow
+  const shouldFetch = settingsStore.models.length === 0 || settingsStore.modelsProvider !== targetProvider || providerChanged
+
   if (!shouldFetch)
     return
 
@@ -54,19 +56,6 @@ watch(() => props.showModelSelector, (show) => {
     isLoadingModels.value = false
   })
 }, { immediate: true })
-
-watch(() => props.providerName, (newProvider, oldProvider) => {
-  if (!props.showModelSelector)
-    return
-
-  const targetProvider = newProvider ?? settingsStore.defaultTextModel.provider
-  if (targetProvider && newProvider !== oldProvider) {
-    isLoadingModels.value = true
-    settingsStore.fetchModels(targetProvider).finally(() => {
-      isLoadingModels.value = false
-    })
-  }
-})
 </script>
 
 <template>
