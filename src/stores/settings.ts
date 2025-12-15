@@ -33,12 +33,14 @@ export const useSettingsStore = defineStore('settings', () => {
 
   const defaultTemplateId = useLocalStorage('settings/defaultTemplateId', '')
   const models = ref<Model[]>([])
+  const modelsProvider = ref('')
   const isLoadingModels = ref(false)
 
   // Fetch available models
-  async function fetchModels() {
+  async function fetchModels(providerName?: string) {
     // API key is not required for public models
-    const provider = configuredTextProviders.value.find(p => p.name === defaultTextModel.value.provider)
+    const providerToUse = providerName ?? defaultTextModel.value.provider
+    const provider = configuredTextProviders.value.find(p => p.name === providerToUse)
     if (!provider) {
       console.error('Provider not found when fetching models')
       return
@@ -50,6 +52,7 @@ export const useSettingsStore = defineStore('settings', () => {
         apiKey: provider.apiKey,
         baseURL: provider.baseURL,
       })
+      modelsProvider.value = providerToUse
     }
     catch (error) {
       console.error('Failed to fetch models:', error)
@@ -69,6 +72,7 @@ export const useSettingsStore = defineStore('settings', () => {
     imageGeneration,
     defaultTemplateId,
     models,
+    modelsProvider,
     isLoadingModels,
     fetchModels,
   }

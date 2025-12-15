@@ -37,6 +37,7 @@ const { defaultTextModel, summaryTextModel, imageGeneration, configuredTextProvi
 
 // Model selector state
 const showModelSelector = ref(false)
+const showSummaryModelSelector = ref(false)
 const showDeleteAllMessagesDialog = ref(false)
 const dbStore = useDatabaseStore()
 const SAME_AS_DEFAULT_PROVIDER = '__same_as_default__'
@@ -44,6 +45,10 @@ const SAME_AS_DEFAULT_PROVIDER = '__same_as_default__'
 // Handle model selection
 function handleModelSelect(selectedModelValue: string) {
   settingsStore.defaultTextModel.model = selectedModelValue
+}
+
+function handleSummaryModelSelect(selectedModelValue: string) {
+  summaryTextModel.value.model = selectedModelValue
 }
 
 function handleTextProviderChange(selectedProvider: AcceptableValue) {
@@ -65,18 +70,7 @@ function handleSummaryProviderChange(selectedProvider: AcceptableValue) {
 
   summaryTextModel.value.provider = selectedProvider === SAME_AS_DEFAULT_PROVIDER ? '' : selectedProvider
   summaryTextModel.value.model = ''
-  // Fetching models uses the provider from the *current* context being edited
-  // But fetchModels relies on defaultTextModel provider if we don't pass one.
-  // We might want to fix fetchModels to accept a provider name, but for now
-  // user likely has same providers configured.
-  // Actually, fetchModels uses defaultTextModel.provider.
-  // To allow selecting models for summary provider, we might need to temporarily switch
-  // or refactor fetchModels.
-  // For simplicity MVP: Assume user sets default text model provider to check models,
-  // or refactor fetchModels to take an optional provider argument.
-  // Let's refactor fetchModels in settings store later if needed.
-  // For now, let's just update the value.
-  settingsStore.fetchModels()
+  settingsStore.fetchModels(summaryTextModel.value.provider || defaultTextModel.value.provider)
 }
 
 function onSelectTutorial(tutorial: Tutorial) {
@@ -199,7 +193,22 @@ onMounted(async () => {
                 v-model="summaryTextModel.model"
                 class="w-full"
                 placeholder="Same as Default"
+                @click.stop="showSummaryModelSelector = true"
               />
+              <ModelSelector
+                v-if="showSummaryModelSelector"
+                v-model:search-term="summaryTextModel.model"
+                v-model:show-model-selector="showSummaryModelSelector"
+                :provider-name="summaryTextModel.provider || defaultTextModel.provider"
+                @select-model="handleSummaryModelSelect"
+              />
+              <Button
+                variant="outline"
+                class="h-full"
+                @click="settingsStore.fetchModels(summaryTextModel.provider || defaultTextModel.provider)"
+              >
+                Reload
+              </Button>
             </div>
             <p class="mt-1 text-xs text-gray-500">
               Leave empty to use the default text generation model.
