@@ -294,9 +294,9 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
       messagesStore.stopGenerating(newMsgId)
       streamTextAbortControllers.value.delete(newMsgId)
       streamTextRunIds.value.delete(newMsgId)
-
-      await messagesStore.appendContent(newMsgId, '')
       await messagesStore.retrieveMessages()
+      if (abortController.signal.reason === 'Aborted by user')
+        toast.success('Summarization aborted')
     }
   }
 }
@@ -414,14 +414,10 @@ function handleFork(messageId: string | null) {
   }
 }
 
-async function handleAbort(messageId: string) {
+function handleAbort(messageId: string) {
   const abortController = streamTextAbortControllers.value.get(messageId)
   abortController?.abort('Aborted by user')
-  streamTextAbortControllers.value.delete(messageId)
-  streamTextRunIds.value.delete(messageId)
   messagesStore.stopGenerating(messageId)
-  await messagesStore.appendContent(messageId, '')
-  await messagesStore.retrieveMessages()
   toast.success('Generation aborted')
 }
 
@@ -525,6 +521,8 @@ async function handleSummarize(messageId: string) {
       streamTextRunIds.value.delete(messageId)
       messagesStore.stopGenerating(messageId)
       await messagesStore.retrieveMessages()
+      if (abortController.signal.reason === 'Aborted by user')
+        toast.success('Summarization aborted')
     }
   }
 }
