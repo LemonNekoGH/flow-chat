@@ -296,7 +296,7 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
       streamTextRunIds.value.delete(newMsgId)
       await messagesStore.retrieveMessages()
       if (abortController.signal.reason === 'Aborted by user')
-        toast.success('Summarization aborted')
+        toast.success('Generation aborted')
     }
   }
 }
@@ -418,7 +418,6 @@ function handleAbort(messageId: string) {
   const abortController = streamTextAbortControllers.value.get(messageId)
   abortController?.abort('Aborted by user')
   messagesStore.stopGenerating(messageId)
-  toast.success('Generation aborted')
 }
 
 async function handleRegenerate(messageId: string) {
