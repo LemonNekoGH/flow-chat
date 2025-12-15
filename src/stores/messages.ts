@@ -150,6 +150,19 @@ export const useMessagesStore = defineStore('messages', () => {
     return generatingMessages.value.includes(id)
   }
 
+  function startGenerating(id: string) {
+    if (!generatingMessages.value.includes(id)) {
+      generatingMessages.value.push(id)
+    }
+  }
+
+  function stopGenerating(id: string) {
+    if (generatingMessages.value.length === 0)
+      return
+
+    generatingMessages.value = generatingMessages.value.filter(messageId => messageId !== id)
+  }
+
   async function retrieveMessages() {
     if (!roomsStore.currentRoomId)
       return
@@ -185,6 +198,8 @@ export const useMessagesStore = defineStore('messages', () => {
     getSubtreeById,
 
     isGenerating,
+    startGenerating,
+    stopGenerating,
 
     retrieveMessages,
     resetState,

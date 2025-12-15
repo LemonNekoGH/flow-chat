@@ -211,7 +211,7 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
 
   await messagesStore.retrieveMessages()
 
-  messagesStore.generatingMessages.push(newMsgId)
+  messagesStore.startGenerating(newMsgId)
   const prevAbortController = streamTextAbortControllers.value.get(newMsgId)
   prevAbortController?.abort('Superseded by new generation')
   const runId = nextStreamRunId(newMsgId)
@@ -284,10 +284,7 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
   }
   finally {
     if (streamTextRunIds.value.get(newMsgId) === runId) {
-      const index = messagesStore.generatingMessages.indexOf(newMsgId)
-      if (index > -1) {
-        messagesStore.generatingMessages.splice(index, 1)
-      }
+      messagesStore.stopGenerating(newMsgId)
       streamTextAbortControllers.value.delete(newMsgId)
       streamTextRunIds.value.delete(newMsgId)
 
@@ -415,10 +412,7 @@ async function handleAbort(messageId: string) {
   abortController?.abort('Aborted by user')
   streamTextAbortControllers.value.delete(messageId)
   streamTextRunIds.value.delete(messageId)
-  const index = messagesStore.generatingMessages.indexOf(messageId)
-  if (index > -1) {
-    messagesStore.generatingMessages.splice(index, 1)
-  }
+  messagesStore.stopGenerating(messageId)
   await messagesStore.appendContent(messageId, '')
   await messagesStore.retrieveMessages()
   toast.success('Generation aborted')
@@ -472,7 +466,7 @@ async function handleSummarize(messageId: string) {
   }
 
   // Set generating status
-  messagesStore.generatingMessages.push(messageId)
+  messagesStore.startGenerating(messageId)
 
   const prevAbortController = streamTextAbortControllers.value.get(messageId)
   prevAbortController?.abort('Superseded by new summarization')
@@ -513,10 +507,7 @@ async function handleSummarize(messageId: string) {
     if (streamTextRunIds.value.get(messageId) === runId) {
       streamTextAbortControllers.value.delete(messageId)
       streamTextRunIds.value.delete(messageId)
-      const index = messagesStore.generatingMessages.indexOf(messageId)
-      if (index > -1) {
-        messagesStore.generatingMessages.splice(index, 1)
-      }
+      messagesStore.stopGenerating(messageId)
       await messagesStore.retrieveMessages()
     }
   }
