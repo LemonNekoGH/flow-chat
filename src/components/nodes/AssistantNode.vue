@@ -57,7 +57,7 @@ watch(() => props.data.message.summary, (newVal, oldVal) => {
     </div>
     <div v-if="!messagesStore.isGenerating(data.message.id)" :bg="showSummary ? 'yellow-200 dark:yellow-800' : 'pink-200 dark:pink-800'" flex justify-end gap-2 p-2 class="absolute right-0 top-0 opacity-0 transition-opacity group-hover:opacity-100">
       <div i-lucide-file-text cursor-pointer text-xs hover:opacity-70 title="Toggle Summary" @click="toggleSummary" />
-      <div i-lucide-refresh-cw cursor-pointer text-xs hover:opacity-70 title="Regenerate" @click="emit('regenerate')" />
+      <div i-lucide-refresh-cw cursor-pointer text-xs hover:opacity-70 :title="showSummary ? 'Regenerate Summary' : 'Regenerate'" @click="emit('regenerate')" />
     </div>
     <div v-if="defaultTextModel.provider !== data.message.provider || data.message.model !== defaultTextModel.model" p-2 :bg="showSummary ? 'yellow-200 dark:yellow-800' : 'pink-200 dark:pink-800'">
       {{ data.message.provider }}/{{ data.message.model }}

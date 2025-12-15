@@ -327,7 +327,7 @@ async function handleSendButton() {
   catch (error) {
     isSending.value = false
     const err = error as Error
-    if (err.message.includes('BodyStreamBuffer was aborted')) {
+    if (err.name === 'AbortError') {
       return
     }
     if (err.message.includes('does not support tools')) {
@@ -397,7 +397,7 @@ async function handleForkWith() {
   }
   catch (error) {
     const err = error as Error
-    if (err.message.includes('BodyStreamBuffer was aborted')) {
+    if (err.name === 'AbortError') {
       return
     }
     console.error(error)
@@ -445,7 +445,7 @@ async function handleRegenerate(messageId: string) {
   }
   catch (error) {
     const err = error as Error
-    if (err.message.includes('BodyStreamBuffer was aborted')) {
+    if (err.name === 'AbortError') {
       return
     }
     console.error(error)
@@ -467,18 +467,20 @@ async function handleSummarize(messageId: string) {
   await messagesStore.updateSummary(messageId, '')
   await messagesStore.retrieveMessages()
 
-  const defaultModel = defaultTextModel.value.model
-  const summaryModel = settingsStore.summaryTextModel.model
+  const summaryProviderName = settingsStore.summaryTextModel.provider || defaultTextModel.value.provider
+  const summaryProvider = settingsStore.configuredTextProviders.find(p => p.name === summaryProviderName)
 
-  const model = summaryModel || defaultModel
+  const defaultModel = defaultTextModel.value.model
+  const summaryModelName = settingsStore.summaryTextModel.model
+  const model = summaryModelName || defaultModel
 
   if (!model) {
     toast.error('Please select a model')
     return
   }
 
-  if (!currentProvider.value?.baseURL) {
-    toast.error('Please select a provider')
+  if (!summaryProvider?.baseURL) {
+    toast.error('Please select a provider for summarization')
     return
   }
 
@@ -493,8 +495,8 @@ async function handleSummarize(messageId: string) {
 
   try {
     const { textStream } = await streamText({
-      apiKey: currentProvider.value?.apiKey,
-      baseURL: currentProvider.value?.baseURL,
+      apiKey: summaryProvider.apiKey,
+      baseURL: summaryProvider.baseURL,
       model,
       messages: [
         { role: 'user', content: `${SUMMARY_PROMPT}\n\n${message.content}` },
@@ -511,9 +513,8 @@ async function handleSummarize(messageId: string) {
     }
   }
   catch (error) {
-    const err = error as Error
-    if (err.message.includes('BodyStreamBuffer was aborted')) {
-      return
+    if (error instanceof Error && error.name === 'AbortError') {
+      return // Silently ignore abort errors
     }
     console.error('Summarization failed', error)
     toast.error('Summarization failed')
