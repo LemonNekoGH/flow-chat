@@ -229,51 +229,51 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
   const abortController = new AbortController()
   streamTextAbortControllers.value.set(newMsgId, abortController)
 
-  const tools = {
-    tool: await createImageTools({ // TODO: more tools
-      apiKey: settingsStore.imageGeneration.apiKey,
-      baseURL: 'https://api.openai.com/v1',
-      piniaStore: messagesStore,
-    }),
-  }
-
-  let isSupportTools = false
   try {
-    const capabilities: Record<string, boolean> = hasCapabilities(
-      provider as ProviderNames,
-      model as ModelIdsByProvider<ProviderNames>,
-      ['tool-call'] as CapabilitiesByModel<ProviderNames, ModelIdsByProvider<ProviderNames>>,
-    )
-    isSupportTools = capabilities['tool-call']
-  }
-  catch (error) {
-    console.error('Failed to check if model supports tools', error)
-  }
+    const tools = {
+      tool: await createImageTools({ // TODO: more tools
+        apiKey: settingsStore.imageGeneration.apiKey,
+        baseURL: 'https://api.openai.com/v1',
+        piniaStore: messagesStore,
+      }),
+    }
 
-  const { textStream } = await streamText({
-    ...(isSupportTools ? tools : {}),
-    maxSteps: 10,
-    apiKey: currentProvider.value?.apiKey,
-    baseURL: currentProvider.value?.baseURL,
-    model,
-    messages: currentBranch.value.messages.map(({ content, role }): BaseMessage => ({ content, role })),
-    abortSignal: abortController.signal,
-  })
-
-  // auto select the answer
-  selectedMessageId.value = newMsgId
-  roomViewStateStore.focusFlowNode(newMsgId, { center: true })
-  if (currentRoomId.value) {
+    let isSupportTools = false
     try {
-      await dbStore.waitForDbInitialized()
-      await roomsStore.updateRoomState(currentRoomId.value, { focusNodeId: newMsgId })
+      const capabilities: Record<string, boolean> = hasCapabilities(
+        provider as ProviderNames,
+        model as ModelIdsByProvider<ProviderNames>,
+        ['tool-call'] as CapabilitiesByModel<ProviderNames, ModelIdsByProvider<ProviderNames>>,
+      )
+      isSupportTools = capabilities['tool-call']
     }
     catch (error) {
-      console.error('Failed to persist focus node', error)
+      console.error('Failed to check if model supports tools', error)
     }
-  }
 
-  try {
+    const { textStream } = await streamText({
+      ...(isSupportTools ? tools : {}),
+      maxSteps: 10,
+      apiKey: currentProvider.value?.apiKey,
+      baseURL: currentProvider.value?.baseURL,
+      model,
+      messages: currentBranch.value.messages.map(({ content, role }): BaseMessage => ({ content, role })),
+      abortSignal: abortController.signal,
+    })
+
+    // auto select the answer
+    selectedMessageId.value = newMsgId
+    roomViewStateStore.focusFlowNode(newMsgId, { center: true })
+    if (currentRoomId.value) {
+      try {
+        await dbStore.waitForDbInitialized()
+        await roomsStore.updateRoomState(currentRoomId.value, { focusNodeId: newMsgId })
+      }
+      catch (error) {
+        console.error('Failed to persist focus node', error)
+      }
+    }
+
     for await (const textPart of asyncIteratorFromReadableStream(textStream, async v => v)) {
       if (streamTextRunIds.value.get(newMsgId) !== runId || abortController.signal.aborted)
         break
