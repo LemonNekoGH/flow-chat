@@ -15,6 +15,15 @@ export const useMessagesStore = defineStore('messages', () => {
   // FIXME: dirty code, add a store for image
   const image = ref('')
 
+  function mutateMessageById(id: string, mutate: (msg: Message) => void) {
+    const msg = messages.value.find(message => message.id === id)
+    if (!msg) {
+      return
+    }
+
+    mutate(msg)
+  }
+
   // Business logic
   function newMessage(
     text: string,
@@ -38,56 +47,41 @@ export const useMessagesStore = defineStore('messages', () => {
   async function appendContent(id: string, text: string) {
     await messageModel.appendContent(id, text)
 
-    const msg = messages.value.find(message => message.id === id)
-    if (!msg) {
-      return
-    }
-
-    msg.content += text
+    mutateMessageById(id, (msg) => {
+      msg.content += text
+    })
   }
 
   async function setContent(id: string, text: string) {
     await messageModel.updateContent(id, text)
 
-    const msg = messages.value.find(message => message.id === id)
-    if (!msg) {
-      return
-    }
-
-    msg.content = text
+    mutateMessageById(id, (msg) => {
+      msg.content = text
+    })
   }
 
   async function appendSummary(id: string, text: string) {
     await messageModel.appendSummary(id, text)
 
-    const msg = messages.value.find(message => message.id === id)
-    if (!msg) {
-      return
-    }
-
-    msg.summary = (msg.summary || '') + text
+    mutateMessageById(id, (msg) => {
+      msg.summary = (msg.summary || '') + text
+    })
   }
 
   async function updateSummary(id: string, summary: string) {
     await messageModel.updateSummary(id, summary)
 
-    const msg = messages.value.find(message => message.id === id)
-    if (!msg) {
-      return
-    }
-
-    msg.summary = summary
+    mutateMessageById(id, (msg) => {
+      msg.summary = summary
+    })
   }
 
   async function updateShowSummary(id: string, show_summary: boolean) {
     await messageModel.updateShowSummary(id, show_summary)
 
-    const msg = messages.value.find(message => message.id === id)
-    if (!msg) {
-      return
-    }
-
-    msg.show_summary = show_summary
+    mutateMessageById(id, (msg) => {
+      msg.show_summary = show_summary
+    })
   }
   async function deleteMessages(ids: string[]) {
     if (ids.length === 0)
