@@ -12,8 +12,15 @@
     {
       "idx": 1,
       "version": "7",
-      "when": 1765730362567,
-      "tag": "0001_furry_hitman",
+      "when": 1765725699989,
+      "tag": "0001_chubby_odin",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1765949623337,
+      "tag": "0002_sleepy_warpath",
       "breakpoints": true
     }
   ]

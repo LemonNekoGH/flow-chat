@@ -1,6 +1,6 @@
 {
-  "id": "566967e7-9f2c-415a-8265-d99d8ec5c1f7",
-  "prevId": "7c4599b7-62ff-416b-bc74-b72cac7c0b9c",
+  "id": "fbe86d69-5271-45a5-b7d4-ccb433a60e15",
+  "prevId": "566967e7-9f2c-415a-8265-d99d8ec5c1f7",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -56,6 +56,19 @@
           "type": "vector(1024)",
           "primaryKey": false,
           "notNull": false
+        },
+        "summary": {
+          "name": "summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "show_summary": {
+          "name": "show_summary",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "created_at": {
           "name": "created_at",
