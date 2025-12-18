@@ -17,16 +17,29 @@ export const useDatabaseStore = defineStore('database', () => {
   const migrating = ref(false)
   const _db = ref<PgliteDatabase<typeof schema>>()
 
+  let migratePromise: Promise<void> | null = null
+
   async function migrate() {
+    if (migratePromise) {
+      return migratePromise
+    }
+
     migrating.value = true
-    logger.log('Running database migrations')
+    migratePromise = (async () => {
+      logger.log('Running database migrations')
 
-    await migrateInternal(db(), migrations)
+      await migrateInternal(db(), migrations)
 
-    await db().execute('CHECKPOINT;')
+      await db().execute('CHECKPOINT;')
 
-    logger.log('Database migrations completed')
-    migrating.value = false
+      logger.log('Database migrations completed')
+    })()
+      .finally(() => {
+        migrating.value = false
+        migratePromise = null
+      })
+
+    return migratePromise
   }
 
   async function clearDb() {
