@@ -10,6 +10,7 @@ const dbStore = useDatabaseStore()
 
 onMounted(async () => {
   await dbStore.waitForDbInitialized()
+  await dbStore.migrate()
 
   // Initialize rooms
   const room = await roomsStore.initialize()

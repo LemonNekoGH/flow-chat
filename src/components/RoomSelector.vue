@@ -48,6 +48,7 @@ onMounted(async () => {
   document.addEventListener('click', handleOutsideClick)
 
   await dbStore.waitForDbInitialized()
+  await dbStore.migrate()
   await roomsStore.initialize()
 })
 
