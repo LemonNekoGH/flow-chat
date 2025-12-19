@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { doublePrecision, index, pgTable, text, timestamp, uuid, vector } from 'drizzle-orm/pg-core'
+import { boolean, doublePrecision, index, pgTable, text, timestamp, uuid, vector } from 'drizzle-orm/pg-core'
 
 export const templates = pgTable('templates', () => ({
   id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
@@ -32,6 +32,8 @@ export const messages = pgTable('messages', {
   room_id: uuid('room_id').references(() => rooms.id, { onDelete: 'cascade' }),
   parent_id: uuid('parent_id'),
   embedding: vector('embedding', { dimensions: 1024 }),
+  summary: text('summary'),
+  show_summary: boolean('show_summary').notNull().default(false),
   created_at: timestamp('created_at').notNull().default(sql`now()`),
   updated_at: timestamp('updated_at').notNull().default(sql`now()`),
 }, table => [

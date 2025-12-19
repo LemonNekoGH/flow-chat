@@ -15,6 +15,15 @@ export const useMessagesStore = defineStore('messages', () => {
   // FIXME: dirty code, add a store for image
   const image = ref('')
 
+  function mutateMessageById(id: string, mutate: (msg: Message) => void) {
+    const msg = messages.value.find(message => message.id === id)
+    if (!msg) {
+      return
+    }
+
+    mutate(msg)
+  }
+
   // Business logic
   function newMessage(
     text: string,
@@ -38,14 +47,42 @@ export const useMessagesStore = defineStore('messages', () => {
   async function appendContent(id: string, text: string) {
     await messageModel.appendContent(id, text)
 
-    const msg = messages.value.find(message => message.id === id)
-    if (!msg) {
-      return
-    }
-
-    msg.content += text
+    mutateMessageById(id, (msg) => {
+      msg.content += text
+    })
   }
 
+  async function setContent(id: string, text: string) {
+    await messageModel.updateContent(id, text)
+
+    mutateMessageById(id, (msg) => {
+      msg.content = text
+    })
+  }
+
+  async function appendSummary(id: string, text: string) {
+    await messageModel.appendSummary(id, text)
+
+    mutateMessageById(id, (msg) => {
+      msg.summary = (msg.summary || '') + text
+    })
+  }
+
+  async function updateSummary(id: string, summary: string) {
+    await messageModel.updateSummary(id, summary)
+
+    mutateMessageById(id, (msg) => {
+      msg.summary = summary
+    })
+  }
+
+  async function updateShowSummary(id: string, show_summary: boolean) {
+    await messageModel.updateShowSummary(id, show_summary)
+
+    mutateMessageById(id, (msg) => {
+      msg.show_summary = show_summary
+    })
+  }
   async function deleteMessages(ids: string[]) {
     if (ids.length === 0)
       return
@@ -113,6 +150,19 @@ export const useMessagesStore = defineStore('messages', () => {
     return generatingMessages.value.includes(id)
   }
 
+  function startGenerating(id: string) {
+    if (!generatingMessages.value.includes(id)) {
+      generatingMessages.value.push(id)
+    }
+  }
+
+  function stopGenerating(id: string) {
+    if (generatingMessages.value.length === 0)
+      return
+
+    generatingMessages.value = generatingMessages.value.filter(messageId => messageId !== id)
+  }
+
   async function retrieveMessages() {
     if (!roomsStore.currentRoomId)
       return
@@ -135,6 +185,7 @@ export const useMessagesStore = defineStore('messages', () => {
 
     // Actions
     newMessage,
+    setContent,
     appendContent,
     deleteMessages,
     deleteSubtree,
@@ -147,8 +198,14 @@ export const useMessagesStore = defineStore('messages', () => {
     getSubtreeById,
 
     isGenerating,
+    startGenerating,
+    stopGenerating,
 
     retrieveMessages,
     resetState,
+    appendSummary,
+    updateSummary,
+    updateShowSummary,
+
   }
 })

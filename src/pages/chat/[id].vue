@@ -41,6 +41,7 @@ import { useSettingsStore } from '~/stores/settings'
 import { createImageTools } from '~/tools'
 import { parseMessage } from '~/utils/chat'
 import { asyncIteratorFromReadableStream } from '~/utils/interator'
+import { SUMMARY_PROMPT } from '~/utils/prompts'
 
 const dbStore = useDatabaseStore()
 
@@ -179,8 +180,27 @@ async function handleContextMenuDelete() {
 }
 
 const streamTextAbortControllers = ref<Map<string, AbortController>>(new Map())
+const streamTextRunIds = ref<Map<string, number>>(new Map())
 
-async function generateResponse(parentId: string | null, provider: ProviderNames, model: string) {
+function nextStreamRunId(messageId: string) {
+  const current = streamTextRunIds.value.get(messageId) ?? 0
+  const next = current + 1
+  streamTextRunIds.value.set(messageId, next)
+  return next
+}
+
+function hasGeneratingAncestor(messageId: string) {
+  let currentId = messagesStore.getMessageById(messageId)?.parent_id
+  while (currentId) {
+    if (messagesStore.isGenerating(currentId))
+      return true
+
+    currentId = messagesStore.getMessageById(currentId)?.parent_id
+  }
+  return false
+}
+
+async function generateResponse(parentId: string | null, provider: ProviderNames, model: string, regenerateId?: string) {
   if (!model) {
     toast.error('Please select a model')
     return
@@ -191,58 +211,72 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
     return
   }
 
-  const { id: newMsgId } = await messagesStore.newMessage('', 'assistant', parentId, provider, model, currentRoomId.value!)
+  let newMsgId = regenerateId
+  if (!newMsgId) {
+    const { id } = await messagesStore.newMessage('', 'assistant', parentId, provider, model, currentRoomId.value!)
+    newMsgId = id
+  }
+  else {
+    await messagesStore.setContent(newMsgId, '')
+  }
+
   await messagesStore.retrieveMessages()
 
+  messagesStore.startGenerating(newMsgId)
+  const prevAbortController = streamTextAbortControllers.value.get(newMsgId)
+  prevAbortController?.abort('Superseded by new generation')
+  const runId = nextStreamRunId(newMsgId)
   const abortController = new AbortController()
   streamTextAbortControllers.value.set(newMsgId, abortController)
 
-  const tools = {
-    tool: await createImageTools({ // TODO: more tools
-      apiKey: settingsStore.imageGeneration.apiKey,
-      baseURL: 'https://api.openai.com/v1',
-      piniaStore: messagesStore,
-    }),
-  }
-
-  let isSupportTools = false
   try {
-    const capabilities: Record<string, boolean> = hasCapabilities(
-      provider as ProviderNames,
-      model as ModelIdsByProvider<ProviderNames>,
-      ['tool-call'] as CapabilitiesByModel<ProviderNames, ModelIdsByProvider<ProviderNames>>,
-    )
-    isSupportTools = capabilities['tool-call']
-  }
-  catch (error) {
-    console.error('Failed to check if model supports tools', error)
-  }
+    const tools = {
+      tool: await createImageTools({ // TODO: more tools
+        apiKey: settingsStore.imageGeneration.apiKey,
+        baseURL: 'https://api.openai.com/v1',
+        piniaStore: messagesStore,
+      }),
+    }
 
-  const { textStream } = await streamText({
-    ...(isSupportTools ? tools : {}),
-    maxSteps: 10,
-    apiKey: currentProvider.value?.apiKey,
-    baseURL: currentProvider.value?.baseURL,
-    model,
-    messages: currentBranch.value.messages.map(({ content, role }): BaseMessage => ({ content, role })),
-    abortSignal: abortController.signal,
-  })
-
-  // auto select the answer
-  selectedMessageId.value = newMsgId
-  roomViewStateStore.focusFlowNode(newMsgId, { center: true })
-  if (currentRoomId.value) {
+    let isSupportTools = false
     try {
-      await dbStore.waitForDbInitialized()
-      await roomsStore.updateRoomState(currentRoomId.value, { focusNodeId: newMsgId })
+      const capabilities: Record<string, boolean> = hasCapabilities(
+        provider as ProviderNames,
+        model as ModelIdsByProvider<ProviderNames>,
+        ['tool-call'] as CapabilitiesByModel<ProviderNames, ModelIdsByProvider<ProviderNames>>,
+      )
+      isSupportTools = capabilities['tool-call']
     }
     catch (error) {
-      console.error('Failed to persist focus node', error)
+      console.error('Failed to check if model supports tools', error)
     }
-  }
 
-  try {
+    const { textStream } = await streamText({
+      ...(isSupportTools ? tools : {}),
+      maxSteps: 10,
+      apiKey: currentProvider.value?.apiKey,
+      baseURL: currentProvider.value?.baseURL,
+      model,
+      messages: currentBranch.value.messages.map(({ content, role }): BaseMessage => ({ content, role })),
+      abortSignal: abortController.signal,
+    })
+
+    // auto select the answer
+    selectedMessageId.value = newMsgId
+    roomViewStateStore.focusFlowNode(newMsgId, { center: true })
+    if (currentRoomId.value) {
+      try {
+        await dbStore.waitForDbInitialized()
+        await roomsStore.updateRoomState(currentRoomId.value, { focusNodeId: newMsgId })
+      }
+      catch (error) {
+        console.error('Failed to persist focus node', error)
+      }
+    }
+
     for await (const textPart of asyncIteratorFromReadableStream(textStream, async v => v)) {
+      if (streamTextRunIds.value.get(newMsgId) !== runId || abortController.signal.aborted)
+        break
       // check if image tool was used
       if (messagesStore.image) {
         await messagesStore.appendContent(newMsgId, `![generated image](${messagesStore.image})`)
@@ -250,13 +284,20 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
         messagesStore.image = ''
       }
       // textPart might be `undefined` in some cases
-      textPart && await messagesStore.appendContent(newMsgId, textPart)
+      if (textPart) {
+        await messagesStore.appendContent(newMsgId, textPart)
+      }
     }
   }
   finally {
-    streamTextAbortControllers.value.delete(newMsgId)
-    await messagesStore.appendContent(newMsgId, '')
-    await messagesStore.retrieveMessages()
+    if (streamTextRunIds.value.get(newMsgId) === runId) {
+      messagesStore.stopGenerating(newMsgId)
+      streamTextAbortControllers.value.delete(newMsgId)
+      streamTextRunIds.value.delete(newMsgId)
+      await messagesStore.retrieveMessages()
+      if (abortController.signal.reason === 'Aborted by user')
+        toast.success('Generation aborted')
+    }
   }
 }
 
@@ -286,7 +327,7 @@ async function handleSendButton() {
   catch (error) {
     isSending.value = false
     const err = error as Error
-    if (err.message.includes('BodyStreamBuffer was aborted')) {
+    if (err.name === 'AbortError') {
       return
     }
     if (err.message.includes('does not support tools')) {
@@ -348,10 +389,20 @@ function handleForkWithProviderChange(provider: AcceptableValue) {
   settingsStore.fetchModels()
 }
 
-function handleForkWith() {
+async function handleForkWith() {
   showForkWithModelDialog.value = false
   showForkWithModelSelector.value = false
-  generateResponse(selectedMessageId.value, forkWithProvider.value as ProviderNames, forkWithModel.value)
+  try {
+    await generateResponse(selectedMessageId.value, forkWithProvider.value as ProviderNames, forkWithModel.value)
+  }
+  catch (error) {
+    const err = error as Error
+    if (err.name === 'AbortError') {
+      return
+    }
+    console.error(error)
+    toast.error('Failed to fork response')
+  }
 }
 
 // Handle forking - now this just selects the message without generating
@@ -363,13 +414,120 @@ function handleFork(messageId: string | null) {
   }
 }
 
-async function handleAbort(messageId: string) {
+function handleAbort(messageId: string) {
   const abortController = streamTextAbortControllers.value.get(messageId)
   abortController?.abort('Aborted by user')
-  streamTextAbortControllers.value.delete(messageId)
-  await messagesStore.appendContent(messageId, '')
+  messagesStore.stopGenerating(messageId)
+}
+
+async function handleRegenerate(messageId: string) {
+  const message = messagesStore.getMessageById(messageId)
+  if (!message)
+    return
+
+  if (hasGeneratingAncestor(messageId)) {
+    toast.warning('Please wait for the previous generation to finish')
+    return
+  }
+
+  if (message.show_summary ?? false) {
+    await handleSummarize(messageId)
+    return
+  }
+
+  try {
+    await generateResponse(message.parent_id, message.provider as ProviderNames, message.model, messageId)
+  }
+  catch (error) {
+    const err = error as Error
+    if (err.name === 'AbortError') {
+      return
+    }
+    console.error(error)
+    toast.error('Failed to regenerate response')
+  }
+}
+
+async function handleSummarize(messageId: string) {
+  const message = messagesStore.getMessageById(messageId)
+  if (!message)
+    return
+
+  if (hasGeneratingAncestor(messageId)) {
+    toast.warning('Please wait for the previous generation to finish')
+    return
+  }
+
+  // Clear previous summary if any
+  await messagesStore.updateSummary(messageId, '')
   await messagesStore.retrieveMessages()
-  toast.success('Generation aborted')
+
+  const summaryProviderName = settingsStore.summaryTextModel.provider || defaultTextModel.value.provider
+  const summaryProvider = settingsStore.configuredTextProviders.find(p => p.name === summaryProviderName)
+
+  const defaultModel = defaultTextModel.value.model
+  const summaryModelName = settingsStore.summaryTextModel.model
+  const model = summaryModelName || defaultModel
+
+  if (!model) {
+    toast.error('Please select a model')
+    return
+  }
+
+  if (!summaryProvider?.baseURL) {
+    toast.error('Please select a provider for summarization')
+    return
+  }
+
+  // Set generating status
+  messagesStore.startGenerating(messageId)
+
+  const prevAbortController = streamTextAbortControllers.value.get(messageId)
+  prevAbortController?.abort('Superseded by new summarization')
+  const runId = nextStreamRunId(messageId)
+  const abortController = new AbortController()
+  streamTextAbortControllers.value.set(messageId, abortController)
+
+  try {
+    const { textStream } = await streamText({
+      apiKey: summaryProvider.apiKey,
+      baseURL: summaryProvider.baseURL,
+      model,
+      messages: [
+        { role: 'user', content: `${SUMMARY_PROMPT}\n\n${message.content}` },
+      ],
+      abortSignal: abortController.signal,
+    })
+
+    for await (const textPart of asyncIteratorFromReadableStream(textStream, async v => v)) {
+      if (streamTextRunIds.value.get(messageId) !== runId || abortController.signal.aborted)
+        break
+      if (textPart) {
+        await messagesStore.appendSummary(messageId, textPart)
+      }
+    }
+  }
+  catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      return // Silently ignore abort errors
+    }
+    console.error('Summarization failed', error)
+    toast.error('Summarization failed')
+  }
+  finally {
+    if (streamTextRunIds.value.get(messageId) === runId) {
+      streamTextAbortControllers.value.delete(messageId)
+      streamTextRunIds.value.delete(messageId)
+      messagesStore.stopGenerating(messageId)
+      await messagesStore.retrieveMessages()
+      if (abortController.signal.reason === 'Aborted by user')
+        toast.success('Summarization aborted')
+    }
+  }
+}
+
+function handleFlowInit() {
+  roomViewStateStore.handleInit()
 }
 
 onMounted(async () => {
@@ -391,7 +549,7 @@ onMounted(async () => {
       @pane-click="handlePanelClick"
       @node-double-click="handleNodeDoubleClick"
       @node-context-menu="handleNodeContextMenu"
-      @init="roomViewStateStore.handleInit"
+      @init="handleFlowInit"
     >
       <Background />
       <Controls />
@@ -408,7 +566,7 @@ onMounted(async () => {
         @fork-with="handleContextMenuForkWith"
       />
       <template #node-assistant="props">
-        <AssistantNode v-bind="props" class="nodrag" @abort="handleAbort(props.id)" />
+        <AssistantNode v-bind="props" class="nodrag" @abort="handleAbort(props.id)" @regenerate="handleRegenerate(props.id)" @summarize="handleSummarize(props.id)" />
       </template>
       <template #node-system="props">
         <SystemNode v-bind="props" class="nodrag" />
@@ -426,6 +584,7 @@ onMounted(async () => {
         :messages="currentBranch.messages"
         @fork-message="handleFork"
         @abort-message="handleAbort"
+        @regenerate-message="handleRegenerate"
       />
     </div>
     <div

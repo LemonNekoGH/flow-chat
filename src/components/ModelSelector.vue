@@ -6,6 +6,7 @@ import { useSettingsStore } from '~/stores/settings'
 const props = defineProps<{
   searchTerm: string
   showModelSelector: boolean
+  providerName?: string
 }>()
 
 const emit = defineEmits<{
@@ -39,13 +40,21 @@ function selectModel(model: string) {
 }
 
 // Fetch models if needed
-watch(() => props.showModelSelector, (show) => {
-  if (show && settingsStore.models.length === 0) {
-    isLoadingModels.value = true
-    settingsStore.fetchModels().finally(() => {
-      isLoadingModels.value = false
-    })
-  }
+watch([() => props.showModelSelector, () => props.providerName], ([show, newProvider], [oldShow, oldProvider]) => {
+  if (!show)
+    return
+
+  const targetProvider = newProvider ?? settingsStore.defaultTextModel.provider
+  const providerChanged = newProvider !== oldProvider && oldShow
+  const shouldFetch = settingsStore.models.length === 0 || settingsStore.modelsProvider !== targetProvider || providerChanged
+
+  if (!shouldFetch)
+    return
+
+  isLoadingModels.value = true
+  settingsStore.fetchModels(targetProvider).finally(() => {
+    isLoadingModels.value = false
+  })
 }, { immediate: true })
 </script>
 
