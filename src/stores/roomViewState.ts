@@ -61,6 +61,10 @@ export const useRoomViewStateStore = defineStore('roomViewState', () => {
 
   const selectedMessageId = ref<string | null>(null)
 
+  const selectedMessage = computed(() => {
+    return messagesStore.messages.find(message => message.id === selectedMessageId.value)
+  })
+
   const currentBranch = computed(() => {
     return messagesStore.getBranchById(selectedMessageId.value)
   })
@@ -88,7 +92,7 @@ export const useRoomViewStateStore = defineStore('roomViewState', () => {
         type: 'system',
         position: { x: 0, y: 0 },
         hidden: true,
-        data: { hidden: true, message: messages.value[0], selected: false, inactive: false, generating: false },
+        data: { hidden: true, message: messages.value[0], inactive: false, generating: false },
       })
     }
 
@@ -100,7 +104,7 @@ export const useRoomViewStateStore = defineStore('roomViewState', () => {
         id,
         type: role,
         position: { x: 0, y: 0 },
-        data: { message, selected: selectedMessageId.value === id, inactive: !!selectedMessageId.value && !active, hidden: false, generating: false },
+        data: { message, inactive: !!selectedMessageId.value && !active, hidden: false, generating: false },
       })
 
       // Only create an edge if we have a valid source node
@@ -424,6 +428,7 @@ export const useRoomViewStateStore = defineStore('roomViewState', () => {
 
   return {
     selectedMessageId,
+    selectedMessage,
     currentRoomId,
     currentBranch,
     nodesAndEdges,
