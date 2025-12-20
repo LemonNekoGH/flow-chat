@@ -11,7 +11,7 @@
     "preview-https": "serve dist",
     "test": "vitest",
     "test:unit": "vitest",
-    "typecheck": "vue-tsc --noEmit",
+    "typecheck": "bash scripts/typecheck.sh",
     "up": "taze major -I",
     "postinstall": "npx simple-git-hooks",
     "sizecheck": "npx vite-bundle-visualizer",
