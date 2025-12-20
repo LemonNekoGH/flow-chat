@@ -1,6 +1,6 @@
 import type { Message, MessageRole } from '~/types/messages'
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useMessageModel } from '~/models/messages'
 import { useRoomsStore } from './rooms'
 
@@ -9,6 +9,7 @@ export const useMessagesStore = defineStore('messages', () => {
   const roomsStore = useRoomsStore() // don't use store to ref to avoid circular dependency
   const messageModel = useMessageModel()
   const messages = ref<Message[]>([])
+  const hasAnyMessages = computed(() => messages.value.length > 0)
   const generatingMessages = ref<string[]>([])
 
   // images
@@ -177,11 +178,16 @@ export const useMessagesStore = defineStore('messages', () => {
     image.value = ''
   }
 
+  function hasChildren(messageId: string) {
+    return messages.value.some(message => message.parent_id === messageId)
+  }
+
   return {
     // State
     messages,
     image,
     generatingMessages,
+    hasAnyMessages,
 
     // Actions
     newMessage,
@@ -207,5 +213,6 @@ export const useMessagesStore = defineStore('messages', () => {
     updateSummary,
     updateShowSummary,
 
+    hasChildren,
   }
 })

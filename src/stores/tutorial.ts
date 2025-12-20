@@ -4,10 +4,11 @@ import type { Tutorial } from '~/types/tutorial'
 import { useLocalStorage } from '@vueuse/core'
 import { driver } from 'driver.js'
 import { defineStore } from 'pinia'
-import { computed, nextTick, ref, shallowRef } from 'vue'
+import { nextTick, ref, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 import { createTutorialRoom } from '~/utils/tutorial'
+import { useDialogStore } from './dialog'
 import { useMessagesStore } from './messages'
 import { useRoomsStore } from './rooms'
 
@@ -18,9 +19,9 @@ function useTutorial(
   activeTutorial: Ref<Tutorial | null>,
 ): Tutorial {
   const router = useRouter()
+  const dialogStore = useDialogStore()
 
   const isFirstHere = useLocalStorage(localStorageKey, true)
-  const showSkip = ref(false)
 
   function onCloseClick(_: Element | undefined, __: DriveStep, { driver }: { driver: Driver }) {
     if (driver.isLastStep()) {
@@ -30,7 +31,19 @@ function useTutorial(
       return
     }
 
-    showSkip.value = true
+    dialogStore.alert({
+      title: 'Close the tutorial',
+      description: 'Are you sure you want to close the tutorial?',
+      confirmText: 'Yes, skip it',
+      cancelText: 'No, continue',
+      onConfirm: () => {
+        if (!activeTutorial.value) {
+          toast.error('Error skipping tutorial, tutorial is not active')
+          return
+        }
+        activeTutorial.value.goToStep('Reset')
+      },
+    })
   }
 
   async function goToStep(stepTitle: string) {
@@ -68,7 +81,6 @@ function useTutorial(
     localStorageKey,
     steps,
     isFirstHere,
-    showSkip,
 
     goToStep,
     setConfig,
@@ -275,14 +287,10 @@ export const useTutorialStore = defineStore('tutorial', () => {
     driverObj.value.drive()
   }
 
-  const showSkip = computed(() => activeTutorial.value?.showSkip.value)
-
   return {
     chat,
     settings,
     firstHere,
-
-    showSkip,
 
     activeTutorial,
     showSelectTutorial,

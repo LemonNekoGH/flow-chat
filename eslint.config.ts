@@ -7,5 +7,10 @@ export default antfu(
     formatters: true,
     markdown: true,
   },
+  {
+    rules: {
+      'vue/prefer-separate-static-class': 'off',
+    },
+  },
   ...oxlint.buildFromOxlintConfigFile('./.oxlintrc.json'),
 )

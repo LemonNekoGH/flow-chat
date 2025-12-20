@@ -139,10 +139,7 @@ const router = useRouter()
   display: flex;
   flex-direction: column;
 }
-*:focus,
-*:focus-visible {
-  outline: none !important;
-}
+
 .i-carbon-logo-github {
   @apply dark:bg-black;
 }

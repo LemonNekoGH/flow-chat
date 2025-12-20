@@ -1,9 +1,11 @@
+import { presetChromatic } from '@proj-airi/unocss-preset-chromatic'
+
 import {
   defineConfig,
   presetAttributify,
   presetIcons,
   presetTypography,
-  presetUno,
+  presetWind3,
   transformerDirectives,
   transformerVariantGroup,
 } from 'unocss'
@@ -22,7 +24,7 @@ export default defineConfig({
     },
   ],
   presets: [
-    presetUno(),
+    presetWind3(),
     presetAttributify(),
     presetIcons({
       scale: 1.2,
@@ -30,6 +32,13 @@ export default defineConfig({
     presetTypography(),
     presetAnimations(),
     presetShadcn(),
+    presetChromatic({
+      baseHue: 220.44,
+      colors: {
+        primary: 0,
+        complementary: 180,
+      },
+    }),
   ],
   transformers: [
     transformerDirectives(),

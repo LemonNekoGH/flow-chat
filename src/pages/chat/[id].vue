@@ -8,31 +8,25 @@ import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
-import { useClipboard, useEventListener } from '@vueuse/core'
+import { useClipboard, useElementBounding, useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, provide, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { streamText } from 'xsai'
 import ConversationView from '~/components/ConversationView.vue'
 import ModelSelector from '~/components/ModelSelector.vue'
-import NodeContextMenu from '~/components/NodeContextMenu.vue'
 import AssistantNode from '~/components/nodes/AssistantNode.vue'
 import SystemNode from '~/components/nodes/SystemNode.vue'
 import UserNode from '~/components/nodes/UserNode.vue'
-import Button from '~/components/ui/button/Button.vue'
-import Dialog from '~/components/ui/dialog/Dialog.vue'
-import DialogContent from '~/components/ui/dialog/DialogContent.vue'
-import DialogHeader from '~/components/ui/dialog/DialogHeader.vue'
-import DialogTitle from '~/components/ui/dialog/DialogTitle.vue'
-import Input from '~/components/ui/input/Input.vue'
-import Select from '~/components/ui/select/Select.vue'
-import SelectContent from '~/components/ui/select/SelectContent.vue'
-import SelectItem from '~/components/ui/select/SelectItem.vue'
-import SelectTrigger from '~/components/ui/select/SelectTrigger.vue'
-import SelectValue from '~/components/ui/select/SelectValue.vue'
-import Textarea from '~/components/ui/textarea/Textarea.vue'
+import NodeToolbar from '~/components/NodeToolbar.vue'
+import { Button } from '~/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '~/components/ui/dialog'
+import { Input } from '~/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select'
+import { Textarea } from '~/components/ui/textarea'
 import { isDark } from '~/composables/dark'
 import { useDatabaseStore } from '~/stores/database'
+import { useDialogStore } from '~/stores/dialog'
 import { useMessagesStore } from '~/stores/messages'
 import { ChatMode, useModeStore } from '~/stores/mode'
 import { useRoomsStore } from '~/stores/rooms'
@@ -49,6 +43,7 @@ const settingsStore = useSettingsStore()
 const { defaultTextModel, currentProvider } = storeToRefs(settingsStore)
 
 const messagesStore = useMessagesStore()
+const { hasAnyMessages } = storeToRefs(messagesStore)
 const roomsStore = useRoomsStore()
 
 const { currentMode } = storeToRefs(useModeStore())
@@ -56,6 +51,7 @@ const { currentMode } = storeToRefs(useModeStore())
 const roomViewStateStore = useRoomViewStateStore()
 const {
   selectedMessageId,
+  selectedMessage,
   currentRoomId,
   currentBranch,
   nodesAndEdges,
@@ -64,9 +60,6 @@ const {
 const defaultColor = 'rgb(240, 242, 243, 0.7)'
 const darkColor = 'rgb(34,34,34,0.7)'
 const strokeColor = computed(() => (isDark.value ? darkColor : defaultColor))
-const selectedMessage = computed(() => {
-  return messagesStore.messages.find(message => message.id === selectedMessageId.value)
-})
 
 const inputMessage = ref('')
 const isSending = ref(false)
@@ -106,12 +99,6 @@ function handleModelSelect(model: string) {
 }
 
 // #region vue flow event handlers
-const contextMenu = ref({
-  show: false,
-  x: 0,
-  y: 0,
-})
-
 function handleNodeClick(event: NodeMouseEvent) {
   selectedMessageId.value = event.node.id
 }
@@ -129,20 +116,10 @@ function handleNodeDoubleClick(event: NodeMouseEvent) {
   roomViewStateStore.setCenterToNode(node)
 }
 function handleNodeContextMenu(event: NodeMouseEvent) {
-  selectedMessageId.value = event.node.id
   const mouseEvent = event.event as MouseEvent
   mouseEvent.preventDefault()
-  contextMenu.value = {
-    show: true,
-    x: mouseEvent.clientX || 0,
-    y: mouseEvent.clientY || 0,
-  }
 }
 // #endregion
-
-useEventListener('click', () => {
-  contextMenu.value.show = false
-})
 
 useEventListener('keydown', (event) => {
   if ((event.key === 'Backspace' || event.key === 'Delete') && selectedMessageId.value) {
@@ -174,9 +151,22 @@ async function deleteSelectedNode(nodeId: string) {
   selectedMessageId.value = null
 }
 
+const dialogStore = useDialogStore()
+
 async function handleContextMenuDelete() {
-  if (selectedMessageId.value)
-    await deleteSelectedNode(selectedMessageId.value)
+  if (!selectedMessageId.value) {
+    return
+  }
+
+  dialogStore.alert({
+    title: 'Delete Node',
+    description: 'Are you sure you want to delete this node?',
+    onConfirm: () => {
+      if (selectedMessageId.value) {
+        deleteSelectedNode(selectedMessageId.value)
+      }
+    },
+  })
 }
 
 const streamTextAbortControllers = ref<Map<string, AbortController>>(new Map())
@@ -301,8 +291,9 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
   }
 }
 
-async function handleSendButton() {
-  if (!inputMessage.value || isSending.value) {
+async function handleSendButton(messageText?: string) {
+  const messageToSend = messageText ?? inputMessage.value
+  if (!messageToSend || isSending.value) {
     return
   }
 
@@ -312,7 +303,7 @@ async function handleSendButton() {
 
   isSending.value = true
 
-  const { model, message } = parseMessage(inputMessage.value)
+  const { model, message } = parseMessage(messageToSend)
 
   try {
     const { id } = await messagesStore.newMessage(message, 'user', selectedMessageId.value, defaultTextModel.value.provider, model ?? defaultTextModel.value.model, currentRoomId.value!)
@@ -530,6 +521,10 @@ function handleFlowInit() {
   roomViewStateStore.handleInit()
 }
 
+const containerRef = ref<HTMLElement>()
+const containerBounding = useElementBounding(containerRef)
+provide('containerBounding', containerBounding)
+
 onMounted(async () => {
   await dbStore.waitForDbInitialized()
   // Initialize rooms before displaying
@@ -539,12 +534,13 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="h-full w-full flex flex-col overflow-hidden">
+  <div ref="containerRef" class="relative h-full w-full flex flex-col overflow-hidden">
     <VueFlow
       v-show="currentMode === ChatMode.FLOW"
       class="flex-1"
       :nodes="nodesAndEdges.nodes"
       :edges="nodesAndEdges.edges"
+      :pan-on-drag="hasAnyMessages"
       @node-click="handleNodeClick"
       @pane-click="handlePanelClick"
       @node-double-click="handleNodeDoubleClick"
@@ -554,17 +550,6 @@ onMounted(async () => {
       <Background />
       <Controls />
       <MiniMap :mask-color="strokeColor" zoomable pannable />
-      <NodeContextMenu
-        v-if="contextMenu.show"
-        :x="contextMenu.x"
-        :y="contextMenu.y"
-        :role="selectedMessage?.role"
-        @fork="handleFork(selectedMessageId)"
-        @focus-in="handleContextMenuFocusIn"
-        @delete="handleContextMenuDelete"
-        @copy="handleContextMenuCopy"
-        @fork-with="handleContextMenuForkWith"
-      />
       <template #node-assistant="props">
         <AssistantNode v-bind="props" class="nodrag" @abort="handleAbort(props.id)" @regenerate="handleRegenerate(props.id)" @summarize="handleSummarize(props.id)" />
       </template>
@@ -575,6 +560,15 @@ onMounted(async () => {
         <UserNode v-bind="props" class="nodrag" />
       </template>
     </VueFlow>
+    <NodeToolbar
+      :node-id="currentMode === ChatMode.FLOW ? selectedMessageId : null"
+      @fork="handleFork(selectedMessageId)"
+      @fork-with="handleContextMenuForkWith"
+      @focus-in="handleContextMenuFocusIn"
+      @delete="handleContextMenuDelete"
+      @copy="handleContextMenuCopy"
+      @send="handleSendButton"
+    />
     <div
       v-show="currentMode === ChatMode.CONVERSATION"
       class="w-full flex flex-1 justify-center overflow-hidden px-4 sm:px-6"
@@ -586,66 +580,66 @@ onMounted(async () => {
         @abort-message="handleAbort"
         @regenerate-message="handleRegenerate"
       />
-    </div>
-    <div
-      class="mt-auto w-full px-4 pb-6 pt-2 transition-colors duration-200 sm:px-6"
-      :class="{
-        'sticky bottom-0 left-0 right-0 z-20 bg-neutral-100/95 backdrop-blur-md dark:bg-neutral-900/95': isConversationMode,
-        'bg-neutral-100 dark:bg-neutral-900': !isConversationMode,
-      }"
-    >
-      <div class="relative mx-auto w-full max-w-screen-md flex rounded-lg bg-neutral-100 p-2 shadow-lg transition-colors dark:bg-neutral-900">
-        <Textarea
-          v-model="inputMessage"
-          placeholder="Enter to send message, Shift+Enter for new-line"
-          max-h-60vh w-full resize-none border-gray-300 rounded-sm px-3 py-2 outline-none dark:bg-neutral-800 focus:ring-2 focus:ring-black dark:focus:ring-white
-          transition="all duration-200 ease-in-out"
-          @keydown.enter.exact.prevent="handleSendButton"
-        />
-        <ModelSelector
-          v-if="showModelSelector"
-          v-model:show-model-selector="showModelSelector"
-          :search-term="inputMessage.substring(6)"
-          @select-model="handleModelSelect"
-        />
-        <Button absolute bottom-3 right-3 @click="handleSendButton">
-          Send
-        </Button>
-        <Dialog v-model:open="showForkWithModelDialog">
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Fork With</DialogTitle>
-            </DialogHeader>
-            <div>
-              <Select
-                :model-value="defaultTextModel.provider as ProviderNames"
-                @update:model-value="handleForkWithProviderChange"
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem v-for="provider in settingsStore.configuredTextProviders" :key="provider.name" :value="provider.name">
-                    {{ provider.name }}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <Input
-                id="model" v-model="forkWithModel" placeholder="Search models..."
-                @click.stop="showForkWithModelSelector = true"
-              />
-              <ModelSelector
-                v-if="showForkWithModelSelector"
-                v-model:show-model-selector="showForkWithModelSelector"
-                :search-term="forkWithModel"
-                @select-model="forkWithModel = $event"
-              />
-            </div>
-            <Button @click="handleForkWith">
-              Fork
-            </Button>
-          </DialogContent>
-        </Dialog>
+      <div
+        class="mt-auto w-full px-4 pb-6 pt-2 transition-colors duration-200 sm:px-6"
+        :class="{
+          'sticky bottom-0 left-0 right-0 z-20 bg-neutral-100/95 backdrop-blur-md dark:bg-neutral-900/95': isConversationMode,
+          'bg-neutral-100 dark:bg-neutral-900': !isConversationMode,
+        }"
+      >
+        <div class="relative mx-auto w-full max-w-screen-md flex rounded-lg bg-neutral-100 p-2 shadow-lg transition-colors dark:bg-neutral-900">
+          <Textarea
+            v-model="inputMessage"
+            placeholder="Enter to send message, Shift+Enter for new-line"
+            max-h-60vh w-full resize-none border-gray-300 rounded-sm px-3 py-2 outline-none dark:bg-neutral-800 focus:ring-2 focus:ring-black dark:focus:ring-white
+            transition="all duration-200 ease-in-out"
+            @keydown.enter.exact.prevent="handleSendButton"
+          />
+          <ModelSelector
+            v-if="showModelSelector"
+            v-model:show-model-selector="showModelSelector"
+            :search-term="inputMessage.substring(6)"
+            @select-model="handleModelSelect"
+          />
+          <Button absolute bottom-3 right-3 @click="handleSendButton">
+            Send
+          </Button>
+          <Dialog v-model:open="showForkWithModelDialog">
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Fork With</DialogTitle>
+              </DialogHeader>
+              <div>
+                <Select
+                  :model-value="defaultTextModel.provider as ProviderNames"
+                  @update:model-value="handleForkWithProviderChange"
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem v-for="provider in settingsStore.configuredTextProviders" :key="provider.name" :value="provider.name">
+                      {{ provider.name }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
+                  id="model" v-model="forkWithModel" placeholder="Search models..."
+                  @click.stop="showForkWithModelSelector = true"
+                />
+                <ModelSelector
+                  v-if="showForkWithModelSelector"
+                  v-model:show-model-selector="showForkWithModelSelector"
+                  :search-term="forkWithModel"
+                  @select-model="forkWithModel = $event"
+                />
+              </div>
+              <Button @click="handleForkWith">
+                Fork
+              </Button>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
     </div>
   </div>

@@ -43,9 +43,10 @@ watch(() => props.data.message.summary, (newVal, oldVal) => {
 
 <template>
   <Node
+    v-bind="props"
     :bg="showSummary ? 'yellow-100 dark:yellow-900' : 'pink-100 dark:pink-900'"
     :inactive="data.inactive"
-    class="group relative" :class="[data.selected ? 'b-pink-300 dark:b-pink-700' : 'b-pink-200 dark:b-pink-800']"
+    class="group relative" :class="[selected ? 'b-pink-300 dark:b-pink-700' : 'b-pink-200 dark:b-pink-800']"
   >
     <div v-if="messagesStore.isGenerating(data.message.id)" :bg="showSummary ? 'yellow-200 dark:yellow-800' : 'pink-200 dark:pink-800'" flex justify-between p-2>
       <div class="flex items-center gap-2">
