@@ -10,8 +10,8 @@ interface CreateImageToolOptions {
 }
 
 export async function createImageTools(options: CreateImageToolOptions) {
-  return Promise.all([
-    tool({
+  return [
+    await tool({
       name: 'generate_image',
       description: 'Generate an image',
       parameters: z.object({
@@ -31,5 +31,5 @@ export async function createImageTools(options: CreateImageToolOptions) {
         return 'Image generated successfully'
       },
     }),
-  ])
+  ]
 }
