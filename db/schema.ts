@@ -39,3 +39,13 @@ export const messages = pgTable('messages', {
 }, table => [
   index('embeddingIndex').using('hnsw', table.embedding.op('vector_cosine_ops')),
 ])
+
+export const memories = pgTable('memories', () => ({
+  id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
+  content: text('content').notNull(),
+  scope: text('scope').notNull(), // 'global' | 'room'
+  room_id: uuid('room_id').references(() => rooms.id, { onDelete: 'cascade' }),
+  tags: text('tags').notNull().default('[]'), // JSON stringified string[]
+  created_at: timestamp('created_at').notNull().default(sql`now()`),
+  updated_at: timestamp('updated_at').notNull().default(sql`now()`),
+}))
