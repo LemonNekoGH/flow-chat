@@ -32,7 +32,7 @@ import { ChatMode, useModeStore } from '~/stores/mode'
 import { useRoomsStore } from '~/stores/rooms'
 import { useRoomViewStateStore } from '~/stores/roomViewState'
 import { useSettingsStore } from '~/stores/settings'
-import { createImageTools } from '~/tools'
+import { createImageTools, createMemoryTools } from '~/tools'
 import { parseMessage } from '~/utils/chat'
 import { asyncIteratorFromReadableStream } from '~/utils/interator'
 import { SUMMARY_PROMPT } from '~/utils/prompts'
@@ -221,11 +221,16 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
 
   try {
     const tools = {
-      tool: await createImageTools({ // TODO: more tools
-        apiKey: settingsStore.imageGeneration.apiKey,
-        baseURL: 'https://api.openai.com/v1',
-        piniaStore: messagesStore,
-      }),
+      tool: [
+        ...(await createImageTools({ // TODO: more tools
+          apiKey: settingsStore.imageGeneration.apiKey,
+          baseURL: 'https://api.openai.com/v1',
+          piniaStore: messagesStore,
+        })),
+        ...(await createMemoryTools({
+          roomId: currentRoomId.value ?? null,
+        })),
+      ],
     }
 
     let isSupportTools = false

@@ -22,6 +22,13 @@
       "when": 1765949623337,
       "tag": "0002_sleepy_warpath",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1766398408187,
+      "tag": "0003_equal_tempest",
+      "breakpoints": true
     }
   ]
 }
