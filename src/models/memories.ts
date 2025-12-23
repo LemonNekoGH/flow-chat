@@ -93,10 +93,13 @@ export function useMemoryModel() {
     return toMemory(updated ?? existing)
   }
 
-  async function getByRoomId(roomId: string | null) {
-    const rows = roomId
-      ? await dbStore.db().select().from(schema.memories).where(eq(schema.memories.room_id, roomId))
-      : await dbStore.db().select().from(schema.memories).where(isNull(schema.memories.room_id))
+  async function getByRoomId(roomId: string | null, scope?: MemoryScope) {
+    const effectiveScope: MemoryScope = scope ?? (roomId ? 'room' : 'global')
+    const conditions = [
+      eq(schema.memories.scope, effectiveScope),
+      roomId ? eq(schema.memories.room_id, roomId) : isNull(schema.memories.room_id),
+    ]
+    const rows = await dbStore.db().select().from(schema.memories).where(and(...conditions))
     return rows.map(toMemory)
   }
 
