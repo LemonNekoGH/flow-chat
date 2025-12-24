@@ -25,8 +25,6 @@ const showEditDialog = ref(false)
 const addTemplateForm = ref({
   name: '',
   prompt: '',
-  developerPrompt: '',
-  useMemory: false,
   isDefault: false,
 })
 
@@ -34,8 +32,6 @@ const editTemplateForm = ref({
   id: '',
   name: '',
   prompt: '',
-  developerPrompt: '',
-  useMemory: false,
   isDefault: false,
 })
 
@@ -47,8 +43,6 @@ function openAddDialog() {
   addTemplateForm.value = {
     name: '',
     prompt: '',
-    developerPrompt: '',
-    useMemory: false,
     isDefault: false,
   }
   showAddDialog.value = true
@@ -61,8 +55,6 @@ async function createTemplate() {
   await templateModel.create(
     addTemplateForm.value.name.trim(),
     addTemplateForm.value.prompt.trim(),
-    addTemplateForm.value.developerPrompt.trim() || null,
-    addTemplateForm.value.useMemory,
   )
   templates.value = await templateModel.getAll()
 
@@ -82,8 +74,6 @@ async function openEditDialog(id: string) {
     id,
     name: template.name,
     prompt: template.system_prompt,
-    developerPrompt: template.developer_system_prompt || '',
-    useMemory: template.use_memory,
     isDefault: settingsStore.defaultTemplateId === id,
   }
   showEditDialog.value = true
@@ -97,8 +87,6 @@ async function updateTemplate() {
     editTemplateForm.value.id,
     editTemplateForm.value.name.trim(),
     editTemplateForm.value.prompt.trim(),
-    editTemplateForm.value.developerPrompt.trim() || null,
-    editTemplateForm.value.useMemory,
   )
   templates.value = await templateModel.getAll()
 
@@ -134,8 +122,8 @@ function setAsDefault(id: string) {
 // Close modals on ESC key
 watch([showAddDialog, showEditDialog, showDeleteConfirm], ([add, edit, del]) => {
   if (!add && !edit && !del) {
-    addTemplateForm.value = { name: '', prompt: '', developerPrompt: '', useMemory: false, isDefault: false }
-    editTemplateForm.value = { id: '', name: '', prompt: '', developerPrompt: '', useMemory: false, isDefault: false }
+    addTemplateForm.value = { name: '', prompt: '', isDefault: false }
+    editTemplateForm.value = { id: '', name: '', prompt: '', isDefault: false }
     templateToDelete.value = ''
   }
 })
@@ -213,37 +201,13 @@ onMounted(async () => {
             <Input id="template-name" v-model="addTemplateForm.name" placeholder="Template name" />
           </div>
           <div max-h-80 flex flex-col gap-2>
-            <Label for="template-developer-prompt">Developer System Prompt (Layer 1 - Cannot be bypassed)</Label>
-            <Textarea
-              id="template-developer-prompt"
-              v-model="addTemplateForm.developerPrompt"
-              placeholder="Developer system prompt (optional, but cannot be bypassed)..."
-              class="min-h-32 border border-gray-300 rounded-md p-2"
-            />
-            <p class="text-xs text-gray-500">
-              This is the first layer system prompt. All restrictions here cannot be bypassed.
-            </p>
-          </div>
-          <div max-h-80 flex flex-col gap-2>
-            <Label for="template-prompt">User System Prompt (Layer 2)</Label>
+            <Label for="template-prompt">System Prompt</Label>
             <Textarea
               id="template-prompt"
               v-model="addTemplateForm.prompt"
-              placeholder="User system prompt..."
+              placeholder="System prompt..."
               class="min-h-40 border border-gray-300 rounded-md p-2"
             />
-            <p class="text-xs text-gray-500">
-              This is the second layer system prompt, loaded from the database.
-            </p>
-          </div>
-          <div class="flex items-center gap-2">
-            <input
-              id="use-memory"
-              v-model="addTemplateForm.useMemory"
-              type="checkbox"
-              class="h-4 w-4 border-gray-300 rounded text-primary focus:ring-primary"
-            >
-            <Label for="use-memory">Use memory</Label>
           </div>
           <div class="flex items-center gap-2">
             <input
@@ -278,37 +242,13 @@ onMounted(async () => {
             <Input id="edit-template-name" v-model="editTemplateForm.name" placeholder="Template name" />
           </div>
           <div max-h-80 flex flex-col gap-2>
-            <Label for="edit-template-developer-prompt">Developer System Prompt (Layer 1 - Cannot be bypassed)</Label>
-            <Textarea
-              id="edit-template-developer-prompt"
-              v-model="editTemplateForm.developerPrompt"
-              placeholder="Developer system prompt (optional, but cannot be bypassed)..."
-              class="min-h-32 border border-gray-300 rounded-md p-2"
-            />
-            <p class="text-xs text-gray-500">
-              This is the first layer system prompt. All restrictions here cannot be bypassed.
-            </p>
-          </div>
-          <div max-h-80 flex flex-col gap-2>
-            <Label for="edit-template-prompt">User System Prompt (Layer 2)</Label>
+            <Label for="edit-template-prompt">System Prompt</Label>
             <Textarea
               id="edit-template-prompt"
               v-model="editTemplateForm.prompt"
-              placeholder="User system prompt..."
+              placeholder="System prompt..."
               class="min-h-40 border border-gray-300 rounded-md p-2"
             />
-            <p class="text-xs text-gray-500">
-              This is the second layer system prompt, loaded from the database.
-            </p>
-          </div>
-          <div class="flex items-center gap-2">
-            <input
-              id="edit-use-memory"
-              v-model="editTemplateForm.useMemory"
-              type="checkbox"
-              class="h-4 w-4 border-gray-300 rounded text-primary focus:ring-primary"
-            >
-            <Label for="edit-use-memory">Use memory</Label>
           </div>
           <div class="flex items-center gap-2">
             <input

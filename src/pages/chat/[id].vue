@@ -202,9 +202,26 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
     return
   }
 
+  // Get memory IDs from parent message or fetch all memories for the room
+  let memoryIds: string[] = []
+  if (parentId) {
+    const parentMessage = messagesStore.getMessageById(parentId)
+    if (parentMessage?.memory && parentMessage.memory.length > 0) {
+      memoryIds = parentMessage.memory
+    }
+  }
+
+  // If no memory IDs from parent, fetch all memories for the room
+  if (memoryIds.length === 0 && currentRoomId.value) {
+    const { useMemoryModel } = await import('~/models/memories')
+    const memoryModel = useMemoryModel()
+    const memories = await memoryModel.getByRoomId(currentRoomId.value)
+    memoryIds = memories.map(m => m.id)
+  }
+
   let newMsgId = regenerateId
   if (!newMsgId) {
-    const { id } = await messagesStore.newMessage('', 'assistant', parentId, provider, model, currentRoomId.value!)
+    const { id } = await messagesStore.newMessage('', 'assistant', parentId, provider, model, currentRoomId.value!, memoryIds)
     newMsgId = id
   }
   else {
@@ -257,6 +274,7 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
         systemMessages = await buildSystemPrompt({
           template,
           roomId: currentRoomId.value ?? null,
+          memoryIds,
         })
       }
     }

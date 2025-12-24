@@ -33,6 +33,7 @@ export const useMessagesStore = defineStore('messages', () => {
     provider: string,
     model: string,
     roomId: string,
+    memory?: string[],
   ) {
     return messageModel.create({
       content: text,
@@ -41,6 +42,7 @@ export const useMessagesStore = defineStore('messages', () => {
       provider,
       model,
       room_id: roomId,
+      memory: memory || [],
     })
   }
 

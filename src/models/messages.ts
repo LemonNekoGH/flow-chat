@@ -3,15 +3,36 @@ import { and, cosineDistance, desc, eq, getTableColumns, ilike, inArray, isNull,
 import { useDatabaseStore } from '~/stores/database'
 import * as schema from '../../db/schema'
 
+function safeJsonParseArray(raw: string | null | undefined): string[] {
+  if (!raw)
+    return []
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed))
+      return []
+    return parsed.filter((it): it is string => typeof it === 'string').map(it => it.trim()).filter(Boolean)
+  }
+  catch {
+    return []
+  }
+}
+
+function toMessage(row: any): Message {
+  return {
+    ...row,
+    memory: safeJsonParseArray(row.memory),
+  } as Message
+}
+
 export function useMessageModel() {
   const dbStore = useDatabaseStore()
 
   function getAll() {
-    return dbStore.db().select().from(schema.messages)
+    return dbStore.db().select().from(schema.messages).then(rows => rows.map(toMessage))
   }
 
   function getByRoomId(roomId: string) {
-    return dbStore.db().select().from(schema.messages).where(eq(schema.messages.room_id, roomId))
+    return dbStore.db().select().from(schema.messages).where(eq(schema.messages.room_id, roomId)).then(rows => rows.map(toMessage))
   }
 
   function deleteByIds(ids: string[]) {
@@ -22,15 +43,21 @@ export function useMessageModel() {
 
   async function create(msg: Omit<Message, 'id'>) {
     const message = await dbStore.withCheckpoint((db) => {
-      return db.insert(schema.messages).values(msg).returning()
+      return db.insert(schema.messages).values({
+        ...msg,
+        memory: JSON.stringify(msg.memory || []),
+      }).returning()
     })
 
-    return message[0]
+    return toMessage(message[0])
   }
 
   function update(id: string, msg: Message) {
     return dbStore.withCheckpoint((db) => {
-      return db.update(schema.messages).set(msg).where(eq(schema.messages.id, id))
+      return db.update(schema.messages).set({
+        ...msg,
+        memory: JSON.stringify(msg.memory || []),
+      }).where(eq(schema.messages.id, id))
     })
   }
 
@@ -74,10 +101,11 @@ export function useMessageModel() {
       .select()
       .from(schema.messages)
       .where(and(...conditions))
+      .then(rows => rows.map(toMessage))
   }
 
   function notEmbeddedMessages() {
-    return dbStore.db().select().from(schema.messages).where(isNull(schema.messages.embedding))
+    return dbStore.db().select().from(schema.messages).where(isNull(schema.messages.embedding)).then(rows => rows.map(toMessage))
   }
 
   function updateEmbedding(id: string, embedding: number[]) {
@@ -93,6 +121,7 @@ export function useMessageModel() {
       .from(schema.messages)
       .orderBy(t => desc(t.similarity))
       .limit(limit)
+      .then(rows => rows.map(row => ({ ...toMessage(row), similarity: row.similarity })))
   }
 
   return {

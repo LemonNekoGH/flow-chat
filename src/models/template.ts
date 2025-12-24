@@ -5,24 +5,20 @@ import * as schema from '../../db/schema'
 export function useTemplateModel() {
   const dbStore = useDatabaseStore()
 
-  function create(name: string, systemPrompt: string, developerSystemPrompt?: string | null, useMemory?: boolean) {
+  function create(name: string, systemPrompt: string) {
     return dbStore.withCheckpoint((db) => {
       return db.insert(schema.templates).values({
         name,
         system_prompt: systemPrompt,
-        developer_system_prompt: developerSystemPrompt ?? null,
-        use_memory: useMemory ?? false,
       })
     })
   }
 
-  function update(id: string, name: string, systemPrompt: string, developerSystemPrompt?: string | null, useMemory?: boolean) {
+  function update(id: string, name: string, systemPrompt: string) {
     return dbStore.withCheckpoint((db) => {
       return db.update(schema.templates).set({
         name,
         system_prompt: systemPrompt,
-        developer_system_prompt: developerSystemPrompt ?? null,
-        use_memory: useMemory ?? false,
       }).where(eq(schema.templates.id, id))
     })
   }

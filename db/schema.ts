@@ -5,8 +5,6 @@ export const templates = pgTable('templates', () => ({
   id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
   name: text('name').notNull(),
   system_prompt: text('system_prompt').notNull(),
-  developer_system_prompt: text('developer_system_prompt'),
-  use_memory: boolean('use_memory').notNull().default(false),
   // TODO: temperature or something else AI settings.
   created_at: timestamp('created_at').notNull().default(sql`now()`),
   updated_at: timestamp('updated_at').notNull().default(sql`now()`),
@@ -36,6 +34,7 @@ export const messages = pgTable('messages', {
   embedding: vector('embedding', { dimensions: 1024 }),
   summary: text('summary'),
   show_summary: boolean('show_summary').notNull().default(false),
+  memory: text('memory').notNull().default('[]'), // JSON stringified string[] (memory IDs)
   created_at: timestamp('created_at').notNull().default(sql`now()`),
   updated_at: timestamp('updated_at').notNull().default(sql`now()`),
 }, table => [
