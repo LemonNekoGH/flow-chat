@@ -1,5 +1,5 @@
 {
-  "id": "937385b6-aa83-43ee-a531-6ab96bd4362e",
+  "id": "01a24fdd-5d50-4687-9bb5-f8ee8566dcdd",
   "prevId": "83009e23-dfb0-4bf3-9378-8ea08148b699",
   "version": "7",
   "dialect": "postgresql",
@@ -153,10 +153,10 @@
         },
         "memory": {
           "name": "memory",
-          "type": "text",
+          "type": "text[]",
           "primaryKey": false,
           "notNull": true,
-          "default": "'[]'"
+          "default": "ARRAY[]::text[]"
         },
         "created_at": {
           "name": "created_at",

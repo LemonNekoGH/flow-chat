@@ -1,0 +1,1 @@
+ALTER TABLE "messages" ADD COLUMN "memory" text[] DEFAULT ARRAY[]::text[] NOT NULL;

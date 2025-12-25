@@ -3,24 +3,10 @@ import { and, cosineDistance, desc, eq, getTableColumns, ilike, inArray, isNull,
 import { useDatabaseStore } from '~/stores/database'
 import * as schema from '../../db/schema'
 
-function safeJsonParseArray(raw: string | null | undefined): string[] {
-  if (!raw)
-    return []
-  try {
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed))
-      return []
-    return parsed.filter((it): it is string => typeof it === 'string').map(it => it.trim()).filter(Boolean)
-  }
-  catch {
-    return []
-  }
-}
-
 function toMessage(row: any): Message {
   return {
     ...row,
-    memory: safeJsonParseArray(row.memory),
+    memory: Array.isArray(row.memory) ? row.memory : (row.memory || []),
   } as Message
 }
 
@@ -45,7 +31,7 @@ export function useMessageModel() {
     const message = await dbStore.withCheckpoint((db) => {
       return db.insert(schema.messages).values({
         ...msg,
-        memory: JSON.stringify(msg.memory || []),
+        memory: msg.memory || [],
       }).returning()
     })
 
@@ -56,7 +42,7 @@ export function useMessageModel() {
     return dbStore.withCheckpoint((db) => {
       return db.update(schema.messages).set({
         ...msg,
-        memory: JSON.stringify(msg.memory || []),
+        memory: msg.memory || [],
       }).where(eq(schema.messages.id, id))
     })
   }
