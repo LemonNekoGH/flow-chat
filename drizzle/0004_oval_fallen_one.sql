@@ -1,0 +1,1 @@
+ALTER TABLE "messages" ADD COLUMN "memory" text DEFAULT '[]' NOT NULL;

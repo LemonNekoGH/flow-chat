@@ -1,5 +1,5 @@
 {
-  "id": "6cb4fb84-2765-4f95-b0e1-32ff9f32aabc",
+  "id": "937385b6-aa83-43ee-a531-6ab96bd4362e",
   "prevId": "83009e23-dfb0-4bf3-9378-8ea08148b699",
   "version": "7",
   "dialect": "postgresql",
@@ -150,6 +150,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
+        },
+        "memory": {
+          "name": "memory",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'"
         },
         "created_at": {
           "name": "created_at",
@@ -333,19 +340,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "developer_system_prompt": {
-          "name": "developer_system_prompt",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "use_memory": {
-          "name": "use_memory",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
         },
         "created_at": {
           "name": "created_at",
