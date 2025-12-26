@@ -6,7 +6,7 @@ import * as schema from '../../db/schema'
 function toMessage(row: any): Message {
   return {
     ...row,
-    memory: Array.isArray(row.memory) ? row.memory : (row.memory || []),
+    memory: Array.isArray(row.memory) ? row.memory : [],
   } as Message
 }
 
