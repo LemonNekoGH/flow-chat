@@ -80,3 +80,13 @@ style: better style for markdown view (#53)
 2. If a commit involves multiple aspects, prioritize the most important type
 3. Scope is optional and should only be used when it helps understand the commit
 4. Keep commit messages concise; detailed explanations can be added in PR descriptions
+
+## Database Schema Migrations
+
+When working on a PR that involves multiple schema changes:
+
+1. **Consolidate migration files**: If multiple migration files were generated during development, you can delete all the newly created migration files in the PR
+2. **Regenerate migrations**: Use `pnpm db:generate` to generate a single migration file that includes all schema changes made in the PR
+3. **Update journal**: When deleting migration files, also remove the corresponding entries from `drizzle/meta/_journal.json` that were added for those migrations
+
+This ensures that the PR contains a single, clean migration file that represents all schema changes, making it easier to review and maintain.
