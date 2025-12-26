@@ -81,6 +81,18 @@ style: better style for markdown view (#53)
 3. Scope is optional and should only be used when it helps understand the commit
 4. Keep commit messages concise; detailed explanations can be added in PR descriptions
 
+## Code Quality Guidelines
+
+### Type Safety
+
+- **Avoid using `any` type**: Always use proper TypeScript types. Use type inference from libraries (e.g., `InferSelectModel` from drizzle-orm) or define explicit types instead of `any`
+- **Avoid type assertions**: Prefer type inference over `as` type assertions. Only use type assertions when absolutely necessary and add comments explaining why
+
+### Pre-commit Checks
+
+- **Type checking**: Run `pnpm typecheck` before committing to ensure there are no type errors
+- **Linting**: Ensure code passes linting checks (`pnpm lint`) before committing
+
 ## Database Schema Migrations
 
 When working on a PR that involves multiple schema changes:
