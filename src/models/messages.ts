@@ -1,13 +1,16 @@
+import type { InferSelectModel } from 'drizzle-orm'
 import type { Message } from '~/types/messages'
 import { and, cosineDistance, desc, eq, getTableColumns, ilike, inArray, isNull, sql } from 'drizzle-orm'
 import { useDatabaseStore } from '~/stores/database'
 import * as schema from '../../db/schema'
 
-function toMessage(row: any): Message {
+type MessageRow = InferSelectModel<typeof schema.messages>
+
+function toMessage(row: MessageRow): Message {
   return {
     ...row,
     memory: Array.isArray(row.memory) ? row.memory : [],
-  } as Message
+  }
 }
 
 export function useMessageModel() {
