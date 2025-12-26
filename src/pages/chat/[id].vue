@@ -291,7 +291,7 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
       apiKey: currentProvider.value?.apiKey,
       baseURL: currentProvider.value?.baseURL,
       model,
-      messages: allMessages,
+      messages: allMessages as any,
       abortSignal: abortController.signal,
     })
 

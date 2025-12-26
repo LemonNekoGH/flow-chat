@@ -24,6 +24,7 @@ describe('message Model', () => {
       content: 'FlowChat is a chat UI in graph.',
       role: 'user',
       room_id: room.id,
+      summary: null,
     })
     const embeddingContent = Array.from({ length: 1024 }, () => Math.round(Math.random() * 1000) / 1000)
     const embedding = await messageModel.updateEmbedding(message.id, embeddingContent)
@@ -45,6 +46,7 @@ describe('message Model', () => {
       content: 'FlowChat is a chat UI in graph.',
       role: 'user',
       room_id: room.id,
+      summary: null,
     })
     const messageWithoutEmbedding = await messageModel.create({
       model: 'test',
@@ -53,6 +55,7 @@ describe('message Model', () => {
       content: 'AIRI is a AI companion.',
       role: 'user',
       room_id: room.id,
+      summary: null,
     })
 
     await messageModel.updateEmbedding(

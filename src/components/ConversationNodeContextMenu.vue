@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import type { MessageRole } from '~/types/messages'
-
 defineProps<{
   x: number
   y: number
-  role?: MessageRole
+  role?: string
 }>()
 
 defineEmits<{

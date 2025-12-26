@@ -32,6 +32,7 @@ function createMessage(
     room_id: TUTORIAL_ROOM_ID,
     model,
     provider,
+    summary: null,
   }
 }
 

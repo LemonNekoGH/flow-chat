@@ -43,6 +43,7 @@ export const useMessagesStore = defineStore('messages', () => {
       model,
       room_id: roomId,
       memory: memory || [],
+      summary: null,
     })
   }
 
