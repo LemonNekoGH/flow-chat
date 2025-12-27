@@ -52,14 +52,23 @@ async function createTemplate() {
   if (!addTemplateForm.value.name.trim() || !addTemplateForm.value.prompt.trim())
     return
 
-  await templateModel.create(
+  const created = await templateModel.create(
     addTemplateForm.value.name.trim(),
     addTemplateForm.value.prompt.trim(),
   )
   templates.value = await templateModel.getAll()
 
   if (addTemplateForm.value.isDefault && templates.value.length > 0) {
-    settingsStore.defaultTemplateId = templates.value[templates.value.length - 1]!.id
+    if (created?.id) {
+      settingsStore.defaultTemplateId = created.id
+    }
+    else {
+      // Fallback: pick the newest by created_at instead of relying on array order.
+      const newest = templates.value.reduce((acc, cur) => {
+        return acc.created_at > cur.created_at ? acc : cur
+      })
+      settingsStore.defaultTemplateId = newest.id
+    }
   }
 
   showAddDialog.value = false
