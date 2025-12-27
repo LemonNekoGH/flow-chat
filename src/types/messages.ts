@@ -13,5 +13,5 @@ export interface Message extends BaseMessage {
   model: string // model used to generate this message
   summary: string | null
   show_summary?: boolean
-  memory?: string[] // Array of memory IDs used in this message
+  memory?: string[]
 }

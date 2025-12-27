@@ -9,7 +9,7 @@ type MessageRow = InferSelectModel<typeof schema.messages>
 function toMessage(row: MessageRow): Message {
   return {
     ...row,
-    memory: Array.isArray(row.memory) ? row.memory : [],
+    memory: row.memory,
   }
 }
 
@@ -32,10 +32,7 @@ export function useMessageModel() {
 
   async function create(msg: Omit<Message, 'id'>) {
     const message = await dbStore.withCheckpoint((db) => {
-      return db.insert(schema.messages).values({
-        ...msg,
-        memory: msg.memory || [],
-      }).returning()
+      return db.insert(schema.messages).values(msg).returning()
     })
 
     return toMessage(message[0])
@@ -43,10 +40,7 @@ export function useMessageModel() {
 
   function update(id: string, msg: Message) {
     return dbStore.withCheckpoint((db) => {
-      return db.update(schema.messages).set({
-        ...msg,
-        memory: msg.memory || [],
-      }).where(eq(schema.messages.id, id))
+      return db.update(schema.messages).set(msg).where(eq(schema.messages.id, id))
     })
   }
 

@@ -34,7 +34,7 @@ export const messages = pgTable('messages', {
   embedding: vector('embedding', { dimensions: 1024 }),
   summary: text('summary'),
   show_summary: boolean('show_summary').notNull().default(false),
-  memory: text('memory').array().notNull().default(sql`ARRAY[]::text[]`), // Array of memory IDs
+  memory: text('memory').array().notNull().default(sql`ARRAY[]::text[]`),
   created_at: timestamp('created_at').notNull().default(sql`now()`),
   updated_at: timestamp('updated_at').notNull().default(sql`now()`),
 }, table => [

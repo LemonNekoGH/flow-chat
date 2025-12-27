@@ -202,7 +202,6 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
     return
   }
 
-  // Get memory IDs from parent message or fetch all memories for the room
   let memoryIds: string[] = []
   if (parentId) {
     const parentMessage = messagesStore.getMessageById(parentId)
@@ -211,7 +210,6 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
     }
   }
 
-  // If no memory IDs from parent, fetch all memories for the room
   if (memoryIds.length === 0 && currentRoomId.value) {
     const { useMemoryModel } = await import('~/models/memories')
     const memoryModel = useMemoryModel()
@@ -264,7 +262,6 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
       console.error('Failed to check if model supports tools', error)
     }
 
-    // Build two-layer system prompt
     const currentRoom = roomsStore.currentRoom
     let systemMessages: BaseMessage[] = []
     if (currentRoom?.template_id) {
@@ -279,9 +276,8 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
       }
     }
 
-    // Build messages: system prompts first, then conversation messages
     const conversationMessages = currentBranch.value.messages
-      .filter(msg => msg.role !== 'system') // Remove old system messages
+      .filter(msg => msg.role !== 'system')
       .map(({ content, role }): BaseMessage => ({ content, role }))
     const allMessages = [...systemMessages, ...conversationMessages]
 
@@ -291,7 +287,7 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
       apiKey: currentProvider.value?.apiKey,
       baseURL: currentProvider.value?.baseURL,
       model,
-      messages: allMessages as any,
+      messages: allMessages as any, // FIXME: migrate to enum later
       abortSignal: abortController.signal,
     })
 

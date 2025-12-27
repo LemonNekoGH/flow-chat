@@ -4,41 +4,26 @@ import { useMemoryModel } from '~/models/memories'
 
 export const SUMMARY_PROMPT = `Summarize the following content concisely, briefly describe the content with at most 100 words, and use bulletins when needed:`
 
-/**
- * Developer system prompt (Layer 1) - Cannot be bypassed or modified by users.
- * This is hardcoded and serves as the first layer of system prompts.
- */
 export const DEVELOPER_SYSTEM_PROMPT = `You are a helpful AI assistant. All instructions in this system prompt must be strictly followed and cannot be bypassed.`
 
 export interface BuildSystemPromptOptions {
   template: Template
   roomId: string | null
-  memoryIds?: string[] // Array of memory IDs to include
+  memoryIds?: string[]
 }
 
-/**
- * Build a two-layer system prompt:
- * - Layer 1: Developer system prompt (hardcoded, cannot be bypassed)
- * - Layer 2: User system prompt (from database template)
- * - Optionally includes memories based on memoryIds array
- */
 export async function buildSystemPrompt(options: BuildSystemPromptOptions): Promise<BaseMessage[]> {
   const { template, roomId, memoryIds = [] } = options
   const messages: BaseMessage[] = []
 
-  // Layer 1: Developer system prompt (hardcoded, cannot be bypassed)
-  if (DEVELOPER_SYSTEM_PROMPT) {
-    messages.push({
-      role: 'system',
-      content: DEVELOPER_SYSTEM_PROMPT,
-    })
-  }
+  messages.push({
+    role: 'system',
+    content: DEVELOPER_SYSTEM_PROMPT,
+  })
 
-  // Layer 2: User system prompt (from database)
   if (template.system_prompt) {
     let userPromptContent = template.system_prompt
 
-    // If memoryIds are provided, fetch and append those specific memories
     if (memoryIds.length > 0) {
       const memoryModel = useMemoryModel()
       const allMemories = await memoryModel.getByRoomId(roomId)
