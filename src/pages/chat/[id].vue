@@ -25,6 +25,7 @@ import { Input } from '~/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select'
 import { Textarea } from '~/components/ui/textarea'
 import { isDark } from '~/composables/dark'
+import { useTemplateModel } from '~/models/template'
 import { useDatabaseStore } from '~/stores/database'
 import { useDialogStore } from '~/stores/dialog'
 import { useMessagesStore } from '~/stores/messages'
@@ -35,7 +36,7 @@ import { useSettingsStore } from '~/stores/settings'
 import { createImageTools, createMemoryTools } from '~/tools'
 import { parseMessage } from '~/utils/chat'
 import { asyncIteratorFromReadableStream } from '~/utils/interator'
-import { SUMMARY_PROMPT } from '~/utils/prompts'
+import { buildSystemPrompt, SUMMARY_PROMPT } from '~/utils/prompts'
 
 const dbStore = useDatabaseStore()
 
@@ -201,9 +202,24 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
     return
   }
 
+  let memoryIds: string[] = []
+  if (parentId) {
+    const parentMessage = messagesStore.getMessageById(parentId)
+    if (parentMessage?.memory && parentMessage.memory.length > 0) {
+      memoryIds = parentMessage.memory
+    }
+  }
+
+  if (memoryIds.length === 0 && currentRoomId.value) {
+    const { useMemoryModel } = await import('~/models/memories')
+    const memoryModel = useMemoryModel()
+    const memories = await memoryModel.getByRoomId(currentRoomId.value)
+    memoryIds = memories.map(m => m.id)
+  }
+
   let newMsgId = regenerateId
   if (!newMsgId) {
-    const { id } = await messagesStore.newMessage('', 'assistant', parentId, provider, model, currentRoomId.value!)
+    const { id } = await messagesStore.newMessage('', 'assistant', parentId, provider, model, currentRoomId.value!, memoryIds)
     newMsgId = id
   }
   else {
@@ -246,13 +262,32 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
       console.error('Failed to check if model supports tools', error)
     }
 
+    const currentRoom = roomsStore.currentRoom
+    let systemMessages: BaseMessage[] = []
+    if (currentRoom?.template_id) {
+      const templateModel = useTemplateModel()
+      const template = await templateModel.getById(currentRoom.template_id)
+      if (template) {
+        systemMessages = await buildSystemPrompt({
+          template,
+          roomId: currentRoomId.value ?? null,
+          memoryIds,
+        })
+      }
+    }
+
+    const conversationMessages = currentBranch.value.messages
+      .filter(msg => msg.role !== 'system')
+      .map(({ content, role }): BaseMessage => ({ content, role }))
+    const allMessages = [...systemMessages, ...conversationMessages]
+
     const { textStream } = await streamText({
       ...(isSupportTools ? tools : {}),
       maxSteps: 10,
       apiKey: currentProvider.value?.apiKey,
       baseURL: currentProvider.value?.baseURL,
       model,
-      messages: currentBranch.value.messages.map(({ content, role }): BaseMessage => ({ content, role })),
+      messages: allMessages as any, // FIXME: migrate to enum later
       abortSignal: abortController.signal,
     })
 

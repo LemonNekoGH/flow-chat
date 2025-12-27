@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Message, MessageRole } from '~/types/messages'
+import type { Message } from '~/types/messages'
 import { useClipboard, useEventListener } from '@vueuse/core'
 import { computed, nextTick, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
@@ -98,7 +98,7 @@ const contextMenu = ref({
   x: 0,
   y: 0,
   messageId: '',
-  role: undefined as MessageRole | undefined,
+  role: undefined as string | undefined,
 })
 
 function extractSelectionFrom(target: EventTarget | null) {

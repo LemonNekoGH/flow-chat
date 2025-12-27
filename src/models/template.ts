@@ -5,13 +5,18 @@ import * as schema from '../../db/schema'
 export function useTemplateModel() {
   const dbStore = useDatabaseStore()
 
-  function create(name: string, systemPrompt: string) {
-    return dbStore.withCheckpoint((db) => {
-      return db.insert(schema.templates).values({
-        name,
-        system_prompt: systemPrompt,
-      })
+  async function create(name: string, systemPrompt: string) {
+    const created = await dbStore.withCheckpoint((db) => {
+      return db
+        .insert(schema.templates)
+        .values({
+          name,
+          system_prompt: systemPrompt,
+        })
+        .returning({ id: schema.templates.id })
     })
+
+    return created[0]
   }
 
   function update(id: string, name: string, systemPrompt: string) {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Message, MessageRole } from '~/types/messages'
+import type { Message } from '~/types/messages'
 import { useLogg } from '@guiiai/logg'
 import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/webworkers'
@@ -147,12 +147,13 @@ function clearHistory() {
   searchHistory.value = []
 }
 
-function formatRole(role: MessageRole): string {
-  const roleMap: Record<MessageRole, string> = {
-    user: 'User',
-    assistant: 'Assistant',
-    system: 'System',
-  }
+const roleMap: Record<string, string> = {
+  user: 'User',
+  assistant: 'Assistant',
+  system: 'System',
+}
+
+function formatRole(role: string): string {
   return roleMap[role] ?? 'Unknown'
 }
 

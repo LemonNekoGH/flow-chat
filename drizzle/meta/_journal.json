@@ -29,6 +29,13 @@
       "when": 1766398408187,
       "tag": "0003_equal_tempest",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1766846185528,
+      "tag": "0004_special_doctor_spectrum",
+      "breakpoints": true
     }
   ]
 }

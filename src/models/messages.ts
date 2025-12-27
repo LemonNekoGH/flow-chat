@@ -1,17 +1,27 @@
+import type { InferSelectModel } from 'drizzle-orm'
 import type { Message } from '~/types/messages'
 import { and, cosineDistance, desc, eq, getTableColumns, ilike, inArray, isNull, sql } from 'drizzle-orm'
 import { useDatabaseStore } from '~/stores/database'
 import * as schema from '../../db/schema'
 
+type MessageRow = InferSelectModel<typeof schema.messages>
+
+function toMessage(row: MessageRow): Message {
+  return {
+    ...row,
+    memory: row.memory,
+  }
+}
+
 export function useMessageModel() {
   const dbStore = useDatabaseStore()
 
   function getAll() {
-    return dbStore.db().select().from(schema.messages)
+    return dbStore.db().select().from(schema.messages).then(rows => rows.map(toMessage))
   }
 
   function getByRoomId(roomId: string) {
-    return dbStore.db().select().from(schema.messages).where(eq(schema.messages.room_id, roomId))
+    return dbStore.db().select().from(schema.messages).where(eq(schema.messages.room_id, roomId)).then(rows => rows.map(toMessage))
   }
 
   function deleteByIds(ids: string[]) {
@@ -25,7 +35,7 @@ export function useMessageModel() {
       return db.insert(schema.messages).values(msg).returning()
     })
 
-    return message[0]
+    return toMessage(message[0])
   }
 
   function update(id: string, msg: Message) {
@@ -74,10 +84,11 @@ export function useMessageModel() {
       .select()
       .from(schema.messages)
       .where(and(...conditions))
+      .then(rows => rows.map(toMessage))
   }
 
   function notEmbeddedMessages() {
-    return dbStore.db().select().from(schema.messages).where(isNull(schema.messages.embedding))
+    return dbStore.db().select().from(schema.messages).where(isNull(schema.messages.embedding)).then(rows => rows.map(toMessage))
   }
 
   function updateEmbedding(id: string, embedding: number[]) {
@@ -93,6 +104,7 @@ export function useMessageModel() {
       .from(schema.messages)
       .orderBy(t => desc(t.similarity))
       .limit(limit)
+      .then(rows => rows.map(row => ({ ...toMessage(row), similarity: row.similarity })))
   }
 
   return {
