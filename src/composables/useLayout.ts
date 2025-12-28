@@ -23,15 +23,39 @@ export function useLayout() {
 
     dagreGraph.setGraph({ rankdir: 'LR' })
 
+    // Check if all nodes have valid dimensions
+    let allNodesHaveDimensions = true
+    const nodeDimensions = new Map<string, { width: number, height: number }>()
+
     for (const node of nodes) {
       // if you need width+height of nodes for your layout, you can use the dimensions property of the internal node (`GraphNode` type)
       const graphNode = findNode(node.id)
 
       if (!graphNode) {
+        allNodesHaveDimensions = false
+        // Use default dimensions for nodes that haven't been rendered yet
+        nodeDimensions.set(node.id, { width: 300, height: 100 })
         continue
       }
 
-      dagreGraph.setNode(node.id, { width: graphNode.dimensions.width || 150, height: graphNode.dimensions.height || 50 })
+      const width = graphNode.dimensions.width
+      const height = graphNode.dimensions.height
+
+      // If dimensions are 0 or undefined, mark as incomplete and use defaults
+      if (!width || !height || width === 0 || height === 0) {
+        allNodesHaveDimensions = false
+        nodeDimensions.set(node.id, { width: 300, height: 100 })
+      }
+      else {
+        nodeDimensions.set(node.id, { width, height })
+      }
+    }
+
+    // If not all nodes have valid dimensions, we still proceed with layout
+    // but the layout might need to be recalculated later when dimensions are available
+    for (const node of nodes) {
+      const dims = nodeDimensions.get(node.id) || { width: 300, height: 100 }
+      dagreGraph.setNode(node.id, dims)
     }
 
     for (const edge of edges) {
@@ -64,7 +88,7 @@ export function useLayout() {
     })
 
     // set nodes with updated positions
-    return nodes.map((node) => {
+    const layoutedNodes = nodes.map((node) => {
       const nodeWithPosition = dagreGraph.node(node.id)
 
       if (!nodeWithPosition) {
@@ -78,6 +102,11 @@ export function useLayout() {
         position: { x: nodeWithPosition.x - leftPadding, y: nodeWithPosition.y - topPadding },
       }
     })
+
+    return {
+      nodes: layoutedNodes,
+      needsRecalculation: !allNodesHaveDimensions,
+    }
   }
 
   return { graph, layout }

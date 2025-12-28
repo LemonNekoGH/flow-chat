@@ -10,7 +10,7 @@ import { VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
 import { useClipboard, useElementBounding, useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, provide, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, provide, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { streamText } from 'xsai'
 import ConversationView from '~/components/ConversationView.vue'
@@ -536,6 +536,14 @@ async function handleSummarize(messageId: string) {
 
 function handleFlowInit() {
   roomViewStateStore.handleInit()
+  // Trigger layout recalculation after flow initialization
+  // This ensures node dimensions are available for layout calculation
+  nextTick(() => {
+    // Wait for nodes to be rendered
+    requestAnimationFrame(() => {
+      roomViewStateStore.triggerLayoutRecalculation()
+    })
+  })
 }
 
 const containerRef = ref<HTMLElement>()

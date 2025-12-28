@@ -7,7 +7,15 @@ defineProps<NodeProps<NodeData>>()
 </script>
 
 <template>
-  <div w-50 of-hidden b-2 rounded-lg text-xs :class="{ 'opacity-50': data.inactive }">
+  <div
+    w-50
+    of-hidden
+    b-2
+    rounded-lg
+    text-xs
+    :data-node-id="id"
+    :class="{ 'opacity-50': data.inactive }"
+  >
     <Handle type="target" :position="Position.Left" />
     <slot />
     <Handle type="source" :position="Position.Right" />

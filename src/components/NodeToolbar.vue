@@ -1,10 +1,9 @@
 <script lang="ts" setup>
 import type { UseElementBoundingReturn } from '@vueuse/core'
 import { Button, FieldTextArea } from '@proj-airi/ui'
-import { useVueFlow } from '@vue-flow/core'
-import { useDebounceFn, useEventListener } from '@vueuse/core'
+import { useDebounceFn, useEventListener, useRafFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, inject, ref, watch } from 'vue'
+import { computed, inject, nextTick, ref, watch } from 'vue'
 import { useMessagesStore } from '~/stores/messages'
 import { useRoomViewStateStore } from '~/stores/roomViewState'
 
@@ -25,43 +24,77 @@ const containerBounding = inject<UseElementBoundingReturn>('containerBounding')
 
 const messagesStore = useMessagesStore()
 const { hasAnyMessages } = storeToRefs(messagesStore)
-const { findNode, viewport } = useVueFlow()
 const roomViewStateStore = useRoomViewStateStore()
 const { selectedMessage } = storeToRefs(roomViewStateStore)
 
 const toolbarStyle = ref<{ left?: string, right?: string, top?: string, bottom?: string }>({
-  top: '0px',
+  top: '50%',
+  left: '50%',
+})
+
+const nodeElement = computed(() => {
+  if (!props.nodeId) {
+    return null
+  }
+
+  const nodeElement = document.querySelector(`[data-node-id="${props.nodeId}"]`) as HTMLElement
+  if (!nodeElement) {
+    return null
+  }
+
+  return nodeElement
 })
 
 const toolbarWidth = 400
-const nodeScreenPosition = ref({
-  x: 0,
-  y: 0,
-  width: 0,
-  height: 0,
-})
 
-const realtimeNodeScreenPosition = computed(() => {
-  const node = findNode(props.nodeId)
-  if (!node) {
+const nodeScreenPosition = ref<{
+  x: number
+  y: number
+  width: number
+  height: number
+  centerX: number
+  centerY: number
+} | null>(null)
+
+const realtimeNodeScreenPosition = ref<{
+  x: number
+  y: number
+  width: number
+  height: number
+  centerX: number
+  centerY: number
+} | null>(null)
+
+function updateNodePosition() {
+  if (!props.nodeId || !containerBounding) {
     return
   }
 
-  const nodePosition = node.position
-  const nodeDimensions = node.dimensions
-  const { x: viewportX, y: viewportY, zoom } = viewport.value
-
-  const nodeScreenX = nodePosition.x * zoom + viewportX
-  const nodeScreenY = nodePosition.y * zoom + viewportY
-  const nodeScreenWidth = nodeDimensions.width * zoom
-  const nodeScreenHeight = nodeDimensions.height * zoom
-
-  return {
-    x: nodeScreenX,
-    y: nodeScreenY,
-    width: nodeScreenWidth,
-    height: nodeScreenHeight,
+  if (!nodeElement.value) {
+    return
   }
+
+  const nodeRect = nodeElement.value.getBoundingClientRect()
+
+  const containerLeft = containerBounding.left.value
+  const containerTop = containerBounding.top.value
+  const x = nodeRect.left - containerLeft
+  const y = nodeRect.top - containerTop
+
+  realtimeNodeScreenPosition.value = {
+    x,
+    y,
+    width: nodeRect.width,
+    height: nodeRect.height,
+    centerX: x + nodeRect.width / 2,
+    centerY: y + nodeRect.height / 2,
+  }
+}
+
+useRafFn(() => {
+  updateNodePosition()
+}, {
+  immediate: true,
 })
 
 const shouldShowBelow = computed(() => {
@@ -77,7 +110,7 @@ const shouldShowBelow = computed(() => {
 })
 
 function updateToolbarPosition() {
-  if (!props.nodeId || !nodeScreenPosition.value || !containerBounding) {
+  if (!props.nodeId || !containerBounding) {
     toolbarStyle.value = {
       top: '50%',
       left: '50%',
@@ -90,6 +123,17 @@ function updateToolbarPosition() {
 
   if (realtimeNodeScreenPosition.value) {
     nodeScreenPosition.value = realtimeNodeScreenPosition.value
+  }
+
+  if (!nodeScreenPosition.value) {
+    toolbarStyle.value = {
+      top: '50%',
+      left: '50%',
+      right: undefined,
+      bottom: undefined,
+    }
+
+    return
   }
 
   toolbarStyle.value = { top: undefined, bottom: undefined, left: undefined, right: undefined }
@@ -118,7 +162,26 @@ const debouncedUpdate = useDebounceFn(() => {
 
 watch(
   () => props.nodeId,
-  updateToolbarPosition,
+  (newNodeId) => {
+    if (newNodeId) {
+      nextTick(() => {
+        updateNodePosition()
+        updateToolbarPosition()
+        requestAnimationFrame(() => {
+          updateNodePosition()
+          updateToolbarPosition()
+        })
+      })
+    }
+    else {
+      toolbarStyle.value = {
+        top: '50%',
+        left: '50%',
+        right: undefined,
+        bottom: undefined,
+      }
+    }
+  },
   { immediate: true },
 )
 
@@ -130,7 +193,10 @@ watch(() => [props.nodeId, realtimeNodeScreenPosition.value], () => {
   updateToolbarPosition()
 })
 
-useEventListener('resize', debouncedUpdate)
+useEventListener('resize', () => {
+  updateNodePosition()
+  debouncedUpdate()
+})
 
 const inputMessage = ref('')
 
@@ -148,7 +214,7 @@ function handleSend() {
     enter-active-class="transition-[opacity,transform] duration-200 ease-out"
     :enter-from-class="shouldShowBelow ? 'opacity-0 translate-y-10' : 'opacity-0 -translate-y-10'"
     enter-to-class="opacity-100 translate-y-0"
-    leave-active-class="transition-[opacity,transform] duration-150 ease-in'"
+    leave-active-class="transition-[opacity,transform] duration-150 ease-in"
     leave-from-class="opacity-100 translate-y-0"
     :leave-to-class="shouldShowBelow ? 'opacity-0 translate-y-10' : 'opacity-0 -translate-y-10'"
   >
