@@ -37,7 +37,6 @@ function getRawMarkdown(meta: MarkdownSlotMeta): string | undefined {
   return typeof raw === 'string' ? raw : undefined
 }
 
-// 在组件挂载和内容更新后，查找并替换工具调用占位符
 async function replaceToolCallPlaceholders() {
   if (!markdownContainer.value)
     return
@@ -50,18 +49,14 @@ async function replaceToolCallPlaceholders() {
     if (!toolCallId)
       return
 
-    // 标记为已替换，避免重复处理
     placeholder.setAttribute('data-replaced', 'true')
 
-    // 创建一个容器来挂载 Vue 组件
     const wrapper = document.createElement('div')
     wrapper.className = 'tool-call-wrapper'
 
-    // 使用 h 函数和 render 函数创建组件实例
     const vnode = h(ToolCallDisplay, { toolCallId })
     render(vnode, wrapper)
 
-    // 替换占位符
     placeholder.replaceWith(wrapper)
   })
 }

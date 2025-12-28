@@ -57,6 +57,6 @@ export const tool_calls = pgTable('tool_calls', {
   tool_name: text('tool_name').notNull(),
   parameters: jsonb('parameters'),
   result: jsonb('result'),
-  position: doublePrecision('position'), // 工具调用在消息内容中的位置（字符偏移量）
+  position: doublePrecision('position'),
   created_at: timestamp('created_at').notNull().default(sql`now()`),
 })

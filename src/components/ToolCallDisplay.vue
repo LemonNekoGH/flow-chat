@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { useToolCallModel } from '~/models/tool-calls'
 import type { ToolCall } from '~/types/tool-call'
 import { ChevronDown } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
+import { useToolCallModel } from '~/models/tool-calls'
 
 const props = defineProps<{
   toolCallId: string
@@ -29,38 +29,28 @@ onMounted(async () => {
 const formattedParameters = computed(() => {
   if (!toolCall.value?.parameters)
     return null
-  try {
-    return JSON.stringify(toolCall.value.parameters, null, 2)
-  }
-  catch {
-    return String(toolCall.value.parameters)
-  }
+  return JSON.stringify(toolCall.value.parameters, null, 2)
 })
 
 const formattedResult = computed(() => {
   if (!toolCall.value?.result)
     return null
-  try {
-    return JSON.stringify(toolCall.value.result, null, 2)
-  }
-  catch {
-    return String(toolCall.value.result)
-  }
+  return JSON.stringify(toolCall.value.result, null, 2)
 })
 </script>
 
 <template>
-  <div class="tool-call-display my-2 border rounded-lg overflow-hidden">
+  <div class="tool-call-display my-2 overflow-hidden border rounded-lg">
     <button
-      class="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+      class="w-full flex items-center justify-between bg-gray-50 p-3 transition-colors dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700"
       @click="isOpen = !isOpen"
     >
       <div class="flex items-center gap-2">
         <ChevronDown
-          class="w-4 h-4 transition-transform"
+          class="h-4 w-4 transition-transform"
           :class="{ 'rotate-180': isOpen }"
         />
-        <span class="font-medium text-sm">
+        <span class="text-sm font-medium">
           <span v-if="isLoading">加载中...</span>
           <span v-else-if="toolCall">
             🔧 {{ toolCall.tool_name }}
@@ -72,20 +62,20 @@ const formattedResult = computed(() => {
 
     <div
       v-if="isOpen && !isLoading && toolCall"
-      class="p-3 border-t bg-white dark:bg-gray-900"
+      class="border-t bg-white p-3 dark:bg-gray-900"
     >
       <div v-if="formattedParameters" class="mb-3">
-        <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
+        <div class="mb-1 text-xs text-gray-600 font-semibold dark:text-gray-400">
           参数
         </div>
-        <pre class="text-xs bg-gray-50 dark:bg-gray-800 p-2 rounded overflow-x-auto"><code>{{ formattedParameters }}</code></pre>
+        <pre class="overflow-x-auto rounded bg-gray-50 p-2 text-xs dark:bg-gray-800"><code>{{ formattedParameters }}</code></pre>
       </div>
 
       <div v-if="formattedResult">
-        <div class="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">
+        <div class="mb-1 text-xs text-gray-600 font-semibold dark:text-gray-400">
           返回值
         </div>
-        <pre class="text-xs bg-gray-50 dark:bg-gray-800 p-2 rounded overflow-x-auto"><code>{{ formattedResult }}</code></pre>
+        <pre class="overflow-x-auto rounded bg-gray-50 p-2 text-xs dark:bg-gray-800"><code>{{ formattedResult }}</code></pre>
       </div>
 
       <div v-if="!formattedParameters && !formattedResult" class="text-xs text-gray-500 dark:text-gray-400">
