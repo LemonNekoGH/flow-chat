@@ -93,6 +93,10 @@ style: better style for markdown view (#53)
 - **Type checking**: Run `pnpm typecheck` before committing to ensure there are no type errors
 - **Linting**: Ensure code passes linting checks (`pnpm lint`) before committing
 
+### Dynamic Prompts
+
+- **Use Velin for dynamic prompts**: When creating system prompts or other dynamic text content that needs to be rendered with variables, prefer using Velin (`.velin.md` files) over string concatenation or template literals. Velin allows you to use Vue's reactive system, props, and template syntax for cleaner and more maintainable prompt generation.
+
 ## Database Schema Migrations
 
 When working on a PR that involves multiple schema changes:
