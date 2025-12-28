@@ -229,9 +229,12 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
           apiKey: settingsStore.imageGeneration.apiKey,
           baseURL: 'https://api.openai.com/v1',
           piniaStore: messagesStore,
+          messageId: newMsgId,
         })),
         ...(await createMemoryTools({
           roomId: currentRoomId.value ?? null,
+          messageId: newMsgId,
+          piniaStore: messagesStore,
         })),
       ],
     }

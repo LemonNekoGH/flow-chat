@@ -36,6 +36,13 @@
       "when": 1766846185528,
       "tag": "0004_special_doctor_spectrum",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1766917867180,
+      "tag": "0005_sudden_viper",
+      "breakpoints": true
     }
   ]
 }
