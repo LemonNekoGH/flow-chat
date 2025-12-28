@@ -1,7 +1,4 @@
-import { usePrompt } from '@velin-dev/vue/repl'
-import { asyncComputed } from '@vueuse/core'
-import { storeToRefs } from 'pinia'
-import { computed, ref } from 'vue'
+import { renderSFCString } from '@velin-dev/core'
 import { useMemoryModel } from '~/models/memories'
 import { useTemplateModel } from '~/models/template'
 import { useRoomsStore } from '~/stores/rooms'
@@ -11,39 +8,35 @@ export const SUMMARY_PROMPT = `Summarize the following content concisely, briefl
 
 export function useSystemPrompt() {
   const roomsStore = useRoomsStore()
-  const { currentRoom, currentRoomId } = storeToRefs(roomsStore)
   const memoryModel = useMemoryModel()
   const templateModel = useTemplateModel()
 
-  const memoryRefreshTrigger = ref(0)
+  async function buildSystemPrompt(roomId: string | null) {
+    const currentRoom = roomsStore.currentRoom
+    const templateId = currentRoom?.template_id
 
-  const memories = asyncComputed(async () => {
-    void memoryRefreshTrigger.value
-    if (!currentRoomId.value) {
-      return []
+    const memories = [
+      ...await memoryModel.getByRoomId(roomId),
+      ...await memoryModel.getByRoomId(null),
+    ]
+
+    const templateSystemPrompt = templateId
+      ? (await templateModel.getById(templateId)).system_prompt
+      : undefined
+
+    const memoryContents = memories.map(m => m.content)
+    const { rendered } = await renderSFCString(SystemPrompt, {
+      templateSystemPrompt,
+      memories: memoryContents,
+    })
+
+    return {
+      prompt: rendered,
+      memoryIds: memories.map(m => m.id),
     }
-    return await memoryModel.getByRoomId(currentRoomId.value)
-  })
-  const memoryContents = computed(() => memories.value?.map(m => m.content) ?? [])
-  const memoryIds = computed(() => memories.value?.map(m => m.id) ?? [])
-  const templateId = computed(() => currentRoom.value?.template_id)
-  const templateSystemPrompt = asyncComputed(async () => {
-    if (!templateId.value) {
-      return
-    }
-    return (await templateModel.getById(templateId.value)).system_prompt
-  })
-
-  const systemPrompt = ref(SystemPrompt)
-  const { prompt } = usePrompt(() => systemPrompt.value, { templateSystemPrompt, memories: memoryContents })
-
-  function refreshMemories() {
-    memoryRefreshTrigger.value++
   }
 
-  return computed(() => ({
-    prompt: prompt.value,
-    memoryIds: memoryIds.value,
-    refreshMemories,
-  }))
+  return {
+    buildSystemPrompt,
+  }
 }

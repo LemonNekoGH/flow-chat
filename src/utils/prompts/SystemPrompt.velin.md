@@ -49,6 +49,10 @@ FlowChat uses a two-layer prompt system to ensure both security and flexibility:
 
 {{ props.templateSystemPrompt }}
 
+---
+
+</template>
+
 <template v-if="props.memories && props.memories.length > 0">
 
 ## Memories
@@ -56,10 +60,6 @@ FlowChat uses a two-layer prompt system to ensure both security and flexibility:
 <template v-for="memory in props.memories" :key="memory">
 - {{ memory }}
 </template>
-
-</template>
-
----
 
 </template>
 

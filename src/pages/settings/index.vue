@@ -5,6 +5,7 @@ import { storeToRefs } from 'pinia'
 import { DialogOverlay } from 'reka-ui'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import MemoryManager from '~/components/MemoryManager.vue'
 import ModelSelector from '~/components/ModelSelector.vue'
 import TemplateManager from '~/components/TemplateManager.vue'
 import Button from '~/components/ui/button/Button.vue'
@@ -241,6 +242,11 @@ onMounted(async () => {
       <!-- Templates -->
       <div class="card border rounded-lg p-6 shadow-sm">
         <TemplateManager />
+      </div>
+
+      <!-- Memories -->
+      <div class="card border rounded-lg p-6 shadow-sm">
+        <MemoryManager />
       </div>
 
       <Button id="reset-tutorial-button" variant="outline" @click="resetTutorial">

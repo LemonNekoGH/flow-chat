@@ -10,7 +10,7 @@ import { VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
 import { useClipboard, useElementBounding, useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, onMounted, provide, ref, watch } from 'vue'
+import { computed, onMounted, provide, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { streamText } from 'xsai'
 import ConversationView from '~/components/ConversationView.vue'
@@ -202,12 +202,11 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
     return
   }
 
-  systemPrompt.value.refreshMemories()
-  await nextTick()
+  const systemPromptResult = await systemPrompt.buildSystemPrompt(currentRoomId.value ?? null)
 
   let newMsgId = regenerateId
   if (!newMsgId) {
-    const { id } = await messagesStore.newMessage('', 'assistant', parentId, provider, model, currentRoomId.value!, systemPrompt.value.memoryIds)
+    const { id } = await messagesStore.newMessage('', 'assistant', parentId, provider, model, currentRoomId.value!, systemPromptResult.memoryIds)
     newMsgId = id
   }
   else {
@@ -225,7 +224,7 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
 
   try {
     const tools = {
-      tool: [
+      tools: [
         ...(await createImageTools({ // TODO: more tools
           apiKey: settingsStore.imageGeneration.apiKey,
           baseURL: 'https://api.openai.com/v1',
@@ -255,7 +254,7 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
       .map(({ content, role }): BaseMessage => ({ content, role }))
 
     const allMessages = [{
-      content: systemPrompt.value.prompt,
+      content: systemPromptResult.prompt,
       role: 'system',
     } satisfies BaseMessage, ...conversationMessages]
 
