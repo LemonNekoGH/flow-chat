@@ -88,6 +88,11 @@ style: better style for markdown view (#53)
 - **Avoid using `any` type**: Always use proper TypeScript types. Use type inference from libraries (e.g., `InferSelectModel` from drizzle-orm) or define explicit types instead of `any`
 - **Avoid type assertions**: Prefer type inference over `as` type assertions. Only use type assertions when absolutely necessary and add comments explaining why
 
+### Code Comments
+
+- **Use English for comments**: If comments are necessary, write them in English to maintain consistency across the codebase
+- **Prefer self-documenting code**: Write clear, readable code that explains itself. Only add comments when they provide additional context that isn't obvious from the code itself
+
 ### Pre-commit Checks
 
 - **Type checking**: Run `pnpm typecheck` before committing to ensure there are no type errors
