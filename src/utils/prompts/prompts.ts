@@ -25,9 +25,20 @@ export function useSystemPrompt() {
       : undefined
 
     const memoryContents = memories.map(m => m.content)
+    const currentTime = new Date().toLocaleString('zh-CN', {
+      timeZone: 'Asia/Shanghai',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    })
     const { rendered } = await renderSFCString(SystemPrompt, {
       templateSystemPrompt,
       memories: memoryContents,
+      currentTime,
     })
 
     return {
