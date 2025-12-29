@@ -10,3 +10,4 @@ node_modules
 cypress/downloads
 public/assets/fonts
 .cache
+typed-router.d.ts
