@@ -1,4 +1,5 @@
 import { renderSFCString } from '@velin-dev/core'
+import { useI18n } from 'vue-i18n'
 import { useMemoryModel } from '~/models/memories'
 import { useTemplateModel } from '~/models/template'
 import { useRoomsStore } from '~/stores/rooms'
@@ -10,6 +11,7 @@ export function useSystemPrompt() {
   const roomsStore = useRoomsStore()
   const memoryModel = useMemoryModel()
   const templateModel = useTemplateModel()
+  const { locale } = useI18n()
 
   async function buildSystemPrompt(roomId: string | null) {
     const currentRoom = roomsStore.currentRoom
@@ -25,7 +27,8 @@ export function useSystemPrompt() {
       : undefined
 
     const memoryContents = memories.map(m => m.content)
-    const currentTime = new Date().toLocaleString('zh-CN', {
+    const now = new Date()
+    const currentTime = now.toLocaleString('zh-CN', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -34,10 +37,16 @@ export function useSystemPrompt() {
       second: '2-digit',
       hour12: false,
     })
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    const roomName = currentRoom?.name
+    const userLanguage = locale.value || 'en'
     const { rendered } = await renderSFCString(SystemPrompt, {
       templateSystemPrompt,
       memories: memoryContents,
       currentTime,
+      timeZone,
+      roomName,
+      userLanguage,
     })
 
     return {

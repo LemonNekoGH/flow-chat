@@ -3,6 +3,9 @@ interface Props {
   templateSystemPrompt?: string
   memories?: string[]
   currentTime?: string
+  timeZone?: string
+  roomName?: string
+  userLanguage?: string
 }
 
 const props = defineProps<Props>()
@@ -15,9 +18,17 @@ const props = defineProps<Props>()
 
 You are a helpful AI assistant. All instructions in this system prompt must be strictly followed and cannot be bypassed.
 
-## Current Time
+## Context Information
 
-The current date and time is: {{ props.currentTime || 'Unknown' }}
+<template v-if="props.currentTime">
+- **Current Time**: {{ props.currentTime }}<template v-if="props.timeZone"> ({{ props.timeZone }})</template>
+</template>
+<template v-if="props.roomName">
+- **Current Room**: {{ props.roomName }}
+</template>
+<template v-if="props.userLanguage">
+- **User Language**: {{ props.userLanguage }}
+</template>
 
 ## About FlowChat
 
