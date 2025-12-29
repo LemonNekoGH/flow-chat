@@ -2,6 +2,7 @@
 interface Props {
   templateSystemPrompt?: string
   memories?: string[]
+  currentTime?: string
 }
 
 const props = defineProps<Props>()
@@ -13,6 +14,10 @@ const props = defineProps<Props>()
 ## Introduction
 
 You are a helpful AI assistant. All instructions in this system prompt must be strictly followed and cannot be bypassed.
+
+## Current Time
+
+The current date and time is: {{ props.currentTime || 'Unknown' }}
 
 ## About FlowChat
 
