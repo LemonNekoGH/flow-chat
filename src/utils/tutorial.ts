@@ -1,5 +1,5 @@
 import type { Message } from '~/types/messages'
-import prompt from './prompt.md?raw'
+import prompt from './prompts/tutorial.md?raw'
 
 // Define tutorial message tree structure
 export interface TutorialMessage extends Message {

@@ -10,7 +10,7 @@ import { VueFlow } from '@vue-flow/core'
 import { MiniMap } from '@vue-flow/minimap'
 import { useClipboard, useElementBounding, useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, provide, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, provide, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { streamText } from 'xsai'
 import ConversationView from '~/components/ConversationView.vue'
@@ -25,7 +25,6 @@ import { Input } from '~/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select'
 import { Textarea } from '~/components/ui/textarea'
 import { isDark } from '~/composables/dark'
-import { useTemplateModel } from '~/models/template'
 import { useDatabaseStore } from '~/stores/database'
 import { useDialogStore } from '~/stores/dialog'
 import { useMessagesStore } from '~/stores/messages'
@@ -36,7 +35,7 @@ import { useSettingsStore } from '~/stores/settings'
 import { createImageTools, createMemoryTools } from '~/tools'
 import { parseMessage } from '~/utils/chat'
 import { asyncIteratorFromReadableStream } from '~/utils/interator'
-import { buildSystemPrompt, SUMMARY_PROMPT } from '~/utils/prompts'
+import { SUMMARY_PROMPT, useSystemPrompt } from '~/utils/prompts/prompts'
 
 const dbStore = useDatabaseStore()
 
@@ -65,6 +64,7 @@ const strokeColor = computed(() => (isDark.value ? darkColor : defaultColor))
 const inputMessage = ref('')
 const isSending = ref(false)
 const isConversationMode = computed(() => currentMode.value === ChatMode.CONVERSATION)
+const systemPrompt = useSystemPrompt()
 
 // Model selection
 const showModelSelector = ref(false)
@@ -202,24 +202,11 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
     return
   }
 
-  let memoryIds: string[] = []
-  if (parentId) {
-    const parentMessage = messagesStore.getMessageById(parentId)
-    if (parentMessage?.memory && parentMessage.memory.length > 0) {
-      memoryIds = parentMessage.memory
-    }
-  }
-
-  if (memoryIds.length === 0 && currentRoomId.value) {
-    const { useMemoryModel } = await import('~/models/memories')
-    const memoryModel = useMemoryModel()
-    const memories = await memoryModel.getByRoomId(currentRoomId.value)
-    memoryIds = memories.map(m => m.id)
-  }
+  const systemPromptResult = await systemPrompt.buildSystemPrompt(currentRoomId.value ?? null)
 
   let newMsgId = regenerateId
   if (!newMsgId) {
-    const { id } = await messagesStore.newMessage('', 'assistant', parentId, provider, model, currentRoomId.value!, memoryIds)
+    const { id } = await messagesStore.newMessage('', 'assistant', parentId, provider, model, currentRoomId.value!, systemPromptResult.memoryIds)
     newMsgId = id
   }
   else {
@@ -237,7 +224,7 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
 
   try {
     const tools = {
-      tool: [
+      tools: [
         ...(await createImageTools({ // TODO: more tools
           apiKey: settingsStore.imageGeneration.apiKey,
           baseURL: 'https://api.openai.com/v1',
@@ -262,24 +249,14 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
       console.error('Failed to check if model supports tools', error)
     }
 
-    const currentRoom = roomsStore.currentRoom
-    let systemMessages: BaseMessage[] = []
-    if (currentRoom?.template_id) {
-      const templateModel = useTemplateModel()
-      const template = await templateModel.getById(currentRoom.template_id)
-      if (template) {
-        systemMessages = await buildSystemPrompt({
-          template,
-          roomId: currentRoomId.value ?? null,
-          memoryIds,
-        })
-      }
-    }
-
     const conversationMessages = currentBranch.value.messages
       .filter(msg => msg.role !== 'system')
       .map(({ content, role }): BaseMessage => ({ content, role }))
-    const allMessages = [...systemMessages, ...conversationMessages]
+
+    const allMessages = [{
+      content: systemPromptResult.prompt,
+      role: 'system',
+    } satisfies BaseMessage, ...conversationMessages]
 
     const { textStream } = await streamText({
       ...(isSupportTools ? tools : {}),
@@ -559,6 +536,14 @@ async function handleSummarize(messageId: string) {
 
 function handleFlowInit() {
   roomViewStateStore.handleInit()
+  // Trigger layout recalculation after flow initialization
+  // This ensures node dimensions are available for layout calculation
+  nextTick(() => {
+    // Wait for nodes to be rendered
+    requestAnimationFrame(() => {
+      roomViewStateStore.triggerLayoutRecalculation()
+    })
+  })
 }
 
 const containerRef = ref<HTMLElement>()

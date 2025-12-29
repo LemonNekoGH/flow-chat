@@ -16,8 +16,8 @@ export async function createMemoryTools(options: CreateMemoryToolsOptions = {}) 
       description: 'Write a memory for future conversations (persisted in local database).',
       parameters: z.object({
         content: z.string().min(1).describe('The memory to save. Keep it short and factual.'),
-        scope: z.enum(['global', 'room']).default('global').describe('Save globally or only for current room.'),
-        tags: z.array(z.string()).optional().describe('Optional tags for organization/search.'),
+        scope: z.enum(['global', 'room']).describe('Save globally or only for current room. Defaults to "global" if not provided.'),
+        tags: z.array(z.string()).describe('Optional tags for organization/search.'),
       }),
       execute: async ({ content, scope, tags }) => {
         const normalizedScope: MemoryScope = scope ?? 'global'

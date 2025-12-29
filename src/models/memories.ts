@@ -103,8 +103,21 @@ export function useMemoryModel() {
     return rows.map(toMemory)
   }
 
+  async function getAll() {
+    const rows = await dbStore.db().select().from(schema.memories).orderBy(schema.memories.created_at)
+    return rows.map(toMemory)
+  }
+
+  async function deleteById(id: string) {
+    return dbStore.withCheckpoint((db) => {
+      return db.delete(schema.memories).where(eq(schema.memories.id, id))
+    })
+  }
+
   return {
     upsert,
     getByRoomId,
+    getAll,
+    deleteById,
   }
 }

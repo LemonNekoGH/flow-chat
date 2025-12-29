@@ -77,7 +77,12 @@ export const useRoomViewStateStore = defineStore('roomViewState', () => {
     return id || null
   })
 
+  const layoutTrigger = ref(0)
+
   const nodesAndEdges = computed(() => {
+    // Trigger recalculation when layoutTrigger changes
+    void layoutTrigger.value
+
     const { ids } = currentBranch.value
     const nodes: Node<NodeData>[] = []
     const edges: Edge[] = []
@@ -124,7 +129,8 @@ export const useRoomViewStateStore = defineStore('roomViewState', () => {
       }
     }
 
-    return { nodes: layout(nodes, edges), edges }
+    const layoutResult = layout(nodes, edges)
+    return { nodes: layoutResult.nodes, edges }
   })
 
   const {
@@ -138,6 +144,36 @@ export const useRoomViewStateStore = defineStore('roomViewState', () => {
   } = useVueFlow()
 
   const isFlowReady = ref(false)
+
+  // Computed property to get the screen position of the selected node
+  const selectedNodeScreenPosition = computed(() => {
+    if (!selectedMessageId.value || !isFlowReady.value) {
+      return null
+    }
+
+    const node = findNode(selectedMessageId.value)
+    if (!node) {
+      return null
+    }
+
+    const nodePosition = node.position
+    const nodeDimensions = node.dimensions
+    const { x: viewportX, y: viewportY, zoom } = viewport.value
+
+    const nodeScreenX = nodePosition.x * zoom + viewportX
+    const nodeScreenY = nodePosition.y * zoom + viewportY
+    const nodeScreenWidth = nodeDimensions.width * zoom
+    const nodeScreenHeight = nodeDimensions.height * zoom
+
+    return {
+      x: nodeScreenX,
+      y: nodeScreenY,
+      width: nodeScreenWidth,
+      height: nodeScreenHeight,
+      centerX: nodeScreenX + nodeScreenWidth / 2,
+      centerY: nodeScreenY + nodeScreenHeight / 2,
+    }
+  })
   const pendingFocusAction = ref<FocusAction | null>(null)
   const pendingViewportAction = ref<PendingViewportAction | null>(null)
 
@@ -395,12 +431,42 @@ export const useRoomViewStateStore = defineStore('roomViewState', () => {
     { flush: 'post' },
   )
 
+  // Watch for node dimension changes and trigger layout recalculation
+  watch(
+    () => {
+      if (!isFlowReady.value) {
+        return ''
+      }
+      // Create a string representation of all node dimensions
+      return nodesAndEdges.value.nodes
+        .map((node) => {
+          const graphNode = findNode(node.id)
+          if (!graphNode) {
+            return `${node.id}:0x0`
+          }
+          return `${node.id}:${graphNode.dimensions.width}x${graphNode.dimensions.height}`
+        })
+        .join('|')
+    },
+    () => {
+      // Trigger layout recalculation when dimensions change
+      nextTick(() => {
+        layoutTrigger.value++
+      })
+    },
+    { flush: 'post' },
+  )
+
   watch(
     () => isFlowReady.value,
     (ready) => {
       if (ready) {
         attemptPendingFocus()
         attemptPendingViewport()
+        // Trigger layout recalculation when flow becomes ready
+        nextTick(() => {
+          layoutTrigger.value++
+        })
       }
     },
   )
@@ -426,6 +492,11 @@ export const useRoomViewStateStore = defineStore('roomViewState', () => {
     }
   }
 
+  function triggerLayoutRecalculation() {
+    // Increment layoutTrigger to force layout recalculation
+    layoutTrigger.value++
+  }
+
   return {
     selectedMessageId,
     selectedMessage,
@@ -433,10 +504,12 @@ export const useRoomViewStateStore = defineStore('roomViewState', () => {
     currentBranch,
     nodesAndEdges,
     route,
+    selectedNodeScreenPosition,
 
     focusFlowNode,
     handleInit,
     setCenterToNode,
     findNode,
+    triggerLayoutRecalculation,
   }
 })
