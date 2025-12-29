@@ -26,7 +26,6 @@ export function useSystemPrompt() {
 
     const memoryContents = memories.map(m => m.content)
     const currentTime = new Date().toLocaleString('zh-CN', {
-      timeZone: 'Asia/Shanghai',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
