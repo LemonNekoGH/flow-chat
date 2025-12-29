@@ -51,11 +51,11 @@ const formattedResult = computed(() => {
           :class="{ 'rotate-180': isOpen }"
         />
         <span class="text-sm font-medium">
-          <span v-if="isLoading">加载中...</span>
+          <span v-if="isLoading">Loading...</span>
           <span v-else-if="toolCall">
             🔧 {{ toolCall.tool_name }}
           </span>
-          <span v-else>工具调用未找到</span>
+          <span v-else>Tool call not found</span>
         </span>
       </div>
     </button>
@@ -66,20 +66,20 @@ const formattedResult = computed(() => {
     >
       <div v-if="formattedParameters" class="mb-3">
         <div class="mb-1 text-xs text-gray-600 font-semibold dark:text-gray-400">
-          参数
+          Parameters
         </div>
         <pre class="overflow-x-auto rounded bg-gray-50 p-2 text-xs dark:bg-gray-800"><code>{{ formattedParameters }}</code></pre>
       </div>
 
       <div v-if="formattedResult">
         <div class="mb-1 text-xs text-gray-600 font-semibold dark:text-gray-400">
-          返回值
+          Result
         </div>
         <pre class="overflow-x-auto rounded bg-gray-50 p-2 text-xs dark:bg-gray-800"><code>{{ formattedResult }}</code></pre>
       </div>
 
       <div v-if="!formattedParameters && !formattedResult" class="text-xs text-gray-500 dark:text-gray-400">
-        暂无详细信息
+        No details available
       </div>
     </div>
   </div>
