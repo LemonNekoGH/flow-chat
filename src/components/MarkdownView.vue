@@ -2,6 +2,7 @@
 import type { Pluggable } from 'unified'
 import { VueMarkdown } from '@crazydos/vue-markdown'
 import rehypeHighlight from 'rehype-highlight'
+import rehypeRaw from 'rehype-raw'
 import remarkGfm from 'remark-gfm'
 import { computed } from 'vue'
 import { rehypeToolCall } from '~/utils/markdown/rehypeToolCall'
@@ -29,7 +30,7 @@ const remarkPlugins = computed<Pluggable[]>(() => [
   [remarkCaptureRaw, { source: props.content }],
   remarkToolCall,
 ])
-const rehypePlugins = [rehypeHighlight, rehypeToolCall]
+const rehypePlugins = [rehypeRaw, rehypeHighlight, rehypeToolCall]
 
 function getRawMarkdown(meta: MarkdownSlotMeta): string | undefined {
   const raw = meta['data-raw'] ?? meta.dataRaw

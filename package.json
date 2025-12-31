@@ -87,6 +87,7 @@
     "markdown-it-link-attributes": "^4.0.1",
     "oxlint": "^1.22.0",
     "pnpm": "^10.18.2",
+    "rehype-raw": "^7.0.0",
     "rolldown": "^1.0.0-beta.43",
     "shiki": "^3.13.0",
     "simple-git-hooks": "^2.13.1",

@@ -4,31 +4,18 @@ import { visit } from 'unist-util-visit'
 
 export const rehypeToolCall: Plugin<[], Root> = () => {
   return (tree: Root) => {
-    visit(tree, (node, index, parent) => {
-      if (node.type !== 'raw' || !parent)
+    visit(tree, (node) => {
+      if (node.type !== 'element' || node.tagName !== 'div')
         return
 
-      const rawNode = node as { value: string }
-      const match = rawNode.value.match(/<div data-tool-call-id="([^"]+)" class="tool-call-placeholder"><\/div>/)
-
-      if (!match)
+      const toolCallId = node.properties?.['data-tool-call-id']
+      if (!toolCallId || typeof toolCallId !== 'string')
         return
 
-      const toolCallId = match[1]
-
-      const elementNode = {
-        type: 'element' as const,
-        tagName: 'div',
-        properties: {
-          'data-tool-call-id': toolCallId,
-          'class': 'tool-call-placeholder',
-        },
-        children: [],
-      }
-
-      if (typeof index === 'number' && Array.isArray(parent.children)) {
-        parent.children[index] = elementNode
-      }
+      const classList = (node.properties.class as string[]) || []
+      if (!classList.includes('tool-call-placeholder'))
+        classList.push('tool-call-placeholder')
+      node.properties.class = classList
     })
   }
 }
