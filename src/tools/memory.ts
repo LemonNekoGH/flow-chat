@@ -3,7 +3,7 @@ import type { MemoryScope } from '~/types/memory'
 import { tool } from '@xsai/tool'
 import { z } from 'zod'
 import { useMemoryModel } from '~/models/memories'
-import { wrapToolCall } from './wrap-tool-call'
+import { withToolCallLog } from './with-tool-call-log'
 
 export interface CreateMemoryToolsOptions {
   roomId?: string | null
@@ -24,7 +24,7 @@ export async function createMemoryTools(options: CreateMemoryToolsOptions) {
         tags: z.array(z.string()).describe('Optional tags for organization/search.'),
       }),
       execute: async ({ content, scope, tags }) => {
-        return wrapToolCall(
+        return withToolCallLog(
           {
             toolName: 'write_memory',
             messageId: options.messageId,

@@ -2,7 +2,7 @@ import type { useMessagesStore } from '~/stores/messages'
 import { generateImage } from '@xsai/generate-image'
 import { tool } from '@xsai/tool'
 import { z } from 'zod'
-import { wrapToolCall } from './wrap-tool-call'
+import { withToolCallLog } from './with-tool-call-log'
 
 interface CreateImageToolOptions {
   apiKey: string
@@ -20,7 +20,7 @@ export async function createImageTools(options: CreateImageToolOptions) {
         prompt: z.string().describe('The prompt to generate an image from'),
       }),
       execute: async ({ prompt }) => {
-        return wrapToolCall(
+        return withToolCallLog(
           {
             toolName: 'generate_image',
             messageId: options.messageId,

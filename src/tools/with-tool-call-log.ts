@@ -1,15 +1,15 @@
 import type { useMessagesStore } from '~/stores/messages'
 import { useToolCallModel } from '~/models/tool-calls'
 
-interface WrapToolCallOptions {
+interface WithToolCallLogOptions {
   toolName: string
   messageId: string
   piniaStore: ReturnType<typeof useMessagesStore>
   parameters: unknown
 }
 
-export async function wrapToolCall<T>(
-  options: WrapToolCallOptions,
+export async function withToolCallLog<T>(
+  options: WithToolCallLogOptions,
   execute: () => Promise<T>,
 ): Promise<T> {
   const toolCallModel = useToolCallModel()
