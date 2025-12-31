@@ -101,6 +101,9 @@ importers:
       rehype-highlight:
         specifier: ^7.0.2
         version: 7.0.2
+      rehype-raw:
+        specifier: ^7.0.0
+        version: 7.0.0
       reka-ui:
         specifier: ^2.5.1
         version: 2.6.1(typescript@5.9.3)(vue@3.6.0-alpha.1(typescript@5.9.3))
@@ -210,9 +213,6 @@ importers:
       pnpm:
         specifier: ^10.18.2
         version: 10.24.0
-      rehype-raw:
-        specifier: ^7.0.0
-        version: 7.0.0
       rolldown:
         specifier: ^1.0.0-beta.43
         version: 1.0.0-beta.53
