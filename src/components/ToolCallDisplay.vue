@@ -3,6 +3,7 @@ import type { ToolCall } from '~/types/tool-call'
 import { ChevronDown } from 'lucide-vue-next'
 import { computed, onMounted, ref } from 'vue'
 import { useToolCallModel } from '~/models/tool-calls'
+import { toolDisplayNames } from '~/utils/toolNames'
 
 const props = defineProps<{
   toolCallId: string
@@ -37,6 +38,12 @@ const formattedResult = computed(() => {
     return null
   return JSON.stringify(toolCall.value.result, null, 2)
 })
+
+const toolDisplayName = computed(() => {
+  if (!toolCall.value)
+    return ''
+  return toolDisplayNames[toolCall.value.tool_name] ?? toolCall.value.tool_name
+})
 </script>
 
 <template>
@@ -55,7 +62,7 @@ const formattedResult = computed(() => {
             Loading...
           </div>
           <div v-else-if="toolCall">
-            <code class="rounded-md px-1 py-0.5">{{ toolCall.tool_name }}</code>
+            <span class="rounded-md px-1 py-0.5">{{ toolDisplayName }}</span>
           </div>
           <div v-else>
             Tool call not found
