@@ -13,4 +13,9 @@ export default antfu(
     },
   },
   ...oxlint.buildFromOxlintConfigFile('./.oxlintrc.json'),
+  {
+    ignores: [
+      'drizzle/**',
+    ],
+  },
 )
