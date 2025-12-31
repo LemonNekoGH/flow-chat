@@ -36,9 +36,10 @@ export async function createImageTools(options: CreateImageToolOptions) {
               model: 'dall-e-3',
             })
 
-            options.piniaStore.image = response.image.base64
-
-            return 'Image generated successfully'
+            return {
+              message: 'Image generated successfully',
+              imageBase64: response.image.base64,
+            }
           },
         )
       },

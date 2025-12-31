@@ -284,16 +284,24 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
       }
     }
 
+    let lastCheckedToolCallId: string | null = null
     for await (const textPart of asyncIteratorFromReadableStream(textStream, async v => v)) {
       if (streamTextRunIds.value.get(newMsgId) !== runId || abortController.signal.aborted)
         break
-      // check if image tool was used
-      if (messagesStore.image) {
-        await messagesStore.appendContent(newMsgId, `![generated image](${messagesStore.image})`)
-        await messagesStore.retrieveMessages()
-        messagesStore.image = ''
+
+      const { useToolCallModel } = await import('~/models/tool-calls')
+      const toolCallModel = useToolCallModel()
+      const toolCalls = await toolCallModel.getByMessageId(newMsgId)
+      const imageToolCall = toolCalls.find(tc => tc.tool_name === 'generate_image' && tc.id !== lastCheckedToolCallId && tc.result)
+
+      if (imageToolCall) {
+        const result = imageToolCall.result as { imageBase64?: string } | null
+        if (result?.imageBase64) {
+          await messagesStore.appendContent(newMsgId, `![generated image](data:image/png;base64,${result.imageBase64})`)
+          lastCheckedToolCallId = imageToolCall.id
+        }
       }
-      // textPart might be `undefined` in some cases
+
       if (textPart) {
         await messagesStore.appendContent(newMsgId, textPart)
       }
