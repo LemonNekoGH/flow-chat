@@ -18,7 +18,7 @@ export async function withToolCallLog<T>(
     message_id: options.messageId,
     tool_name: options.toolName,
     parameters: options.parameters,
-    position: null,
+    position: undefined,
   })
 
   try {

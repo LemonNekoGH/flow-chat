@@ -18,7 +18,7 @@ describe('remarkToolCall', () => {
     const tree = processor.parse(markdown)
     const processed = await processor.run(tree)
 
-    const htmlNodes: Array<{ value: string, data?: unknown }> = []
+    const htmlNodes: Array<{ value: string, data?: { toolCallId?: string, hProperties?: Record<string, unknown> } }> = []
     visit(processed, (node: any) => {
       if (node.type === 'html')
         htmlNodes.push(node)
