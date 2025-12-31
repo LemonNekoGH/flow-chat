@@ -33,9 +33,18 @@ const formattedParameters = computed(() => {
   return JSON.stringify(toolCall.value.parameters, null, 2)
 })
 
-const formattedResult = computed(() => {
-  if (!toolCall.value?.result)
+const imageResult = computed(() => {
+  if (toolCall.value?.tool_name !== 'generate_image' || !toolCall.value?.result)
     return null
+
+  const result = toolCall.value.result as { imageBase64?: string } | null
+  return result?.imageBase64
+})
+
+const formattedResult = computed(() => {
+  if (!toolCall.value?.result || imageResult.value)
+    return null
+
   return JSON.stringify(toolCall.value.result, null, 2)
 })
 
@@ -84,16 +93,17 @@ const toolDisplayName = computed(() => {
         </div>
       </div>
 
-      <div v-if="formattedResult" class="p-2 space-y-1" :class="{ 'border-t-2 border-pink-200 dark:border-pink-800': formattedParameters }">
+      <div v-if="formattedResult || imageResult" class="p-2 space-y-1" :class="{ 'border-t-2 border-pink-200 dark:border-pink-800': formattedParameters }">
         <div class="text-xs text-pink-700 font-semibold tracking-wide dark:text-pink-300">
           Result
         </div>
-        <div class="overflow-x-auto border border-pink-200 rounded bg-pink-50 dark:border-pink-800 dark:bg-pink-800/50">
+        <img v-if="imageResult" :src="imageResult" alt="Generated image" class="h-auto max-w-full rounded">
+        <div v-if="formattedResult" class="overflow-x-auto border border-pink-200 rounded bg-pink-50 dark:border-pink-800 dark:bg-pink-800/50">
           <pre class="p-2 text-xs"><code class="text-pink-700 dark:text-pink-300">{{ formattedResult }}</code></pre>
         </div>
       </div>
 
-      <div v-if="!formattedParameters && !formattedResult" class="p-3 text-xs text-pink-700 italic dark:text-pink-400">
+      <div v-if="!formattedParameters && !formattedResult && !imageResult" class="p-3 text-xs text-pink-700 italic dark:text-pink-400">
         No details available
       </div>
     </div>

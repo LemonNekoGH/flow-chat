@@ -3,6 +3,7 @@ import type * as schema from '../../db/schema'
 
 export type ToolCall = InferSelectModel<typeof schema.tool_calls>
 
+// FIXME: generic type for result
 export interface CreateToolCallInput {
   message_id: string
   tool_name: string
