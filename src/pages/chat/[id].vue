@@ -284,13 +284,14 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
       }
     }
 
+    const { useToolCallModel } = await import('~/models/tool-calls')
+    const toolCallModel = useToolCallModel()
     let lastCheckedToolCallId: string | null = null
+
     for await (const textPart of asyncIteratorFromReadableStream(textStream, async v => v)) {
       if (streamTextRunIds.value.get(newMsgId) !== runId || abortController.signal.aborted)
         break
 
-      const { useToolCallModel } = await import('~/models/tool-calls')
-      const toolCallModel = useToolCallModel()
       const toolCalls = await toolCallModel.getByMessageId(newMsgId)
       const imageToolCall = toolCalls.find(tc => tc.tool_name === 'generate_image' && tc.id !== lastCheckedToolCallId && tc.result)
 
