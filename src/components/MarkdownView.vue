@@ -3,7 +3,7 @@ import type { Pluggable } from 'unified'
 import { VueMarkdown } from '@crazydos/vue-markdown'
 import rehypeHighlight from 'rehype-highlight'
 import remarkGfm from 'remark-gfm'
-import { computed, h, nextTick, onMounted, ref, render, watch } from 'vue'
+import { computed } from 'vue'
 import { remarkCaptureRaw } from '~/utils/markdown/remarkCaptureRaw'
 import { remarkToolCall } from '~/utils/markdown/remarkToolCall'
 import MarkdownCodeBlock from './MarkdownCodeBlock.vue'
@@ -23,8 +23,6 @@ interface MarkdownSlotMeta extends Record<string, unknown> {
   dataRaw?: unknown
 }
 
-const markdownContainer = ref<HTMLElement>()
-
 const remarkPlugins = computed<Pluggable[]>(() => [
   remarkGfm,
   [remarkCaptureRaw, { source: props.content }],
@@ -36,42 +34,10 @@ function getRawMarkdown(meta: MarkdownSlotMeta): string | undefined {
   const raw = meta['data-raw'] ?? meta.dataRaw
   return typeof raw === 'string' ? raw : undefined
 }
-
-async function replaceToolCallPlaceholders() {
-  if (!markdownContainer.value)
-    return
-
-  await nextTick()
-
-  const placeholders = markdownContainer.value.querySelectorAll('.tool-call-placeholder:not([data-replaced])')
-  placeholders.forEach((placeholder) => {
-    const toolCallId = placeholder.getAttribute('data-tool-call-id')
-    if (!toolCallId)
-      return
-
-    placeholder.setAttribute('data-replaced', 'true')
-
-    const wrapper = document.createElement('div')
-    wrapper.className = 'tool-call-wrapper'
-
-    const vnode = h(ToolCallDisplay, { toolCallId })
-    render(vnode, wrapper)
-
-    placeholder.replaceWith(wrapper)
-  })
-}
-
-onMounted(() => {
-  replaceToolCallPlaceholders()
-})
-
-watch(() => props.content, () => {
-  replaceToolCallPlaceholders()
-})
 </script>
 
 <template>
-  <div ref="markdownContainer" v-bind="$attrs" class="space-y-2">
+  <div v-bind="$attrs" class="space-y-2">
     <VueMarkdown
       class="space-y-2"
       of-auto
@@ -96,6 +62,16 @@ watch(() => props.content, () => {
         >
           <component :is="children" />
         </MarkdownTable>
+      </template>
+
+      <template #div="{ children, ...attrs }">
+        <ToolCallDisplay
+          v-if="attrs['data-tool-call-id']"
+          :tool-call-id="String(attrs['data-tool-call-id'])"
+        />
+        <div v-else v-bind="attrs">
+          <component :is="children" />
+        </div>
       </template>
     </VueMarkdown>
   </div>
