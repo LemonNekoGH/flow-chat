@@ -3,7 +3,7 @@ import type { MemoryScope } from '~/types/memory'
 import { tool } from '@xsai/tool'
 import { z } from 'zod'
 import { useMemoryModel } from '~/models/memories'
-import { useToolCallModel } from '~/models/tool-calls'
+import { wrapToolCall } from './wrap-tool-call'
 
 export interface CreateMemoryToolsOptions {
   roomId?: string | null
@@ -13,7 +13,6 @@ export interface CreateMemoryToolsOptions {
 
 export async function createMemoryTools(options: CreateMemoryToolsOptions) {
   const memoryModel = useMemoryModel()
-  const toolCallModel = useToolCallModel()
 
   return [
     await tool({
@@ -25,35 +24,25 @@ export async function createMemoryTools(options: CreateMemoryToolsOptions) {
         tags: z.array(z.string()).describe('Optional tags for organization/search.'),
       }),
       execute: async ({ content, scope, tags }) => {
-        const toolCall = await toolCallModel.create({
-          message_id: options.messageId,
-          tool_name: 'write_memory',
-          parameters: { content, scope, tags },
-          position: null,
-        })
+        return wrapToolCall(
+          {
+            toolName: 'write_memory',
+            messageId: options.messageId,
+            piniaStore: options.piniaStore,
+            parameters: { content, scope, tags },
+          },
+          async () => {
+            const normalizedScope: MemoryScope = scope ?? 'global'
+            const item = await memoryModel.upsert({
+              content,
+              scope: normalizedScope,
+              tags,
+              roomId: options.roomId ?? null,
+            })
 
-        try {
-          const normalizedScope: MemoryScope = scope ?? 'global'
-          const item = await memoryModel.upsert({
-            content,
-            scope: normalizedScope,
-            tags,
-            roomId: options.roomId ?? null,
-          })
-
-          const result = `Memory saved: ${item.id}`
-
-          await toolCallModel.updateResult(toolCall.id, result)
-
-          const toolCallMarkdown = `\n\n:::tool-call ${toolCall.id}:::\n\n`
-          await options.piniaStore.appendContent(options.messageId, toolCallMarkdown)
-
-          return result
-        }
-        catch (error) {
-          await toolCallModel.updateResult(toolCall.id, { error: String(error) })
-          throw error
-        }
+            return `Memory saved: ${item.id}`
+          },
+        )
       },
     }),
   ]
