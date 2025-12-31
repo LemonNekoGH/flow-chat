@@ -12,10 +12,6 @@ export const useMessagesStore = defineStore('messages', () => {
   const hasAnyMessages = computed(() => messages.value.length > 0)
   const generatingMessages = ref<string[]>([])
 
-  // images
-  // FIXME: dirty code, add a store for image
-  const image = ref('')
-
   function mutateMessageById(id: string, mutate: (msg: Message) => void) {
     const msg = messages.value.find(message => message.id === id)
     if (!msg) {
@@ -178,7 +174,6 @@ export const useMessagesStore = defineStore('messages', () => {
   function resetState() {
     messages.value = []
     generatingMessages.value = []
-    image.value = ''
   }
 
   function hasChildren(messageId: string) {
@@ -188,7 +183,6 @@ export const useMessagesStore = defineStore('messages', () => {
   return {
     // State
     messages,
-    image,
     generatingMessages,
     hasAnyMessages,
 

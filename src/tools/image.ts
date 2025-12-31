@@ -2,11 +2,13 @@ import type { useMessagesStore } from '~/stores/messages'
 import { generateImage } from '@xsai/generate-image'
 import { tool } from '@xsai/tool'
 import { z } from 'zod'
+import { withToolCallLog } from './with-tool-call-log'
 
 interface CreateImageToolOptions {
   apiKey: string
   baseURL: string
   piniaStore: ReturnType<typeof useMessagesStore>
+  messageId: string
 }
 
 export async function createImageTools(options: CreateImageToolOptions) {
@@ -18,17 +20,28 @@ export async function createImageTools(options: CreateImageToolOptions) {
         prompt: z.string().describe('The prompt to generate an image from'),
       }),
       execute: async ({ prompt }) => {
-        const response = await generateImage({
-          apiKey: options.apiKey,
-          baseURL: options.baseURL,
-          prompt,
-          response_format: 'b64_json',
-          model: 'dall-e-3',
-        }) // TODO: catch error
+        return withToolCallLog(
+          {
+            toolName: 'generate_image',
+            messageId: options.messageId,
+            piniaStore: options.piniaStore,
+            parameters: { prompt },
+          },
+          async () => {
+            const response = await generateImage({
+              apiKey: options.apiKey,
+              baseURL: options.baseURL,
+              prompt,
+              response_format: 'b64_json',
+              model: 'dall-e-3',
+            })
 
-        options.piniaStore.image = response.image.base64
-
-        return 'Image generated successfully'
+            return {
+              message: 'Image generated successfully',
+              imageBase64: response.image.base64,
+            }
+          },
+        )
       },
     }),
   ]

@@ -1,13 +1,17 @@
+import type { useMessagesStore } from '~/stores/messages'
 import type { MemoryScope } from '~/types/memory'
 import { tool } from '@xsai/tool'
 import { z } from 'zod'
 import { useMemoryModel } from '~/models/memories'
+import { withToolCallLog } from './with-tool-call-log'
 
 export interface CreateMemoryToolsOptions {
   roomId?: string | null
+  messageId: string
+  piniaStore: ReturnType<typeof useMessagesStore>
 }
 
-export async function createMemoryTools(options: CreateMemoryToolsOptions = {}) {
+export async function createMemoryTools(options: CreateMemoryToolsOptions) {
   const memoryModel = useMemoryModel()
 
   return [
@@ -20,14 +24,25 @@ export async function createMemoryTools(options: CreateMemoryToolsOptions = {}) 
         tags: z.array(z.string()).describe('Optional tags for organization/search.'),
       }),
       execute: async ({ content, scope, tags }) => {
-        const normalizedScope: MemoryScope = scope ?? 'global'
-        const item = await memoryModel.upsert({
-          content,
-          scope: normalizedScope,
-          tags,
-          roomId: options.roomId ?? null,
-        })
-        return `Memory saved: ${item.id}`
+        return withToolCallLog(
+          {
+            toolName: 'write_memory',
+            messageId: options.messageId,
+            piniaStore: options.piniaStore,
+            parameters: { content, scope, tags },
+          },
+          async () => {
+            const normalizedScope: MemoryScope = scope ?? 'global'
+            const item = await memoryModel.upsert({
+              content,
+              scope: normalizedScope,
+              tags,
+              roomId: options.roomId ?? null,
+            })
+
+            return `Memory saved: ${item.id}`
+          },
+        )
       },
     }),
   ]

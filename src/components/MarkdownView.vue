@@ -2,11 +2,15 @@
 import type { Pluggable } from 'unified'
 import { VueMarkdown } from '@crazydos/vue-markdown'
 import rehypeHighlight from 'rehype-highlight'
+import rehypeRaw from 'rehype-raw'
 import remarkGfm from 'remark-gfm'
 import { computed } from 'vue'
+import { rehypeToolCall } from '~/utils/markdown/rehypeToolCall'
 import { remarkCaptureRaw } from '~/utils/markdown/remarkCaptureRaw'
+import { remarkToolCall } from '~/utils/markdown/remarkToolCall'
 import MarkdownCodeBlock from './MarkdownCodeBlock.vue'
 import MarkdownTable from './MarkdownTable.vue'
+import ToolCallDisplay from './ToolCallDisplay.vue'
 import 'highlight.js/styles/github.css'
 
 defineOptions({
@@ -24,8 +28,9 @@ interface MarkdownSlotMeta extends Record<string, unknown> {
 const remarkPlugins = computed<Pluggable[]>(() => [
   remarkGfm,
   [remarkCaptureRaw, { source: props.content }],
+  remarkToolCall,
 ])
-const rehypePlugins = [rehypeHighlight]
+const rehypePlugins = [rehypeRaw, rehypeHighlight, rehypeToolCall]
 
 function getRawMarkdown(meta: MarkdownSlotMeta): string | undefined {
   const raw = meta['data-raw'] ?? meta.dataRaw
@@ -59,6 +64,16 @@ function getRawMarkdown(meta: MarkdownSlotMeta): string | undefined {
         >
           <component :is="children" />
         </MarkdownTable>
+      </template>
+
+      <template #div="{ children, ...attrs }">
+        <ToolCallDisplay
+          v-if="attrs['data-tool-call-id']"
+          :tool-call-id="String(attrs['data-tool-call-id'])"
+        />
+        <div v-else v-bind="attrs">
+          <component :is="children" />
+        </div>
       </template>
     </VueMarkdown>
   </div>

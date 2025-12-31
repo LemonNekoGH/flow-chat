@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { boolean, doublePrecision, index, pgTable, text, timestamp, uuid, vector } from 'drizzle-orm/pg-core'
+import { boolean, doublePrecision, index, jsonb, pgTable, text, timestamp, uuid, vector } from 'drizzle-orm/pg-core'
 
 export const templates = pgTable('templates', () => ({
   id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
@@ -50,3 +50,13 @@ export const memories = pgTable('memories', () => ({
   created_at: timestamp('created_at').notNull().default(sql`now()`),
   updated_at: timestamp('updated_at').notNull().default(sql`now()`),
 }))
+
+export const tool_calls = pgTable('tool_calls', {
+  id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
+  message_id: uuid('message_id').references(() => messages.id, { onDelete: 'cascade' }).notNull(),
+  tool_name: text('tool_name').notNull(),
+  parameters: jsonb('parameters'),
+  result: jsonb('result'),
+  position: doublePrecision('position'),
+  created_at: timestamp('created_at').notNull().default(sql`now()`),
+})

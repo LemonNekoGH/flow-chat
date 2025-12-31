@@ -49,6 +49,7 @@
     "nprogress": "^0.2.0",
     "pinia": "^3.0.3",
     "rehype-highlight": "^7.0.2",
+    "rehype-raw": "^7.0.0",
     "reka-ui": "^2.5.1",
     "remark-gfm": "^4.0.1",
     "unist-util-visit": "^5.0.0",
