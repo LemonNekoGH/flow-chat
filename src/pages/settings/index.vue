@@ -22,6 +22,7 @@ import SelectItem from '~/components/ui/select/SelectItem.vue'
 import SelectTrigger from '~/components/ui/select/SelectTrigger.vue'
 
 import SelectValue from '~/components/ui/select/SelectValue.vue'
+import { useExportModel } from '~/models/export'
 import { useDatabaseStore } from '~/stores/database'
 import { useMessagesStore } from '~/stores/messages'
 import { useRoomsStore } from '~/stores/rooms'
@@ -41,7 +42,9 @@ const showModelSelector = ref(false)
 const showSummaryModelSelector = ref(false)
 const showDeleteAllMessagesDialog = ref(false)
 const dbStore = useDatabaseStore()
+const exportModel = useExportModel()
 const SAME_AS_DEFAULT_PROVIDER = '__same_as_default__'
+const isExporting = ref(false)
 
 // Handle model selection
 function handleModelSelect(selectedModelValue: string) {
@@ -85,6 +88,16 @@ async function resetTutorial() {
 
 async function deleteAllMessages() {
   showDeleteAllMessagesDialog.value = true
+}
+
+async function exportAllData() {
+  isExporting.value = true
+  try {
+    await exportModel.exportAndDownload()
+  }
+  finally {
+    isExporting.value = false
+  }
 }
 
 async function confirmDeleteAllMessages() {
@@ -251,6 +264,11 @@ onMounted(async () => {
 
       <Button id="reset-tutorial-button" variant="outline" @click="resetTutorial">
         Reset Tutorial
+      </Button>
+
+      <Button id="export-data-button" variant="outline" :disabled="isExporting" @click="exportAllData">
+        <span v-if="isExporting" class="i-carbon-circle-dash mr-2 animate-spin" />
+        Export All Data
       </Button>
 
       <Button id="delete-all-messages-button" variant="outline" @click="deleteAllMessages">
