@@ -9,6 +9,7 @@ import { drizzle } from 'drizzle-orm/pglite'
 import { defineStore } from 'pinia'
 import migrations from 'virtual:drizzle-migrations.sql'
 import { ref, toRaw } from 'vue'
+import { clearPendingImport, getPendingImport } from '~/models/export'
 import * as schema from '../../db/schema'
 
 export const useDatabaseStore = defineStore('database', () => {
@@ -56,12 +57,21 @@ export const useDatabaseStore = defineStore('database', () => {
       return
     }
 
+    // Check for pending import
+    const pendingImport = await getPendingImport()
+
     const pgClient = new PGlite({
       fs: inMemory ? undefined : new IdbFs('flow-chat'),
       extensions: { vector },
+      loadDataDir: pendingImport ?? undefined,
     })
 
     _db.value = drizzle({ client: pgClient, schema })
+
+    if (pendingImport) {
+      await clearPendingImport()
+      logger.log('Database restored from backup')
+    }
 
     logger.log('Database initialized')
   }

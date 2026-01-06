@@ -46,9 +46,8 @@ const dbStore = useDatabaseStore()
 const exportModel = useExportModel()
 const SAME_AS_DEFAULT_PROVIDER = '__same_as_default__'
 const isExporting = ref(false)
-const isDumpingDb = ref(false)
 const isImporting = ref(false)
-const jsonFileInput = ref<HTMLInputElement | null>(null)
+const importFileInput = ref<HTMLInputElement | null>(null)
 
 // Handle model selection
 function handleModelSelect(selectedModelValue: string) {
@@ -94,49 +93,42 @@ async function deleteAllMessages() {
   showDeleteAllMessagesDialog.value = true
 }
 
-async function exportAllData() {
+async function exportData() {
   isExporting.value = true
   try {
-    await exportModel.exportAndDownload()
+    await exportModel.exportDatabaseDump()
+    toast.success('Database exported')
+  }
+  catch (error) {
+    console.error('Failed to export:', error)
+    toast.error('Failed to export database')
   }
   finally {
     isExporting.value = false
   }
 }
 
-async function exportDatabaseDump() {
-  isDumpingDb.value = true
-  try {
-    await exportModel.exportDatabaseDump()
-  }
-  finally {
-    isDumpingDb.value = false
-  }
-}
-
 function triggerImport() {
-  jsonFileInput.value?.click()
+  importFileInput.value?.click()
 }
 
-async function handleJsonFileSelect(event: Event) {
+async function handleImportFileSelect(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file)
     return
 
   isImporting.value = true
-
   try {
-    await exportModel.importFromJson(file)
-    toast.success('Data imported successfully')
-    window.location.reload()
+    await exportModel.importDatabaseDump(file)
+    // Page will reload automatically
   }
   catch (error) {
-    console.error('Failed to import JSON:', error)
-    toast.error('Failed to import data. Please check the file format.')
+    console.error('Failed to import:', error)
+    toast.error('Failed to import database')
+    isImporting.value = false
   }
   finally {
-    isImporting.value = false
     input.value = ''
   }
 }
@@ -307,19 +299,14 @@ onMounted(async () => {
         Reset Tutorial
       </Button>
 
-      <Button id="export-data-button" variant="outline" :disabled="isExporting" @click="exportAllData">
+      <Button id="export-data-button" variant="outline" :disabled="isExporting" @click="exportData">
         <span v-if="isExporting" class="i-carbon-circle-dash mr-2 animate-spin" />
-        Export All Data (JSON)
-      </Button>
-
-      <Button id="export-db-dump-button" variant="outline" :disabled="isDumpingDb" @click="exportDatabaseDump">
-        <span v-if="isDumpingDb" class="i-carbon-circle-dash mr-2 animate-spin" />
-        Export Database Dump (tar.gz)
+        Export Data
       </Button>
 
       <Button id="import-data-button" variant="outline" :disabled="isImporting" @click="triggerImport">
         <span v-if="isImporting" class="i-carbon-circle-dash mr-2 animate-spin" />
-        Import Data (JSON)
+        Import Data
       </Button>
 
       <Button id="delete-all-messages-button" variant="outline" @click="deleteAllMessages">
@@ -372,11 +359,11 @@ onMounted(async () => {
 
     <!-- Hidden file input for import -->
     <input
-      ref="jsonFileInput"
+      ref="importFileInput"
       type="file"
-      accept=".json"
+      accept=".tar.gz,.tgz"
       class="hidden"
-      @change="handleJsonFileSelect"
+      @change="handleImportFileSelect"
     >
   </div>
 </template>

@@ -1,104 +1,11 @@
 import type { PGlite } from '@electric-sql/pglite'
-import { sql } from 'drizzle-orm'
 import { useDatabaseStore } from '~/stores/database'
-import * as schema from '../../db/schema'
 
-export interface ExportData {
-  version: string
-  exportedAt: string
-  templates: Array<{
-    id: string
-    name: string
-    system_prompt: string
-    created_at: Date
-    updated_at: Date
-  }>
-  rooms: Array<{
-    id: string
-    name: string
-    template_id: string | null
-    default_model: string | null
-    focus_node_id: string | null
-    viewport_x: number | null
-    viewport_y: number | null
-    viewport_zoom: number | null
-    created_at: Date
-    updated_at: Date
-  }>
-  messages: Array<{
-    id: string
-    content: string
-    model: string
-    provider: string
-    role: string
-    room_id: string | null
-    parent_id: string | null
-    summary: string | null
-    show_summary: boolean
-    memory: string[]
-    created_at: Date
-    updated_at: Date
-    // embedding is excluded
-  }>
-  memories: Array<{
-    id: string
-    content: string
-    scope: string
-    room_id: string | null
-    tags: string
-    created_at: Date
-    updated_at: Date
-  }>
-  tool_calls: Array<{
-    id: string
-    message_id: string
-    tool_name: string
-    parameters: unknown
-    result: unknown
-    position: number | null
-    created_at: Date
-  }>
-}
+const IMPORT_DB_NAME = 'flow-chat-import'
+const IMPORT_STORE_NAME = 'pending'
 
 export function useExportModel() {
   const dbStore = useDatabaseStore()
-
-  async function exportAllData(): Promise<ExportData> {
-    const db = dbStore.db()
-
-    // Fetch all data from tables
-    const [templates, rooms, messages, memories, toolCalls] = await Promise.all([
-      db.select().from(schema.templates),
-      db.select().from(schema.rooms),
-      db.select({
-        id: schema.messages.id,
-        content: schema.messages.content,
-        model: schema.messages.model,
-        provider: schema.messages.provider,
-        role: schema.messages.role,
-        room_id: schema.messages.room_id,
-        parent_id: schema.messages.parent_id,
-        summary: schema.messages.summary,
-        show_summary: schema.messages.show_summary,
-        memory: schema.messages.memory,
-        created_at: schema.messages.created_at,
-        updated_at: schema.messages.updated_at,
-        // embedding is excluded from export
-      }).from(schema.messages),
-      db.select().from(schema.memories),
-      db.select().from(schema.tool_calls),
-    ])
-
-    return {
-      version: '1.0.0',
-      exportedAt: new Date().toISOString(),
-      templates,
-      rooms,
-      messages,
-      memories,
-      tool_calls: toolCalls,
-    }
-  }
 
   function downloadBlob(blob: Blob | File, filename: string) {
     const url = URL.createObjectURL(blob)
@@ -111,140 +18,73 @@ export function useExportModel() {
     URL.revokeObjectURL(url)
   }
 
-  function downloadExportData(data: ExportData) {
-    const jsonString = JSON.stringify(data, null, 2)
-    const blob = new Blob([jsonString], { type: 'application/json' })
-    downloadBlob(blob, `flow-chat-export-${new Date().toISOString().slice(0, 10)}.json`)
-  }
-
-  async function exportAndDownload() {
-    const data = await exportAllData()
-    downloadExportData(data)
-    return data
-  }
-
-  /**
-   * Export entire PGlite database as a tarball
-   * This includes all data including embeddings
-   */
   async function exportDatabaseDump() {
     const db = dbStore.db()
-    // Access the underlying PGlite client via $client
     const pglite = (db as unknown as { $client: PGlite }).$client
     const blob = await pglite.dumpDataDir('gzip')
-    const filename = `flow-chat-db-dump-${new Date().toISOString().slice(0, 10)}.tar.gz`
-    downloadBlob(blob, filename)
-    return blob
+    downloadBlob(blob, `flow-chat-backup-${new Date().toISOString().slice(0, 10)}.tar.gz`)
   }
 
-  /**
-   * Import data from JSON file
-   * This will clear existing data and import the new data
-   */
-  async function importFromJson(file: File): Promise<void> {
-    const text = await file.text()
-    const data = JSON.parse(text) as ExportData
+  async function importDatabaseDump(file: File) {
+    const data = await file.arrayBuffer()
 
-    if (!data.version || !data.templates || !data.rooms || !data.messages) {
-      throw new Error('Invalid export file format')
-    }
+    // Store in IndexedDB for loading after reload
+    await new Promise<void>((resolve, reject) => {
+      const req = indexedDB.open(IMPORT_DB_NAME, 1)
+      req.onupgradeneeded = () => req.result.createObjectStore(IMPORT_STORE_NAME)
+      req.onsuccess = () => {
+        const tx = req.result.transaction(IMPORT_STORE_NAME, 'readwrite')
+        tx.objectStore(IMPORT_STORE_NAME).put(data, 'dump')
+        tx.oncomplete = () => {
+          req.result.close()
+          resolve()
+        }
+        tx.onerror = () => reject(tx.error)
+      }
+      req.onerror = () => reject(req.error)
+    })
 
-    const db = dbStore.db()
-
-    // Clear existing data (in reverse order of dependencies)
-    await db.delete(schema.tool_calls)
-    await db.delete(schema.memories)
-    await db.delete(schema.messages)
-    await db.delete(schema.rooms)
-    await db.delete(schema.templates)
-
-    // Import data (in order of dependencies)
-    if (data.templates.length > 0) {
-      await db.insert(schema.templates).values(
-        data.templates.map(t => ({
-          id: t.id,
-          name: t.name,
-          system_prompt: t.system_prompt,
-          created_at: new Date(t.created_at),
-          updated_at: new Date(t.updated_at),
-        })),
-      )
-    }
-
-    if (data.rooms.length > 0) {
-      await db.insert(schema.rooms).values(
-        data.rooms.map(r => ({
-          id: r.id,
-          name: r.name,
-          template_id: r.template_id,
-          default_model: r.default_model,
-          focus_node_id: r.focus_node_id,
-          viewport_x: r.viewport_x,
-          viewport_y: r.viewport_y,
-          viewport_zoom: r.viewport_zoom,
-          created_at: new Date(r.created_at),
-          updated_at: new Date(r.updated_at),
-        })),
-      )
-    }
-
-    if (data.messages.length > 0) {
-      await db.insert(schema.messages).values(
-        data.messages.map(m => ({
-          id: m.id,
-          content: m.content,
-          model: m.model,
-          provider: m.provider,
-          role: m.role,
-          room_id: m.room_id,
-          parent_id: m.parent_id,
-          summary: m.summary,
-          show_summary: m.show_summary,
-          memory: m.memory,
-          created_at: new Date(m.created_at),
-          updated_at: new Date(m.updated_at),
-          // embedding will be null, can be regenerated later
-        })),
-      )
-    }
-
-    if (data.memories.length > 0) {
-      await db.insert(schema.memories).values(
-        data.memories.map(m => ({
-          id: m.id,
-          content: m.content,
-          scope: m.scope,
-          room_id: m.room_id,
-          tags: m.tags,
-          created_at: new Date(m.created_at),
-          updated_at: new Date(m.updated_at),
-        })),
-      )
-    }
-
-    if (data.tool_calls.length > 0) {
-      await db.insert(schema.tool_calls).values(
-        data.tool_calls.map(tc => ({
-          id: tc.id,
-          message_id: tc.message_id,
-          tool_name: tc.tool_name,
-          parameters: tc.parameters,
-          result: tc.result,
-          position: tc.position,
-          created_at: new Date(tc.created_at),
-        })),
-      )
-    }
-
-    // Checkpoint to persist changes
-    await db.execute(sql`CHECKPOINT`)
+    // Clear existing database and reload
+    await indexedDB.deleteDatabase('/pglite/flow-chat')
+    window.location.reload()
   }
 
   return {
-    exportAllData,
-    downloadExportData,
-    exportAndDownload,
     exportDatabaseDump,
-    importFromJson,
+    importDatabaseDump,
   }
+}
+
+/** Check for pending import data (called during db init) */
+export async function getPendingImport(): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    const req = indexedDB.open(IMPORT_DB_NAME, 1)
+    req.onupgradeneeded = () => req.result.createObjectStore(IMPORT_STORE_NAME)
+    req.onerror = () => resolve(null)
+    req.onsuccess = () => {
+      const db = req.result
+      if (!db.objectStoreNames.contains(IMPORT_STORE_NAME)) {
+        db.close()
+        return resolve(null)
+      }
+      const tx = db.transaction(IMPORT_STORE_NAME, 'readonly')
+      const get = tx.objectStore(IMPORT_STORE_NAME).get('dump')
+      get.onsuccess = () => {
+        db.close()
+        resolve(get.result ? new Blob([get.result]) : null)
+      }
+      get.onerror = () => {
+        db.close()
+        resolve(null)
+      }
+    }
+  })
+}
+
+/** Clear pending import data */
+export async function clearPendingImport(): Promise<void> {
+  await new Promise<void>((resolve) => {
+    const req = indexedDB.deleteDatabase(IMPORT_DB_NAME)
+    req.onsuccess = req.onerror = req.onblocked = () => resolve()
+  })
 }
