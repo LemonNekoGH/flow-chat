@@ -1,3 +1,4 @@
+import type { PGlite } from '@electric-sql/pglite'
 import { useDatabaseStore } from '~/stores/database'
 import * as schema from '../../db/schema'
 
@@ -98,18 +99,21 @@ export function useExportModel() {
     }
   }
 
-  function downloadExportData(data: ExportData) {
-    const jsonString = JSON.stringify(data, null, 2)
-    const blob = new Blob([jsonString], { type: 'application/json' })
+  function downloadBlob(blob: Blob | File, filename: string) {
     const url = URL.createObjectURL(blob)
-
     const link = document.createElement('a')
     link.href = url
-    link.download = `flow-chat-export-${new Date().toISOString().slice(0, 10)}.json`
+    link.download = filename
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
+  }
+
+  function downloadExportData(data: ExportData) {
+    const jsonString = JSON.stringify(data, null, 2)
+    const blob = new Blob([jsonString], { type: 'application/json' })
+    downloadBlob(blob, `flow-chat-export-${new Date().toISOString().slice(0, 10)}.json`)
   }
 
   async function exportAndDownload() {
@@ -118,9 +122,24 @@ export function useExportModel() {
     return data
   }
 
+  /**
+   * Export entire PGlite database as a tarball
+   * This includes all data including embeddings
+   */
+  async function exportDatabaseDump() {
+    const db = dbStore.db()
+    // Access the underlying PGlite client via $client
+    const pglite = (db as unknown as { $client: PGlite }).$client
+    const blob = await pglite.dumpDataDir('gzip')
+    const filename = `flow-chat-db-dump-${new Date().toISOString().slice(0, 10)}.tar.gz`
+    downloadBlob(blob, filename)
+    return blob
+  }
+
   return {
     exportAllData,
     downloadExportData,
     exportAndDownload,
+    exportDatabaseDump,
   }
 }

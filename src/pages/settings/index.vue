@@ -45,6 +45,7 @@ const dbStore = useDatabaseStore()
 const exportModel = useExportModel()
 const SAME_AS_DEFAULT_PROVIDER = '__same_as_default__'
 const isExporting = ref(false)
+const isDumpingDb = ref(false)
 
 // Handle model selection
 function handleModelSelect(selectedModelValue: string) {
@@ -97,6 +98,16 @@ async function exportAllData() {
   }
   finally {
     isExporting.value = false
+  }
+}
+
+async function exportDatabaseDump() {
+  isDumpingDb.value = true
+  try {
+    await exportModel.exportDatabaseDump()
+  }
+  finally {
+    isDumpingDb.value = false
   }
 }
 
@@ -268,7 +279,12 @@ onMounted(async () => {
 
       <Button id="export-data-button" variant="outline" :disabled="isExporting" @click="exportAllData">
         <span v-if="isExporting" class="i-carbon-circle-dash mr-2 animate-spin" />
-        Export All Data
+        Export All Data (JSON)
+      </Button>
+
+      <Button id="export-db-dump-button" variant="outline" :disabled="isDumpingDb" @click="exportDatabaseDump">
+        <span v-if="isDumpingDb" class="i-carbon-circle-dash mr-2 animate-spin" />
+        Export Database Dump (tar.gz)
       </Button>
 
       <Button id="delete-all-messages-button" variant="outline" @click="deleteAllMessages">
