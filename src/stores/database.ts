@@ -11,66 +11,10 @@ import migrations from 'virtual:drizzle-migrations.sql'
 import { ref, toRaw } from 'vue'
 import * as schema from '../../db/schema'
 
-/**
- * Check if there's a pending database dump import
- */
-async function checkPendingImport(): Promise<Blob | null> {
-  return new Promise((resolve) => {
-    const dbRequest = indexedDB.open('flow-chat-import', 1)
-
-    dbRequest.onerror = () => resolve(null)
-    dbRequest.onupgradeneeded = () => {
-      const idb = dbRequest.result
-      if (!idb.objectStoreNames.contains('pending-import')) {
-        idb.createObjectStore('pending-import')
-      }
-    }
-    dbRequest.onsuccess = () => {
-      const idb = dbRequest.result
-      if (!idb.objectStoreNames.contains('pending-import')) {
-        idb.close()
-        resolve(null)
-        return
-      }
-      const tx = idb.transaction('pending-import', 'readonly')
-      const store = tx.objectStore('pending-import')
-      const getRequest = store.get('dump')
-
-      getRequest.onsuccess = () => {
-        const data = getRequest.result as ArrayBuffer | undefined
-        idb.close()
-        if (data) {
-          resolve(new Blob([data], { type: 'application/gzip' }))
-        }
-        else {
-          resolve(null)
-        }
-      }
-      getRequest.onerror = () => {
-        idb.close()
-        resolve(null)
-      }
-    }
-  })
-}
-
-/**
- * Clear pending import data
- */
-async function clearPendingImport(): Promise<void> {
-  return new Promise((resolve) => {
-    const deleteRequest = indexedDB.deleteDatabase('flow-chat-import')
-    deleteRequest.onsuccess = () => resolve()
-    deleteRequest.onerror = () => resolve()
-    deleteRequest.onblocked = () => resolve()
-  })
-}
-
 export const useDatabaseStore = defineStore('database', () => {
   const logger = useLogg('database')
 
   const migrating = ref(false)
-  const importing = ref(false)
   const _db = ref<PgliteDatabase<typeof schema>>()
 
   let migratePromise: Promise<void> | null = null
@@ -112,51 +56,12 @@ export const useDatabaseStore = defineStore('database', () => {
       return
     }
 
-    // Check for pending import
-    const pendingImport = await checkPendingImport()
+    const pgClient = new PGlite({
+      fs: inMemory ? undefined : new IdbFs('flow-chat'),
+      extensions: { vector },
+    })
 
-    if (pendingImport) {
-      logger.log('Found pending database import, loading from dump...')
-      importing.value = true
-
-      try {
-        const pgClient = new PGlite({
-          fs: inMemory ? undefined : new IdbFs('flow-chat'),
-          extensions: { vector },
-          loadDataDir: pendingImport,
-        })
-
-        _db.value = drizzle({ client: pgClient, schema })
-
-        // Clear pending import after successful load
-        await clearPendingImport()
-
-        logger.log('Database imported successfully from dump')
-      }
-      catch (error) {
-        logger.error('Failed to import database from dump:', String(error))
-        // Clear the failed import and initialize normally
-        await clearPendingImport()
-
-        const pgClient = new PGlite({
-          fs: inMemory ? undefined : new IdbFs('flow-chat'),
-          extensions: { vector },
-        })
-
-        _db.value = drizzle({ client: pgClient, schema })
-      }
-      finally {
-        importing.value = false
-      }
-    }
-    else {
-      const pgClient = new PGlite({
-        fs: inMemory ? undefined : new IdbFs('flow-chat'),
-        extensions: { vector },
-      })
-
-      _db.value = drizzle({ client: pgClient, schema })
-    }
+    _db.value = drizzle({ client: pgClient, schema })
 
     logger.log('Database initialized')
   }
@@ -183,7 +88,6 @@ export const useDatabaseStore = defineStore('database', () => {
   return {
     db,
     migrating,
-    importing,
 
     initialize,
     clearDb,

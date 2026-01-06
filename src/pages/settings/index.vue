@@ -48,9 +48,7 @@ const SAME_AS_DEFAULT_PROVIDER = '__same_as_default__'
 const isExporting = ref(false)
 const isDumpingDb = ref(false)
 const isImporting = ref(false)
-const showImportDialog = ref(false)
 const jsonFileInput = ref<HTMLInputElement | null>(null)
-const dumpFileInput = ref<HTMLInputElement | null>(null)
 
 // Handle model selection
 function handleModelSelect(selectedModelValue: string) {
@@ -116,16 +114,8 @@ async function exportDatabaseDump() {
   }
 }
 
-function openImportDialog() {
-  showImportDialog.value = true
-}
-
-function triggerJsonImport() {
+function triggerImport() {
   jsonFileInput.value?.click()
-}
-
-function triggerDumpImport() {
-  dumpFileInput.value?.click()
 }
 
 async function handleJsonFileSelect(event: Event) {
@@ -135,14 +125,10 @@ async function handleJsonFileSelect(event: Event) {
     return
 
   isImporting.value = true
-  showImportDialog.value = false
 
   try {
     await exportModel.importFromJson(file)
-    // Refresh the app state
-    roomsStore.resetState()
-    messagesStore.resetState()
-    await roomsStore.initialize()
+    toast.success('Data imported successfully')
     window.location.reload()
   }
   catch (error) {
@@ -151,27 +137,6 @@ async function handleJsonFileSelect(event: Event) {
   }
   finally {
     isImporting.value = false
-    input.value = ''
-  }
-}
-
-async function handleDumpFileSelect(event: Event) {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file)
-    return
-
-  showImportDialog.value = false
-
-  try {
-    // This will store the dump and reload the page
-    await exportModel.importFromDump(file)
-  }
-  catch (error) {
-    console.error('Failed to import database dump:', error)
-    toast.error('Failed to import database dump.')
-  }
-  finally {
     input.value = ''
   }
 }
@@ -352,9 +317,9 @@ onMounted(async () => {
         Export Database Dump (tar.gz)
       </Button>
 
-      <Button id="import-data-button" variant="outline" :disabled="isImporting" @click="openImportDialog">
+      <Button id="import-data-button" variant="outline" :disabled="isImporting" @click="triggerImport">
         <span v-if="isImporting" class="i-carbon-circle-dash mr-2 animate-spin" />
-        Import Data
+        Import Data (JSON)
       </Button>
 
       <Button id="delete-all-messages-button" variant="outline" @click="deleteAllMessages">
@@ -405,56 +370,13 @@ onMounted(async () => {
       </DialogContent>
     </Dialog>
 
-    <Dialog v-model:open="showImportDialog">
-      <DialogOverlay class="fixed inset-0 z-10002" />
-      <DialogContent class="fixed z-10003">
-        <DialogHeader>
-          <DialogTitle>
-            Import Data
-          </DialogTitle>
-        </DialogHeader>
-        <DialogDescription class="space-y-4">
-          <p class="text-sm text-gray-600 dark:text-gray-400">
-            Choose an import method. This will replace all existing data.
-          </p>
-          <div class="flex flex-col gap-3">
-            <Button variant="outline" class="pointer-events-auto justify-start" @click="triggerJsonImport">
-              <span class="i-carbon-document mr-2" />
-              Import from JSON
-              <span class="ml-auto text-xs text-gray-500">(.json)</span>
-            </Button>
-            <Button variant="outline" class="pointer-events-auto justify-start" @click="triggerDumpImport">
-              <span class="i-carbon-data-backup mr-2" />
-              Import from Database Dump
-              <span class="ml-auto text-xs text-gray-500">(.tar.gz)</span>
-            </Button>
-          </div>
-          <p class="text-xs text-gray-500">
-            Note: Database dump import will reload the page.
-          </p>
-        </DialogDescription>
-        <DialogFooter>
-          <Button variant="outline" class="pointer-events-auto" @click="showImportDialog = false">
-            Cancel
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-
-    <!-- Hidden file inputs -->
+    <!-- Hidden file input for import -->
     <input
       ref="jsonFileInput"
       type="file"
       accept=".json"
       class="hidden"
       @change="handleJsonFileSelect"
-    >
-    <input
-      ref="dumpFileInput"
-      type="file"
-      accept=".tar.gz,.tgz"
-      class="hidden"
-      @change="handleDumpFileSelect"
     >
   </div>
 </template>
