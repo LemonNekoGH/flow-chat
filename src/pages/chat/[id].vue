@@ -36,6 +36,7 @@ import { createImageTools, createMemoryTools } from '~/tools'
 import { parseMessage } from '~/utils/chat'
 import { asyncIteratorFromReadableStream } from '~/utils/interator'
 import { SUMMARY_PROMPT, useSystemPrompt } from '~/utils/prompts/prompts'
+import { extractFirstSentenceTitle, normalizeGeneratedTopicTitle } from '~/utils/roomTitle'
 
 const dbStore = useDatabaseStore()
 
@@ -65,6 +66,14 @@ const inputMessage = ref('')
 const isSending = ref(false)
 const isConversationMode = computed(() => currentMode.value === ChatMode.CONVERSATION)
 const systemPrompt = useSystemPrompt()
+
+const TOPIC_TITLE_PROMPT = `Generate a short chat title that captures the main topic.
+
+Requirements:
+- Output only the title text (no quotes, no markdown).
+- Use the same language as the user.
+- Keep it short (<= 12 words, or <= 20 Chinese characters).
+- Avoid trailing punctuation.`
 
 // Model selection
 const showModelSelector = ref(false)
@@ -191,26 +200,86 @@ function hasGeneratingAncestor(messageId: string) {
   return false
 }
 
-async function generateResponse(parentId: string | null, provider: ProviderNames, model: string, regenerateId?: string) {
+async function generateTopicTitleFromText(text: string) {
+  const summaryProviderName = settingsStore.summaryTextModel.provider || defaultTextModel.value.provider
+  const summaryProvider = settingsStore.configuredTextProviders.find(p => p.name === summaryProviderName)
+
+  const defaultModel = defaultTextModel.value.model
+  const summaryModelName = settingsStore.summaryTextModel.model
+  const model = summaryModelName || defaultModel
+
+  if (!model || !summaryProvider?.baseURL) {
+    return ''
+  }
+
+  const { textStream } = await streamText({
+    apiKey: summaryProvider.apiKey,
+    baseURL: summaryProvider.baseURL,
+    model,
+    messages: [
+      { role: 'user', content: `${TOPIC_TITLE_PROMPT}\n\n${text}` },
+    ],
+  })
+
+  let out = ''
+  for await (const textPart of asyncIteratorFromReadableStream(textStream, async v => v)) {
+    if (textPart)
+      out += textPart
+  }
+
+  return normalizeGeneratedTopicTitle(out)
+}
+
+function isRoomNameManuallySet(roomId: string) {
+  return roomsStore.rooms.find(r => r.id === roomId)?.name_manually_set ?? false
+}
+
+async function updateRoomTitleToTopic(roomId: string, firstUserMessage: string, assistantMessageId: string) {
+  try {
+    if (isRoomNameManuallySet(roomId))
+      return
+
+    const assistant = messagesStore.getMessageById(assistantMessageId)
+    const assistantContent = assistant?.content || ''
+    if (!assistantContent.trim())
+      return
+
+    const context = `User:\n${firstUserMessage}\n\nAssistant:\n${assistantContent}`
+    const title = await generateTopicTitleFromText(context)
+    if (!title)
+      return
+
+    if (isRoomNameManuallySet(roomId))
+      return
+
+    await roomsStore.updateRoom(roomId, { name: title })
+  }
+  catch (error) {
+    console.error('Failed to update room title to topic', error)
+  }
+}
+
+async function generateResponse(parentId: string | null, provider: ProviderNames, model: string, regenerateId?: string): Promise<string | null> {
   if (!model) {
     toast.error('Please select a model')
-    return
+    return null
   }
 
   if (!currentProvider.value?.baseURL) {
     toast.error('Please select a provider')
-    return
+    return null
   }
 
   const systemPromptResult = await systemPrompt.buildSystemPrompt(currentRoomId.value ?? null)
 
-  let newMsgId = regenerateId
-  if (!newMsgId) {
-    const { id } = await messagesStore.newMessage('', 'assistant', parentId, provider, model, currentRoomId.value!, systemPromptResult.memoryIds)
-    newMsgId = id
+  let newMsgId: string
+  if (regenerateId) {
+    newMsgId = regenerateId
+    await messagesStore.setContent(newMsgId, '')
   }
   else {
-    await messagesStore.setContent(newMsgId, '')
+    const { id } = await messagesStore.newMessage('', 'assistant', parentId, provider, model, currentRoomId.value!, systemPromptResult.memoryIds)
+    newMsgId = id
   }
 
   await messagesStore.retrieveMessages()
@@ -307,6 +376,8 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
         await messagesStore.appendContent(newMsgId, textPart)
       }
     }
+
+    return newMsgId
   }
   finally {
     if (streamTextRunIds.value.get(newMsgId) === runId) {
@@ -326,6 +397,13 @@ async function handleSendButton(messageText?: string) {
     return
   }
 
+  const roomId = currentRoomId.value
+  if (!roomId)
+    return
+
+  const isFirstUserMessageInRoom = messagesStore.messages.filter(m => m.role === 'user').length === 0
+  const shouldAutoRename = isFirstUserMessageInRoom && !isRoomNameManuallySet(roomId)
+
   const parentId = selectedMessageId.value
   if (parentId && streamTextAbortControllers.value.has(parentId))
     return
@@ -335,14 +413,25 @@ async function handleSendButton(messageText?: string) {
   const { model, message } = parseMessage(messageToSend)
 
   try {
-    const { id } = await messagesStore.newMessage(message, 'user', selectedMessageId.value, defaultTextModel.value.provider, model ?? defaultTextModel.value.model, currentRoomId.value!)
+    const { id } = await messagesStore.newMessage(message, 'user', selectedMessageId.value, defaultTextModel.value.provider, model ?? defaultTextModel.value.model, roomId)
     await messagesStore.retrieveMessages()
 
     inputMessage.value = model ? `model=${model} ` : ''
     selectedMessageId.value = id
     isSending.value = false
 
-    await generateResponse(id, defaultTextModel.value.provider as ProviderNames, model ?? defaultTextModel.value.model)
+    if (shouldAutoRename) {
+      const firstSentenceTitle = extractFirstSentenceTitle(message)
+      if (firstSentenceTitle && !isRoomNameManuallySet(roomId)) {
+        await roomsStore.updateRoom(roomId, { name: firstSentenceTitle })
+      }
+    }
+
+    const assistantMessageId = await generateResponse(id, defaultTextModel.value.provider as ProviderNames, model ?? defaultTextModel.value.model)
+
+    if (shouldAutoRename && assistantMessageId && !isRoomNameManuallySet(roomId)) {
+      void updateRoomTitleToTopic(roomId, message, assistantMessageId)
+    }
   }
   catch (error) {
     isSending.value = false

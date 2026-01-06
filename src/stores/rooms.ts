@@ -56,7 +56,7 @@ export const useRoomsStore = defineStore('rooms', () => {
     return room
   }
 
-  async function updateRoom(id: string, data: Partial<Omit<Room, 'id' | 'createdAt'>>) {
+  async function updateRoom(id: string, data: Partial<Omit<Room, 'id' | 'created_at' | 'updated_at'>>) {
     const room = await roomModel.update(id, data)
 
     rooms.value = await roomModel.getAll()

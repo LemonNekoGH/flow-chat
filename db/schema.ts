@@ -13,6 +13,7 @@ export const templates = pgTable('templates', () => ({
 export const rooms = pgTable('rooms', () => ({
   id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
   name: text('name').notNull(),
+  name_manually_set: boolean('name_manually_set').notNull().default(false),
   template_id: uuid('template_id').references(() => templates.id),
   default_model: text('default_model'),
   focus_node_id: uuid('focus_node_id'),
