@@ -299,15 +299,25 @@ onMounted(async () => {
         Reset Tutorial
       </Button>
 
-      <Button id="export-data-button" variant="outline" :disabled="isExporting" @click="exportData">
-        <span v-if="isExporting" class="i-carbon-circle-dash mr-2 animate-spin" />
-        Export Data
-      </Button>
-
-      <Button id="import-data-button" variant="outline" :disabled="isImporting" @click="triggerImport">
-        <span v-if="isImporting" class="i-carbon-circle-dash mr-2 animate-spin" />
-        Import Data
-      </Button>
+      <!-- Data Backup -->
+      <div class="card border rounded-lg p-6 shadow-sm">
+        <h2 class="mb-4 text-xl font-semibold">
+          Data Backup
+        </h2>
+        <div class="flex flex-col gap-3">
+          <Button id="export-data-button" variant="outline" :disabled="isExporting" @click="exportData">
+            <span v-if="isExporting" class="i-carbon-circle-dash mr-2 animate-spin" />
+            Export Data
+          </Button>
+          <Button id="import-data-button" variant="outline" :disabled="isImporting" @click="triggerImport">
+            <span v-if="isImporting" class="i-carbon-circle-dash mr-2 animate-spin" />
+            Import Data
+          </Button>
+          <p class="text-xs text-gray-500">
+            Import will replace all existing data. Please ensure the backup file is from a compatible version.
+          </p>
+        </div>
+      </div>
 
       <Button id="delete-all-messages-button" variant="outline" @click="deleteAllMessages">
         Delete all messages
