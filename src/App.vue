@@ -50,7 +50,7 @@ onMounted(async () => {
     </DialogContent>
   </Dialog>
   <Dialog :open="open">
-    <DialogContent>
+    <DialogContent class="z-[10003]" overlay-class="z-[10002]">
       <DialogHeader>
         <DialogTitle>
           {{ title }}
