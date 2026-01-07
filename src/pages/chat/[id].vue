@@ -12,7 +12,7 @@ import { useClipboard, useElementBounding, useEventListener } from '@vueuse/core
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, provide, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
-import { streamText } from 'xsai'
+import { generateText, streamText } from 'xsai'
 import ConversationView from '~/components/ConversationView.vue'
 import ModelSelector from '~/components/ModelSelector.vue'
 import AssistantNode from '~/components/nodes/AssistantNode.vue'
@@ -35,8 +35,7 @@ import { useSettingsStore } from '~/stores/settings'
 import { createImageTools, createMemoryTools } from '~/tools'
 import { parseMessage } from '~/utils/chat'
 import { asyncIteratorFromReadableStream } from '~/utils/interator'
-import { SUMMARY_PROMPT, useSystemPrompt } from '~/utils/prompts/prompts'
-import { extractFirstSentenceTitle, normalizeGeneratedTopicTitle } from '~/utils/roomTitle'
+import { SUMMARY_PROMPT, TOPIC_TITLE_PROMPT, useSystemPrompt } from '~/utils/prompts/prompts'
 
 const dbStore = useDatabaseStore()
 
@@ -66,14 +65,6 @@ const inputMessage = ref('')
 const isSending = ref(false)
 const isConversationMode = computed(() => currentMode.value === ChatMode.CONVERSATION)
 const systemPrompt = useSystemPrompt()
-
-const TOPIC_TITLE_PROMPT = `Generate a short chat title that captures the main topic.
-
-Requirements:
-- Output only the title text (no quotes, no markdown).
-- Use the same language as the user.
-- Keep it short (<= 12 words, or <= 20 Chinese characters).
-- Avoid trailing punctuation.`
 
 // Model selection
 const showModelSelector = ref(false)
@@ -230,7 +221,7 @@ async function generateTopicTitleFromText(text: string) {
     return ''
   }
 
-  const { textStream } = await streamText({
+  const { text: topicTitle } = await generateText({
     apiKey: summaryProvider.apiKey,
     baseURL: summaryProvider.baseURL,
     model,
@@ -239,13 +230,7 @@ async function generateTopicTitleFromText(text: string) {
     ],
   })
 
-  let out = ''
-  for await (const textPart of asyncIteratorFromReadableStream(textStream, async v => v)) {
-    if (textPart)
-      out += textPart
-  }
-
-  return normalizeGeneratedTopicTitle(out)
+  return topicTitle
 }
 
 async function updateRoomTitleToTopic(roomId: string, firstUserMessage: string, assistantMessageId: string, expectedCurrentRoomName: string) {
@@ -269,7 +254,7 @@ async function updateRoomTitleToTopic(roomId: string, firstUserMessage: string, 
     await roomsStore.updateRoom(roomId, { name: title })
   }
   catch (error) {
-    console.error('Failed to update room title to topic', error)
+    console.warn('Failed to update room title to topic', error)
   }
 }
 
@@ -437,17 +422,16 @@ async function handleSendButton(messageText?: string) {
 
     let expectedRoomNameForTopic = initialRoomName
     if (shouldAutoRename) {
-      const firstSentenceTitle = extractFirstSentenceTitle(message)
-      if (firstSentenceTitle && getRoomName(roomId) === initialRoomName) {
-        await roomsStore.updateRoom(roomId, { name: firstSentenceTitle })
-        expectedRoomNameForTopic = firstSentenceTitle
+      if (getRoomName(roomId) === initialRoomName) {
+        await roomsStore.updateRoom(roomId, { name: message })
+        expectedRoomNameForTopic = message
       }
     }
 
     const assistantMessageId = await generateResponse(id, defaultTextModel.value.provider as ProviderNames, model ?? defaultTextModel.value.model)
 
     if (shouldAutoRename && assistantMessageId) {
-      void updateRoomTitleToTopic(roomId, message, assistantMessageId, expectedRoomNameForTopic)
+      updateRoomTitleToTopic(roomId, message, assistantMessageId, expectedRoomNameForTopic)
     }
   }
   catch (error) {
