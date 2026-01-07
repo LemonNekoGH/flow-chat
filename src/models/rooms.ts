@@ -16,7 +16,7 @@ export function useRoomModel() {
     }))[0]
   }
 
-  function update(id: string, data: Partial<Omit<Room, 'id' | 'createdAt'>>) {
+  function update(id: string, data: Partial<Omit<Room, 'id' | 'created_at' | 'updated_at'>>) {
     // Ensure empty strings are converted to null for UUID fields
     const cleanData = {
       ...data,

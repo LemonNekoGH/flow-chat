@@ -179,6 +179,7 @@ async function deleteRoomConfirmed() {
         <div
           v-for="room in group.rooms"
           :key="room.id"
+          :title="room.name"
           :class="[`relative overflow-hidden room-item-${room.id}`]"
         >
           <div class="absolute right-0 top-0 z-10 h-full flex items-center gap-1 rounded-md bg-background p-6">

@@ -12,7 +12,7 @@ import { useClipboard, useElementBounding, useEventListener } from '@vueuse/core
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, provide, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
-import { streamText } from 'xsai'
+import { generateText, streamText } from 'xsai'
 import ConversationView from '~/components/ConversationView.vue'
 import ModelSelector from '~/components/ModelSelector.vue'
 import AssistantNode from '~/components/nodes/AssistantNode.vue'
@@ -35,7 +35,7 @@ import { useSettingsStore } from '~/stores/settings'
 import { createImageTools, createMemoryTools } from '~/tools'
 import { parseMessage } from '~/utils/chat'
 import { asyncIteratorFromReadableStream } from '~/utils/interator'
-import { SUMMARY_PROMPT, useSystemPrompt } from '~/utils/prompts/prompts'
+import { SUMMARY_PROMPT, TOPIC_TITLE_PROMPT, useSystemPrompt } from '~/utils/prompts/prompts'
 
 const dbStore = useDatabaseStore()
 
@@ -191,26 +191,94 @@ function hasGeneratingAncestor(messageId: string) {
   return false
 }
 
-async function generateResponse(parentId: string | null, provider: ProviderNames, model: string, regenerateId?: string) {
+function getRoomName(roomId: string) {
+  return roomsStore.rooms.find(r => r.id === roomId)?.name ?? ''
+}
+
+function isDefaultRoomName(name: string) {
+  const trimmed = name.trim()
+  if (!trimmed)
+    return true
+
+  // Seed names / tutorial
+  if (trimmed === 'Default Chat' || trimmed === 'Tutorial')
+    return true
+
+  // RoomSelector creates: `Chat ${format(new Date(), 'MMM d h:mm a', { locale: enUS })}`
+  // Examples: "Chat Jan 6 3:21 PM", "Chat Dec 31 11:59 AM"
+  return /^Chat [A-Za-z]{3} \d{1,2} \d{1,2}:\d{2} [AP]M$/.test(trimmed)
+}
+
+async function generateTopicTitleFromText(text: string) {
+  const summaryProviderName = settingsStore.summaryTextModel.provider || defaultTextModel.value.provider
+  const summaryProvider = settingsStore.configuredTextProviders.find(p => p.name === summaryProviderName)
+
+  const defaultModel = defaultTextModel.value.model
+  const summaryModelName = settingsStore.summaryTextModel.model
+  const model = summaryModelName || defaultModel
+
+  if (!model || !summaryProvider?.baseURL) {
+    return ''
+  }
+
+  const { text: topicTitle } = await generateText({
+    apiKey: summaryProvider.apiKey,
+    baseURL: summaryProvider.baseURL,
+    model,
+    messages: [
+      { role: 'user', content: `${TOPIC_TITLE_PROMPT}\n\n${text}` },
+    ],
+  })
+
+  return topicTitle
+}
+
+async function updateRoomTitleToTopic(roomId: string, firstUserMessage: string, assistantMessageId: string, expectedCurrentRoomName: string) {
+  try {
+    if (getRoomName(roomId) !== expectedCurrentRoomName)
+      return
+
+    const assistant = messagesStore.getMessageById(assistantMessageId)
+    const assistantContent = assistant?.content || ''
+    if (!assistantContent.trim())
+      return
+
+    const context = `User:\n${firstUserMessage}\n\nAssistant:\n${assistantContent}`
+    const title = await generateTopicTitleFromText(context)
+    if (!title)
+      return
+
+    if (getRoomName(roomId) !== expectedCurrentRoomName)
+      return
+
+    await roomsStore.updateRoom(roomId, { name: title })
+  }
+  catch (error) {
+    console.warn('Failed to update room title to topic', error)
+  }
+}
+
+async function generateResponse(parentId: string | null, provider: ProviderNames, model: string, regenerateId?: string): Promise<string | null> {
   if (!model) {
     toast.error('Please select a model')
-    return
+    return null
   }
 
   if (!currentProvider.value?.baseURL) {
     toast.error('Please select a provider')
-    return
+    return null
   }
 
   const systemPromptResult = await systemPrompt.buildSystemPrompt(currentRoomId.value ?? null)
 
-  let newMsgId = regenerateId
-  if (!newMsgId) {
-    const { id } = await messagesStore.newMessage('', 'assistant', parentId, provider, model, currentRoomId.value!, systemPromptResult.memoryIds)
-    newMsgId = id
+  let newMsgId: string
+  if (regenerateId) {
+    newMsgId = regenerateId
+    await messagesStore.setContent(newMsgId, '')
   }
   else {
-    await messagesStore.setContent(newMsgId, '')
+    const { id } = await messagesStore.newMessage('', 'assistant', parentId, provider, model, currentRoomId.value!, systemPromptResult.memoryIds)
+    newMsgId = id
   }
 
   await messagesStore.retrieveMessages()
@@ -307,6 +375,8 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
         await messagesStore.appendContent(newMsgId, textPart)
       }
     }
+
+    return newMsgId
   }
   finally {
     if (streamTextRunIds.value.get(newMsgId) === runId) {
@@ -326,6 +396,14 @@ async function handleSendButton(messageText?: string) {
     return
   }
 
+  const roomId = currentRoomId.value
+  if (!roomId)
+    return
+
+  const isFirstUserMessageInRoom = messagesStore.messages.filter(m => m.role === 'user').length === 0
+  const initialRoomName = getRoomName(roomId)
+  const shouldAutoRename = isFirstUserMessageInRoom && isDefaultRoomName(initialRoomName)
+
   const parentId = selectedMessageId.value
   if (parentId && streamTextAbortControllers.value.has(parentId))
     return
@@ -335,14 +413,26 @@ async function handleSendButton(messageText?: string) {
   const { model, message } = parseMessage(messageToSend)
 
   try {
-    const { id } = await messagesStore.newMessage(message, 'user', selectedMessageId.value, defaultTextModel.value.provider, model ?? defaultTextModel.value.model, currentRoomId.value!)
+    const { id } = await messagesStore.newMessage(message, 'user', selectedMessageId.value, defaultTextModel.value.provider, model ?? defaultTextModel.value.model, roomId)
     await messagesStore.retrieveMessages()
 
     inputMessage.value = model ? `model=${model} ` : ''
     selectedMessageId.value = id
     isSending.value = false
 
-    await generateResponse(id, defaultTextModel.value.provider as ProviderNames, model ?? defaultTextModel.value.model)
+    let expectedRoomNameForTopic = initialRoomName
+    if (shouldAutoRename) {
+      if (getRoomName(roomId) === initialRoomName) {
+        await roomsStore.updateRoom(roomId, { name: message })
+        expectedRoomNameForTopic = message
+      }
+    }
+
+    const assistantMessageId = await generateResponse(id, defaultTextModel.value.provider as ProviderNames, model ?? defaultTextModel.value.model)
+
+    if (shouldAutoRename && assistantMessageId) {
+      updateRoomTitleToTopic(roomId, message, assistantMessageId, expectedRoomNameForTopic)
+    }
   }
   catch (error) {
     isSending.value = false

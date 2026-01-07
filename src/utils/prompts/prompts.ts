@@ -5,6 +5,13 @@ import { useRoomsStore } from '~/stores/rooms'
 import SystemPrompt from './SystemPrompt.velin.md?raw'
 
 export const SUMMARY_PROMPT = `Summarize the following content concisely, briefly describe the content with at most 100 words, and use bulletins when needed:`
+export const TOPIC_TITLE_PROMPT = `Generate a short chat title that captures the main topic.
+
+Requirements:
+- Output only the title text (no quotes, no markdown).
+- Use the same language as the user.
+- Keep it short (<= 12 words, or <= 20 Chinese characters).
+- Avoid trailing punctuation.`
 
 export function useSystemPrompt() {
   const roomsStore = useRoomsStore()
