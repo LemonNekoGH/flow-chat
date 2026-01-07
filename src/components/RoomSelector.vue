@@ -115,7 +115,6 @@ async function renameRoom() {
   try {
     await roomsStore.updateRoom(renameRoomId.value, {
       name: renameRoomName.value.trim(),
-      name_manually_set: true,
     })
     toast.success('Chat renamed successfully')
   }

@@ -1,1 +1,0 @@
-ALTER TABLE "rooms" ADD COLUMN "name_manually_set" boolean DEFAULT false NOT NULL;

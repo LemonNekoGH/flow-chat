@@ -200,6 +200,24 @@ function hasGeneratingAncestor(messageId: string) {
   return false
 }
 
+function getRoomName(roomId: string) {
+  return roomsStore.rooms.find(r => r.id === roomId)?.name ?? ''
+}
+
+function isDefaultRoomName(name: string) {
+  const trimmed = name.trim()
+  if (!trimmed)
+    return true
+
+  // Seed names / tutorial
+  if (trimmed === 'Default Chat' || trimmed === 'Tutorial')
+    return true
+
+  // RoomSelector creates: `Chat ${format(new Date(), 'MMM d h:mm a', { locale: enUS })}`
+  // Examples: "Chat Jan 6 3:21 PM", "Chat Dec 31 11:59 AM"
+  return /^Chat [A-Za-z]{3} \d{1,2} \d{1,2}:\d{2} [AP]M$/.test(trimmed)
+}
+
 async function generateTopicTitleFromText(text: string) {
   const summaryProviderName = settingsStore.summaryTextModel.provider || defaultTextModel.value.provider
   const summaryProvider = settingsStore.configuredTextProviders.find(p => p.name === summaryProviderName)
@@ -230,13 +248,9 @@ async function generateTopicTitleFromText(text: string) {
   return normalizeGeneratedTopicTitle(out)
 }
 
-function isRoomNameManuallySet(roomId: string) {
-  return roomsStore.rooms.find(r => r.id === roomId)?.name_manually_set ?? false
-}
-
-async function updateRoomTitleToTopic(roomId: string, firstUserMessage: string, assistantMessageId: string) {
+async function updateRoomTitleToTopic(roomId: string, firstUserMessage: string, assistantMessageId: string, expectedCurrentRoomName: string) {
   try {
-    if (isRoomNameManuallySet(roomId))
+    if (getRoomName(roomId) !== expectedCurrentRoomName)
       return
 
     const assistant = messagesStore.getMessageById(assistantMessageId)
@@ -249,7 +263,7 @@ async function updateRoomTitleToTopic(roomId: string, firstUserMessage: string, 
     if (!title)
       return
 
-    if (isRoomNameManuallySet(roomId))
+    if (getRoomName(roomId) !== expectedCurrentRoomName)
       return
 
     await roomsStore.updateRoom(roomId, { name: title })
@@ -402,7 +416,8 @@ async function handleSendButton(messageText?: string) {
     return
 
   const isFirstUserMessageInRoom = messagesStore.messages.filter(m => m.role === 'user').length === 0
-  const shouldAutoRename = isFirstUserMessageInRoom && !isRoomNameManuallySet(roomId)
+  const initialRoomName = getRoomName(roomId)
+  const shouldAutoRename = isFirstUserMessageInRoom && isDefaultRoomName(initialRoomName)
 
   const parentId = selectedMessageId.value
   if (parentId && streamTextAbortControllers.value.has(parentId))
@@ -420,17 +435,19 @@ async function handleSendButton(messageText?: string) {
     selectedMessageId.value = id
     isSending.value = false
 
+    let expectedRoomNameForTopic = initialRoomName
     if (shouldAutoRename) {
       const firstSentenceTitle = extractFirstSentenceTitle(message)
-      if (firstSentenceTitle && !isRoomNameManuallySet(roomId)) {
+      if (firstSentenceTitle && getRoomName(roomId) === initialRoomName) {
         await roomsStore.updateRoom(roomId, { name: firstSentenceTitle })
+        expectedRoomNameForTopic = firstSentenceTitle
       }
     }
 
     const assistantMessageId = await generateResponse(id, defaultTextModel.value.provider as ProviderNames, model ?? defaultTextModel.value.model)
 
-    if (shouldAutoRename && assistantMessageId && !isRoomNameManuallySet(roomId)) {
-      void updateRoomTitleToTopic(roomId, message, assistantMessageId)
+    if (shouldAutoRename && assistantMessageId) {
+      void updateRoomTitleToTopic(roomId, message, assistantMessageId, expectedRoomNameForTopic)
     }
   }
   catch (error) {

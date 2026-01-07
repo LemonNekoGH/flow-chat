@@ -10,7 +10,6 @@ export function useRoomModel() {
     return (await dbStore.withCheckpoint((db) => {
       return db.insert(schema.rooms).values({
         name,
-        name_manually_set: false,
         template_id: templateId || null,
         default_model: 'gpt-4o',
       }).returning()

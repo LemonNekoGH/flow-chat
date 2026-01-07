@@ -1,7 +1,6 @@
 export interface Room {
   id: string
   name: string
-  name_manually_set: boolean
   template_id: string | null
   default_model: string | null
   focus_node_id: string | null
