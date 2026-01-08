@@ -25,6 +25,8 @@ describe('message Model', () => {
       role: 'user',
       room_id: room.id,
       summary: null,
+      memory: [],
+      attachments: [],
     })
     const embeddingContent = Array.from({ length: 1024 }, () => Math.round(Math.random() * 1000) / 1000)
     const embedding = await messageModel.updateEmbedding(message.id, embeddingContent)
@@ -47,6 +49,8 @@ describe('message Model', () => {
       role: 'user',
       room_id: room.id,
       summary: null,
+      memory: [],
+      attachments: [],
     })
     const messageWithoutEmbedding = await messageModel.create({
       model: 'test',
@@ -56,6 +60,8 @@ describe('message Model', () => {
       role: 'user',
       room_id: room.id,
       summary: null,
+      memory: [],
+      attachments: [],
     })
 
     await messageModel.updateEmbedding(

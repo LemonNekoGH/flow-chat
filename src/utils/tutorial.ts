@@ -33,6 +33,7 @@ function createMessage(
     model,
     provider,
     summary: null,
+    attachments: [],
   }
 }
 
