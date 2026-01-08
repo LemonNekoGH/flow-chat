@@ -1,3 +1,4 @@
+import type { Attachment } from '~/types/attachment'
 import type { Message, MessageRole } from '~/types/messages'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
@@ -30,6 +31,7 @@ export const useMessagesStore = defineStore('messages', () => {
     model: string,
     roomId: string,
     memory?: string[],
+    attachments?: Attachment[],
   ) {
     return messageModel.create({
       content: text,
@@ -40,6 +42,7 @@ export const useMessagesStore = defineStore('messages', () => {
       room_id: roomId,
       memory: memory || [],
       summary: null,
+      attachments: attachments || [],
     })
   }
 

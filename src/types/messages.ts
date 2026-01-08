@@ -1,8 +1,11 @@
+import type { Attachment } from './attachment'
+
 export type MessageRole = 'user' | 'assistant' | 'system'
 
 export interface BaseMessage {
   content: string
   role: string // FIXME: use enum in pglite
+  attachments?: Attachment[]
 }
 
 export interface Message extends BaseMessage {
@@ -14,4 +17,5 @@ export interface Message extends BaseMessage {
   summary: string | null
   show_summary?: boolean
   memory?: string[]
+  attachments: Attachment[]
 }

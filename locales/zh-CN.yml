@@ -12,3 +12,9 @@ intro:
   aka: 也叫
   whats-your-name: 输入你的名字
 not-found: 未找到页面
+file_upload:
+  drop_hint: 拖放文件到此处或点击上传
+  size_exceeded: 文件大小超过 {size}MB 限制
+  invalid_type: 无效的文件类型，仅支持图片
+  max_files_exceeded: 最多允许 {max} 个文件
+  read_error: 文件读取失败

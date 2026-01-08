@@ -2,6 +2,9 @@
 import type { ProviderNames } from '@moeru-ai/jem'
 import type { NodeMouseEvent } from '@vue-flow/core'
 import type { AcceptableValue } from 'reka-ui'
+import type { Attachment, AttachmentPreview } from '~/types/attachment'
+import type { BaseMessage } from '~/types/messages'
+import { hasCapabilities } from '@moeru-ai/jem'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { VueFlow } from '@vue-flow/core'
@@ -10,7 +13,10 @@ import { useClipboard, useElementBounding, useEventListener } from '@vueuse/core
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, provide, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
+import { generateText, streamText } from 'xsai'
+import AttachmentDisplay from '~/components/AttachmentDisplay.vue'
 import ConversationView from '~/components/ConversationView.vue'
+import FileUpload from '~/components/FileUpload.vue'
 import ModelSelector from '~/components/ModelSelector.vue'
 import AssistantNode from '~/components/nodes/AssistantNode.vue'
 import SystemNode from '~/components/nodes/SystemNode.vue'
@@ -59,6 +65,62 @@ const strokeColor = computed(() => (isDark.value ? darkColor : defaultColor))
 
 const inputMessage = ref('')
 const isConversationMode = computed(() => currentMode.value === ChatMode.CONVERSATION)
+
+// File upload state
+const pendingAttachments = ref<AttachmentPreview[]>([])
+const showFileUpload = ref(false)
+const fileUploadRef = ref<InstanceType<typeof FileUpload>>()
+
+function handleFilesChanged(files: AttachmentPreview[]) {
+  pendingAttachments.value = files
+}
+
+function clearPendingAttachments() {
+  pendingAttachments.value = []
+  fileUploadRef.value?.clearAll()
+}
+
+function toggleFileUpload() {
+  showFileUpload.value = !showFileUpload.value
+}
+
+// Convert AttachmentPreview to Attachment for storage
+function toAttachments(previews: AttachmentPreview[]): Attachment[] {
+  return previews.map(({ id, type, name, mimeType, data, width, height }) => ({
+    id,
+    type,
+    name,
+    mimeType,
+    data,
+    width,
+    height,
+  }))
+}
+
+// Build multimodal message content for AI request
+function buildMultimodalContent(text: string, attachments: Attachment[]): { type: string, text?: string, image?: string, mimeType?: string }[] {
+  const content: { type: string, text?: string, image?: string, mimeType?: string }[] = []
+
+  // Add text content first
+  if (text.trim()) {
+    content.push({ type: 'text', text })
+  }
+
+  // Add image attachments
+  for (const attachment of attachments) {
+    if (attachment.type === 'image') {
+      // Extract base64 data from data URL
+      const base64Data = attachment.data.split(',')[1]
+      content.push({
+        type: 'image',
+        image: base64Data,
+        mimeType: attachment.mimeType,
+      })
+    }
+  }
+
+  return content
+}
 
 const showModelSelector = ref(false)
 const inlineModelCommandValue = ref('')
@@ -155,9 +217,243 @@ async function handleContextMenuDelete() {
   })
 }
 
+const streamTextAbortControllers = ref<Map<string, AbortController>>(new Map())
+const streamTextRunIds = ref<Map<string, number>>(new Map())
+
+function nextStreamRunId(messageId: string) {
+  const current = streamTextRunIds.value.get(messageId) ?? 0
+  const next = current + 1
+  streamTextRunIds.value.set(messageId, next)
+  return next
+}
+
+function hasGeneratingAncestor(messageId: string) {
+  let currentId = messagesStore.getMessageById(messageId)?.parent_id
+  while (currentId) {
+    if (messagesStore.isGenerating(currentId))
+      return true
+
+    currentId = messagesStore.getMessageById(currentId)?.parent_id
+  }
+  return false
+}
+
+function getRoomName(roomId: string) {
+  return roomsStore.rooms.find(r => r.id === roomId)?.name ?? ''
+}
+
+function isDefaultRoomName(name: string) {
+  const trimmed = name.trim()
+  if (!trimmed)
+    return true
+
+  // Seed names / tutorial
+  if (trimmed === 'Default Chat' || trimmed === 'Tutorial')
+    return true
+
+  // RoomSelector creates: `Chat ${format(new Date(), 'MMM d h:mm a', { locale: enUS })}`
+  // Examples: "Chat Jan 6 3:21 PM", "Chat Dec 31 11:59 AM"
+  return /^Chat [A-Za-z]{3} \d{1,2} \d{1,2}:\d{2} [AP]M$/.test(trimmed)
+}
+
+async function generateTopicTitleFromText(text: string) {
+  const summaryProviderName = settingsStore.summaryTextModel.provider || defaultTextModel.value.provider
+  const summaryProvider = settingsStore.configuredTextProviders.find(p => p.name === summaryProviderName)
+
+  const defaultModel = defaultTextModel.value.model
+  const summaryModelName = settingsStore.summaryTextModel.model
+  const model = summaryModelName || defaultModel
+
+  if (!model || !summaryProvider?.baseURL) {
+    return ''
+  }
+
+  const { text: topicTitle } = await generateText({
+    apiKey: summaryProvider.apiKey,
+    baseURL: summaryProvider.baseURL,
+    model,
+    messages: [
+      { role: 'user', content: `${TOPIC_TITLE_PROMPT}\n\n${text}` },
+    ],
+  })
+
+  return topicTitle
+}
+
+async function updateRoomTitleToTopic(roomId: string, firstUserMessage: string, assistantMessageId: string, expectedCurrentRoomName: string) {
+  try {
+    if (getRoomName(roomId) !== expectedCurrentRoomName)
+      return
+
+    const assistant = messagesStore.getMessageById(assistantMessageId)
+    const assistantContent = assistant?.content || ''
+    if (!assistantContent.trim())
+      return
+
+    const context = `User:\n${firstUserMessage}\n\nAssistant:\n${assistantContent}`
+    const title = await generateTopicTitleFromText(context)
+    if (!title)
+      return
+
+    if (getRoomName(roomId) !== expectedCurrentRoomName)
+      return
+
+    await roomsStore.updateRoom(roomId, { name: title })
+  }
+  catch (error) {
+    console.warn('Failed to update room title to topic', error)
+  }
+}
+
+async function generateResponse(parentId: string | null, provider: ProviderNames, model: string, regenerateId?: string): Promise<string | null> {
+  if (!model) {
+    toast.error('Please select a model')
+    return null
+  }
+
+  if (!currentProvider.value?.baseURL) {
+    toast.error('Please select a provider')
+    return null
+  }
+
+  const systemPromptResult = await systemPrompt.buildSystemPrompt(currentRoomId.value ?? null)
+
+  let newMsgId: string
+  if (regenerateId) {
+    newMsgId = regenerateId
+    await messagesStore.setContent(newMsgId, '')
+  }
+  else {
+    const { id } = await messagesStore.newMessage('', 'assistant', parentId, provider, model, currentRoomId.value!, systemPromptResult.memoryIds)
+    newMsgId = id
+  }
+
+  await messagesStore.retrieveMessages()
+
+  messagesStore.startGenerating(newMsgId)
+  const prevAbortController = streamTextAbortControllers.value.get(newMsgId)
+  prevAbortController?.abort('Superseded by new generation')
+  const runId = nextStreamRunId(newMsgId)
+  const abortController = new AbortController()
+  streamTextAbortControllers.value.set(newMsgId, abortController)
+
+  try {
+    const tools = {
+      tools: [
+        ...(await createImageTools({ // TODO: more tools
+          apiKey: settingsStore.imageGeneration.apiKey,
+          baseURL: 'https://api.openai.com/v1',
+          piniaStore: messagesStore,
+          messageId: newMsgId,
+        })),
+        ...(await createMemoryTools({
+          roomId: currentRoomId.value ?? null,
+          messageId: newMsgId,
+          piniaStore: messagesStore,
+        })),
+      ],
+    }
+
+    let isSupportTools = false
+    try {
+      const capabilities: Record<string, boolean> = hasCapabilities(
+        provider as ProviderNames,
+        model as ModelIdsByProvider<ProviderNames>,
+        ['tool-call'] as CapabilitiesByModel<ProviderNames, ModelIdsByProvider<ProviderNames>>,
+      )
+      isSupportTools = capabilities['tool-call']
+    }
+    catch (error) {
+      console.error('Failed to check if model supports tools', error)
+    }
+
+    const conversationMessages = currentBranch.value.messages
+      .filter(msg => msg.role !== 'system')
+      .map((msg): BaseMessage => {
+        const { content, role, attachments } = msg
+        // If message has image attachments, build multimodal content
+        if (attachments && attachments.some(a => a.type === 'image')) {
+          return {
+            content: buildMultimodalContent(content, attachments) as any,
+            role,
+            attachments,
+          }
+        }
+        return { content, role }
+      })
+
+    const allMessages = [{
+      content: systemPromptResult.prompt,
+      role: 'system',
+    } satisfies BaseMessage, ...conversationMessages]
+
+    const { textStream } = await streamText({
+      ...(isSupportTools ? tools : {}),
+      maxSteps: 10,
+      apiKey: currentProvider.value?.apiKey,
+      baseURL: currentProvider.value?.baseURL,
+      model,
+      messages: allMessages as any, // FIXME: migrate to enum later
+      abortSignal: abortController.signal,
+    })
+
+    // auto select the answer
+    selectedMessageId.value = newMsgId
+    roomViewStateStore.focusFlowNode(newMsgId, { center: true })
+    if (currentRoomId.value) {
+      try {
+        await dbStore.waitForDbInitialized()
+        await roomsStore.updateRoomState(currentRoomId.value, { focusNodeId: newMsgId })
+      }
+      catch (error) {
+        console.error('Failed to persist focus node', error)
+      }
+    }
+
+    const { useToolCallModel } = await import('~/models/tool-calls')
+    const toolCallModel = useToolCallModel()
+    let lastCheckedToolCallId: string | null = null
+
+    for await (const textPart of asyncIteratorFromReadableStream(textStream, async v => v)) {
+      if (streamTextRunIds.value.get(newMsgId) !== runId || abortController.signal.aborted)
+        break
+
+      const toolCalls = await toolCallModel.getByMessageId(newMsgId)
+      const imageToolCall = toolCalls.find(tc => tc.tool_name === 'generate_image' && tc.id !== lastCheckedToolCallId && tc.result)
+
+      if (imageToolCall) {
+        const result = imageToolCall.result as { imageBase64?: string } | null
+        if (result?.imageBase64) {
+          await messagesStore.appendContent(newMsgId, `![generated image](data:image/png;base64,${result.imageBase64})`)
+          lastCheckedToolCallId = imageToolCall.id
+        }
+      }
+
+      if (textPart) {
+        await messagesStore.appendContent(newMsgId, textPart)
+      }
+    }
+
+    return newMsgId
+  }
+  finally {
+    if (streamTextRunIds.value.get(newMsgId) === runId) {
+      messagesStore.stopGenerating(newMsgId)
+      streamTextAbortControllers.value.delete(newMsgId)
+      streamTextRunIds.value.delete(newMsgId)
+      await messagesStore.retrieveMessages()
+      if (abortController.signal.reason === 'Aborted by user')
+        toast.success('Generation aborted')
+    }
+  }
+}
+
 async function handleSendButton(messageText?: string) {
   const messageToSend = messageText ?? inputMessage.value
-  if (!messageToSend) {
+  const attachments = toAttachments(pendingAttachments.value)
+
+  // Allow sending with just attachments (no text) or with text
+  if ((!messageToSend && attachments.length === 0) || isSending.value) {
     return
   }
 
@@ -199,6 +495,56 @@ async function handleSendButton(messageText?: string) {
       },
     },
   )
+  isSending.value = true
+
+  const { model, message } = parseMessage(messageToSend || '')
+
+  try {
+    const { id } = await messagesStore.newMessage(
+      message,
+      'user',
+      selectedMessageId.value,
+      defaultTextModel.value.provider,
+      model ?? defaultTextModel.value.model,
+      roomId,
+      undefined,
+      attachments,
+    )
+    await messagesStore.retrieveMessages()
+
+    inputMessage.value = model ? `model=${model} ` : ''
+    clearPendingAttachments()
+    showFileUpload.value = false
+    selectedMessageId.value = id
+    isSending.value = false
+
+    let expectedRoomNameForTopic = initialRoomName
+    if (shouldAutoRename) {
+      if (getRoomName(roomId) === initialRoomName) {
+        await roomsStore.updateRoom(roomId, { name: message || 'Image message' })
+        expectedRoomNameForTopic = message || 'Image message'
+      }
+    }
+
+    const assistantMessageId = await generateResponse(id, defaultTextModel.value.provider as ProviderNames, model ?? defaultTextModel.value.model)
+
+    if (shouldAutoRename && assistantMessageId) {
+      updateRoomTitleToTopic(roomId, message || 'Image message', assistantMessageId, expectedRoomNameForTopic)
+    }
+  }
+  catch (error) {
+    isSending.value = false
+    const err = error as Error
+    if (err.name === 'AbortError') {
+      return
+    }
+    if (err.message.includes('does not support tools')) {
+      toast.error('This model does not support tools')
+      return
+    }
+    console.error(error)
+    toast.error('Failed to generate response') // TODO: show error in message
+  }
 }
 
 function handleContextMenuFocusIn() {
@@ -390,23 +736,54 @@ onMounted(async () => {
           'bg-neutral-100 dark:bg-neutral-900': !isConversationMode,
         }"
       >
-        <div class="relative mx-auto w-full max-w-screen-md flex rounded-lg bg-neutral-100 p-2 shadow-lg transition-colors dark:bg-neutral-900">
-          <Textarea
-            v-model="inputMessage"
-            placeholder="Enter to send message, Shift+Enter for new-line"
-            max-h-60vh w-full resize-none border-gray-300 rounded-sm px-3 py-2 outline-none dark:bg-neutral-800 focus:ring-2 focus:ring-black dark:focus:ring-white
-            transition="all duration-200 ease-in-out"
-            @keydown.enter.exact.prevent="handleSendButton"
+        <div class="relative mx-auto w-full max-w-screen-md flex flex-col rounded-lg bg-neutral-100 p-2 shadow-lg transition-colors dark:bg-neutral-900">
+          <!-- File upload area -->
+          <div v-if="showFileUpload" class="mb-2">
+            <FileUpload
+              ref="fileUploadRef"
+              :max-files="5"
+              :max-file-size="10"
+              @files-changed="handleFilesChanged"
+            />
+          </div>
+
+          <!-- Pending attachments preview -->
+          <AttachmentDisplay
+            v-if="pendingAttachments.length > 0 && !showFileUpload"
+            :attachments="pendingAttachments"
+            compact
+            class="mb-2"
           />
-          <ModelSelector
-            v-if="showModelSelector"
-            v-model:show-model-selector="showModelSelector"
-            :search-term="inputMessage.substring(6)"
-            @select-model="handleModelSelect"
-          />
-          <Button absolute bottom-3 right-3 @click="handleSendButton">
-            Send
-          </Button>
+
+          <div class="relative flex items-end gap-2">
+            <!-- File upload toggle button -->
+            <Button
+              variant="ghost"
+              size="sm"
+              class="mb-1 shrink-0"
+              :class="{ 'text-primary': showFileUpload || pendingAttachments.length > 0 }"
+              @click="toggleFileUpload"
+            >
+              <div class="i-solar-gallery-add-bold text-lg" />
+            </Button>
+
+            <Textarea
+              v-model="inputMessage"
+              placeholder="Enter to send message, Shift+Enter for new-line"
+              max-h-60vh w-full resize-none border-gray-300 rounded-sm px-3 py-2 outline-none dark:bg-neutral-800 focus:ring-2 focus:ring-black dark:focus:ring-white
+              transition="all duration-200 ease-in-out"
+              @keydown.enter.exact.prevent="handleSendButton"
+            />
+            <ModelSelector
+              v-if="showModelSelector"
+              v-model:show-model-selector="showModelSelector"
+              :search-term="inputMessage.substring(6)"
+              @select-model="handleModelSelect"
+            />
+            <Button class="mb-1 shrink-0" @click="handleSendButton()">
+              Send
+            </Button>
+          </div>
           <Dialog v-model:open="showForkWithModelDialog">
             <DialogContent>
               <DialogHeader>

@@ -4,6 +4,7 @@ import { useClipboard, useEventListener } from '@vueuse/core'
 import { computed, nextTick, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { useMessagesStore } from '~/stores/messages'
+import AttachmentDisplay from './AttachmentDisplay.vue'
 import ConversationNodeContextMenu from './ConversationNodeContextMenu.vue'
 import MarkdownView from './MarkdownView.vue'
 import SystemPrompt from './SystemPrompt.vue'
@@ -213,6 +214,13 @@ useEventListener(containerRef, 'scroll', updateShouldAutoScroll)
             class="relative min-w-0 flex-1 rounded-lg p-4"
             :class="message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'"
           >
+            <!-- Attachments -->
+            <AttachmentDisplay
+              v-if="message.attachments && message.attachments.length > 0"
+              :attachments="message.attachments"
+              class="mb-2"
+            />
+
             <MarkdownView
               :content="message.content"
               :dark="message.role === 'user'"
