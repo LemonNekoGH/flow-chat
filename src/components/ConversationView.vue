@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import type { Message } from '~/types/messages'
-import { useClipboard, useEventListener } from '@vueuse/core'
+import { useEventListener } from '@vueuse/core'
 import { computed, nextTick, ref, watch } from 'vue'
-import { toast } from 'vue-sonner'
 import { useMessagesStore } from '~/stores/messages'
 import ConversationNodeContextMenu from './ConversationNodeContextMenu.vue'
 import MarkdownView from './MarkdownView.vue'
@@ -15,6 +14,7 @@ const emit = defineEmits<{
   (e: 'forkMessage', messageId: string, model?: string): void
   (e: 'abortMessage', messageId: string): void
   (e: 'regenerateMessage', messageId: string): void
+  (e: 'copyMessage', messageId: string): void
 }>()
 
 const messagesStore = useMessagesStore()
@@ -69,22 +69,6 @@ async function requestAutoScroll() {
     await nextTick()
     scrollToBottom()
   })
-}
-
-// Copy message content
-const { copy } = useClipboard()
-async function copyContent(content: string) {
-  try {
-    await copy(content)
-    toast.success('Copied to clipboard')
-  }
-  catch {
-    toast.error('Failed to copy message')
-  }
-}
-
-async function copyMessage(message: Message) {
-  await copyContent(message.content)
 }
 
 // Fork from a message
@@ -151,21 +135,7 @@ function handleContextMenuForkWith() {
 }
 
 async function handleContextMenuCopy() {
-  const messageId = contextMenu.value.messageId
-  const text = selectedText.value
-  closeContextMenu()
-
-  if (text) {
-    await copyContent(text)
-    return
-  }
-
-  if (messageId) {
-    const message = messagesStore.getMessageById(messageId)
-    if (message) {
-      await copyMessage(message)
-    }
-  }
+  emit('copyMessage', contextMenu.value.messageId)
 }
 
 function handleContextMenuFocusIn() {
@@ -232,7 +202,7 @@ useEventListener(containerRef, 'scroll', updateShouldAutoScroll)
               <button
                 class="copy-icon-btn"
                 title="Copy"
-                @click="copyMessage(message)"
+                @click="emit('copyMessage', message.id)"
               >
                 <div class="i-solar-copy-bold text-sm" />
               </button>

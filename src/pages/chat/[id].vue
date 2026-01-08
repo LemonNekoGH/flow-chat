@@ -157,13 +157,14 @@ async function handleContextMenuDelete() {
 
 async function handleSendButton(messageText?: string) {
   const messageToSend = messageText ?? inputMessage.value
-  if (!messageToSend) {
-    return
-  }
 
   const roomId = currentRoomId.value
   if (!roomId)
     return
+
+  if (!messageToSend || conversationStore.isSending(roomId)) {
+    return
+  }
 
   if (conversationStore.isSending(roomId))
     return
@@ -215,7 +216,11 @@ async function handleContextMenuCopy() {
     return
   }
 
-  const text = model && role === 'user' ? `model=${model} ${content}` : content
+  const text = model && role === 'user' ? `model=${model} ${content}` : content.filter(part => part.type === 'text').map(part => part.text).join('')
+  if (!text) {
+    toast.warning('No text to copy')
+    return
+  }
 
   try {
     await copy(text)
@@ -374,10 +379,11 @@ onMounted(async () => {
     />
     <div
       v-show="currentMode === ChatMode.CONVERSATION"
-      class="w-full flex flex-1 justify-center overflow-hidden px-4 sm:px-6"
+      class="w-full flex flex-1 flex-col justify-center overflow-hidden px-4 sm:px-6"
     >
       <ConversationView
-        class="w-full max-w-screen-md flex-1"
+        v-if="currentBranch.messages.length > 0"
+        class="mx-auto w-full max-w-screen-md flex-1"
         :messages="currentBranch.messages"
         @fork-message="handleFork"
         @abort-message="handleAbort"
@@ -390,23 +396,25 @@ onMounted(async () => {
           'bg-neutral-100 dark:bg-neutral-900': !isConversationMode,
         }"
       >
-        <div class="relative mx-auto w-full max-w-screen-md flex rounded-lg bg-neutral-100 p-2 shadow-lg transition-colors dark:bg-neutral-900">
-          <Textarea
-            v-model="inputMessage"
-            placeholder="Enter to send message, Shift+Enter for new-line"
-            max-h-60vh w-full resize-none border-gray-300 rounded-sm px-3 py-2 outline-none dark:bg-neutral-800 focus:ring-2 focus:ring-black dark:focus:ring-white
-            transition="all duration-200 ease-in-out"
-            @keydown.enter.exact.prevent="handleSendButton"
-          />
-          <ModelSelector
-            v-if="showModelSelector"
-            v-model:show-model-selector="showModelSelector"
-            :search-term="inputMessage.substring(6)"
-            @select-model="handleModelSelect"
-          />
-          <Button absolute bottom-3 right-3 @click="handleSendButton">
-            Send
-          </Button>
+        <div class="relative mx-auto w-full max-w-screen-md flex flex-col rounded-lg bg-neutral-100 p-2 shadow-lg transition-colors dark:bg-neutral-900">
+          <div class="relative flex items-end gap-2">
+            <Textarea
+              v-model="inputMessage"
+              placeholder="Enter to send message, Shift+Enter for new-line"
+              max-h-60vh w-full resize-none border-gray-300 rounded-sm px-3 py-2 outline-none dark:bg-neutral-800 focus:ring-2 focus:ring-black dark:focus:ring-white
+              transition="all duration-200 ease-in-out"
+              @keydown.enter.exact.prevent="handleSendButton"
+            />
+            <ModelSelector
+              v-if="showModelSelector"
+              v-model:show-model-selector="showModelSelector"
+              :search-term="inputMessage.substring(6)"
+              @select-model="handleModelSelect"
+            />
+            <Button class="mb-1 shrink-0" @click="handleSendButton()">
+              Send
+            </Button>
+          </div>
           <Dialog v-model:open="showForkWithModelDialog">
             <DialogContent>
               <DialogHeader>
