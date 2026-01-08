@@ -2,6 +2,7 @@
 import type { CapabilitiesByModel, ModelIdsByProvider, ProviderNames } from '@moeru-ai/jem'
 import type { NodeMouseEvent } from '@vue-flow/core'
 import type { AcceptableValue } from 'reka-ui'
+import type { Attachment, AttachmentPreview } from '~/types/attachment'
 import type { BaseMessage } from '~/types/messages'
 import { hasCapabilities } from '@moeru-ai/jem'
 import { Background } from '@vue-flow/background'
@@ -13,7 +14,9 @@ import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, provide, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 import { generateText, streamText } from 'xsai'
+import AttachmentDisplay from '~/components/AttachmentDisplay.vue'
 import ConversationView from '~/components/ConversationView.vue'
+import FileUpload from '~/components/FileUpload.vue'
 import ModelSelector from '~/components/ModelSelector.vue'
 import AssistantNode from '~/components/nodes/AssistantNode.vue'
 import SystemNode from '~/components/nodes/SystemNode.vue'
@@ -65,6 +68,62 @@ const inputMessage = ref('')
 const isSending = ref(false)
 const isConversationMode = computed(() => currentMode.value === ChatMode.CONVERSATION)
 const systemPrompt = useSystemPrompt()
+
+// File upload state
+const pendingAttachments = ref<AttachmentPreview[]>([])
+const showFileUpload = ref(false)
+const fileUploadRef = ref<InstanceType<typeof FileUpload>>()
+
+function handleFilesChanged(files: AttachmentPreview[]) {
+  pendingAttachments.value = files
+}
+
+function clearPendingAttachments() {
+  pendingAttachments.value = []
+  fileUploadRef.value?.clearAll()
+}
+
+function toggleFileUpload() {
+  showFileUpload.value = !showFileUpload.value
+}
+
+// Convert AttachmentPreview to Attachment for storage
+function toAttachments(previews: AttachmentPreview[]): Attachment[] {
+  return previews.map(({ id, type, name, mimeType, data, width, height }) => ({
+    id,
+    type,
+    name,
+    mimeType,
+    data,
+    width,
+    height,
+  }))
+}
+
+// Build multimodal message content for AI request
+function buildMultimodalContent(text: string, attachments: Attachment[]): { type: string, text?: string, image?: string, mimeType?: string }[] {
+  const content: { type: string, text?: string, image?: string, mimeType?: string }[] = []
+
+  // Add text content first
+  if (text.trim()) {
+    content.push({ type: 'text', text })
+  }
+
+  // Add image attachments
+  for (const attachment of attachments) {
+    if (attachment.type === 'image') {
+      // Extract base64 data from data URL
+      const base64Data = attachment.data.split(',')[1]
+      content.push({
+        type: 'image',
+        image: base64Data,
+        mimeType: attachment.mimeType,
+      })
+    }
+  }
+
+  return content
+}
 
 // Model selection
 const showModelSelector = ref(false)
@@ -322,7 +381,18 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
 
     const conversationMessages = currentBranch.value.messages
       .filter(msg => msg.role !== 'system')
-      .map(({ content, role }): BaseMessage => ({ content, role }))
+      .map((msg): BaseMessage => {
+        const { content, role, attachments } = msg
+        // If message has image attachments, build multimodal content
+        if (attachments && attachments.some(a => a.type === 'image')) {
+          return {
+            content: buildMultimodalContent(content, attachments) as any,
+            role,
+            attachments,
+          }
+        }
+        return { content, role }
+      })
 
     const allMessages = [{
       content: systemPromptResult.prompt,
@@ -392,7 +462,10 @@ async function generateResponse(parentId: string | null, provider: ProviderNames
 
 async function handleSendButton(messageText?: string) {
   const messageToSend = messageText ?? inputMessage.value
-  if (!messageToSend || isSending.value) {
+  const attachments = toAttachments(pendingAttachments.value)
+
+  // Allow sending with just attachments (no text) or with text
+  if ((!messageToSend && attachments.length === 0) || isSending.value) {
     return
   }
 
@@ -410,28 +483,39 @@ async function handleSendButton(messageText?: string) {
 
   isSending.value = true
 
-  const { model, message } = parseMessage(messageToSend)
+  const { model, message } = parseMessage(messageToSend || '')
 
   try {
-    const { id } = await messagesStore.newMessage(message, 'user', selectedMessageId.value, defaultTextModel.value.provider, model ?? defaultTextModel.value.model, roomId)
+    const { id } = await messagesStore.newMessage(
+      message,
+      'user',
+      selectedMessageId.value,
+      defaultTextModel.value.provider,
+      model ?? defaultTextModel.value.model,
+      roomId,
+      undefined,
+      attachments,
+    )
     await messagesStore.retrieveMessages()
 
     inputMessage.value = model ? `model=${model} ` : ''
+    clearPendingAttachments()
+    showFileUpload.value = false
     selectedMessageId.value = id
     isSending.value = false
 
     let expectedRoomNameForTopic = initialRoomName
     if (shouldAutoRename) {
       if (getRoomName(roomId) === initialRoomName) {
-        await roomsStore.updateRoom(roomId, { name: message })
-        expectedRoomNameForTopic = message
+        await roomsStore.updateRoom(roomId, { name: message || 'Image message' })
+        expectedRoomNameForTopic = message || 'Image message'
       }
     }
 
     const assistantMessageId = await generateResponse(id, defaultTextModel.value.provider as ProviderNames, model ?? defaultTextModel.value.model)
 
     if (shouldAutoRename && assistantMessageId) {
-      updateRoomTitleToTopic(roomId, message, assistantMessageId, expectedRoomNameForTopic)
+      updateRoomTitleToTopic(roomId, message || 'Image message', assistantMessageId, expectedRoomNameForTopic)
     }
   }
   catch (error) {
@@ -714,23 +798,54 @@ onMounted(async () => {
           'bg-neutral-100 dark:bg-neutral-900': !isConversationMode,
         }"
       >
-        <div class="relative mx-auto w-full max-w-screen-md flex rounded-lg bg-neutral-100 p-2 shadow-lg transition-colors dark:bg-neutral-900">
-          <Textarea
-            v-model="inputMessage"
-            placeholder="Enter to send message, Shift+Enter for new-line"
-            max-h-60vh w-full resize-none border-gray-300 rounded-sm px-3 py-2 outline-none dark:bg-neutral-800 focus:ring-2 focus:ring-black dark:focus:ring-white
-            transition="all duration-200 ease-in-out"
-            @keydown.enter.exact.prevent="handleSendButton"
+        <div class="relative mx-auto w-full max-w-screen-md flex flex-col rounded-lg bg-neutral-100 p-2 shadow-lg transition-colors dark:bg-neutral-900">
+          <!-- File upload area -->
+          <div v-if="showFileUpload" class="mb-2">
+            <FileUpload
+              ref="fileUploadRef"
+              :max-files="5"
+              :max-file-size="10"
+              @files-changed="handleFilesChanged"
+            />
+          </div>
+
+          <!-- Pending attachments preview -->
+          <AttachmentDisplay
+            v-if="pendingAttachments.length > 0 && !showFileUpload"
+            :attachments="pendingAttachments"
+            compact
+            class="mb-2"
           />
-          <ModelSelector
-            v-if="showModelSelector"
-            v-model:show-model-selector="showModelSelector"
-            :search-term="inputMessage.substring(6)"
-            @select-model="handleModelSelect"
-          />
-          <Button absolute bottom-3 right-3 @click="handleSendButton">
-            Send
-          </Button>
+
+          <div class="relative flex items-end gap-2">
+            <!-- File upload toggle button -->
+            <Button
+              variant="ghost"
+              size="sm"
+              class="mb-1 shrink-0"
+              :class="{ 'text-primary': showFileUpload || pendingAttachments.length > 0 }"
+              @click="toggleFileUpload"
+            >
+              <div class="i-solar-gallery-add-bold text-lg" />
+            </Button>
+
+            <Textarea
+              v-model="inputMessage"
+              placeholder="Enter to send message, Shift+Enter for new-line"
+              max-h-60vh w-full resize-none border-gray-300 rounded-sm px-3 py-2 outline-none dark:bg-neutral-800 focus:ring-2 focus:ring-black dark:focus:ring-white
+              transition="all duration-200 ease-in-out"
+              @keydown.enter.exact.prevent="handleSendButton"
+            />
+            <ModelSelector
+              v-if="showModelSelector"
+              v-model:show-model-selector="showModelSelector"
+              :search-term="inputMessage.substring(6)"
+              @select-model="handleModelSelect"
+            />
+            <Button class="mb-1 shrink-0" @click="handleSendButton()">
+              Send
+            </Button>
+          </div>
           <Dialog v-model:open="showForkWithModelDialog">
             <DialogContent>
               <DialogHeader>

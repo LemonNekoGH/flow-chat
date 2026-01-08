@@ -1,4 +1,5 @@
 import type { InferSelectModel } from 'drizzle-orm'
+import type { Attachment } from '~/types/attachment'
 import type { Message } from '~/types/messages'
 import { and, cosineDistance, desc, eq, getTableColumns, ilike, inArray, isNull, sql } from 'drizzle-orm'
 import { useDatabaseStore } from '~/stores/database'
@@ -10,6 +11,7 @@ function toMessage(row: MessageRow): Message {
   return {
     ...row,
     memory: row.memory,
+    attachments: (row.attachments ?? []) as Attachment[],
   }
 }
 

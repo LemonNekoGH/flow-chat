@@ -35,6 +35,7 @@ export const messages = pgTable('messages', {
   summary: text('summary'),
   show_summary: boolean('show_summary').notNull().default(false),
   memory: text('memory').array().notNull().default(sql`ARRAY[]::text[]`),
+  attachments: jsonb('attachments').notNull().default(sql`'[]'::jsonb`),
   created_at: timestamp('created_at').notNull().default(sql`now()`),
   updated_at: timestamp('updated_at').notNull().default(sql`now()`),
 }, table => [
