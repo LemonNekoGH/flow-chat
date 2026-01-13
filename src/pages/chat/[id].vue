@@ -60,12 +60,10 @@ const strokeColor = computed(() => (isDark.value ? darkColor : defaultColor))
 const inputMessage = ref('')
 const isConversationMode = computed(() => currentMode.value === ChatMode.CONVERSATION)
 
-// Model selection
 const showModelSelector = ref(false)
 const inlineModelCommandValue = ref('')
 const inlineModelCommandProvider = ref<ProviderNames | null>(null)
 
-// Watch for "model=" in the input
 watch(inputMessage, (newValue) => {
   // Show only if input starts with 'model=' and does not contain white-spaces
   if (newValue.startsWith('model=') && !newValue.match(/\s/)) {
@@ -87,13 +85,11 @@ watch(inputMessage, (newValue) => {
   }
 }, { immediate: true })
 
-// Handle model selection from the component
 function handleModelSelect(model: string) {
   inlineModelCommandValue.value = model
   inputMessage.value = `model=${model} `
 }
 
-// #region vue flow event handlers
 function handleNodeClick(event: NodeMouseEvent) {
   selectedMessageId.value = event.node.id
 }
@@ -114,7 +110,6 @@ function handleNodeContextMenu(event: NodeMouseEvent) {
   const mouseEvent = event.event as MouseEvent
   mouseEvent.preventDefault()
 }
-// #endregion
 
 useEventListener('keydown', (event) => {
   if ((event.key === 'Backspace' || event.key === 'Delete') && selectedMessageId.value) {
@@ -128,15 +123,11 @@ useEventListener('keydown', (event) => {
   }
 })
 
-// delete the current selected node
 async function deleteSelectedNode(nodeId: string) {
-  // get parent node
   const parentId = messagesStore.getMessageById(nodeId)?.parent_id
-  // delete the node and all its descendants from store
   await messagesStore.deleteSubtree(nodeId)
   await messagesStore.retrieveMessages()
 
-  // Auto select the parent node or cancel selection
   if (parentId) {
     selectedMessageId.value = parentId
     roomViewStateStore.setCenterToNode(parentId)
@@ -177,12 +168,10 @@ async function handleSendButton(messageText?: string) {
   if (conversationStore.isSending(roomId))
     return
 
-  // Check if parent is generating
   const parentId = selectedMessageId.value
   if (parentId && conversationStore.isGeneratingMessage(parentId))
     return
 
-  // Extract model prefix to preserve in input
   const modelMatch = messageToSend.match(/^model=(\S+)\s+/)
   const modelPrefix = modelMatch ? modelMatch[1] : null
 
@@ -293,9 +282,6 @@ async function handleForkWith() {
   )
 }
 
-// Handle forking - now this just selects the message without generating
-// FIXME: feature broken
-// function handleFork(messageId: string | null, model?: string) {
 function handleFork(messageId: string | null) {
   if (messageId) {
     selectedMessageId.value = messageId
@@ -316,10 +302,7 @@ async function handleSummarize(messageId: string) {
 
 function handleFlowInit() {
   roomViewStateStore.handleInit()
-  // Trigger layout recalculation after flow initialization
-  // This ensures node dimensions are available for layout calculation
   nextTick(() => {
-    // Wait for nodes to be rendered
     requestAnimationFrame(() => {
       roomViewStateStore.triggerLayoutRecalculation()
     })
@@ -332,7 +315,6 @@ provide('containerBounding', containerBounding)
 
 onMounted(async () => {
   await dbStore.waitForDbInitialized()
-  // Initialize rooms before displaying
   await roomsStore.initialize()
   await messagesStore.retrieveMessages()
 })

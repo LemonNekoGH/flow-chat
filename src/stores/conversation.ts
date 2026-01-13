@@ -21,11 +21,8 @@ export const useConversationStore = defineStore('conversation', () => {
   const messagesStore = useMessagesStore()
   const roomsStore = useRoomsStore()
 
-  // Track abort controllers and run IDs per message (globally, not per room)
   const streamTextAbortControllers = ref<Map<string, AbortController>>(new Map())
   const streamTextRunIds = ref<Map<string, number>>(new Map())
-
-  // Track sending state per room
   const sendingRooms = ref<Set<string>>(new Set())
 
   const systemPrompt = useSystemPrompt()
@@ -91,28 +88,23 @@ export const useConversationStore = defineStore('conversation', () => {
   }
 
   async function updateRoomTitleToTopic(roomId: string, firstUserMessage: string, assistantMessageId: string, expectedCurrentRoomName: string) {
-    try {
-      if (getRoomName(roomId) !== expectedCurrentRoomName)
-        return
+    if (getRoomName(roomId) !== expectedCurrentRoomName)
+      return
 
-      const assistant = messagesStore.getMessageById(assistantMessageId)
-      const assistantContent = assistant?.content || ''
-      if (!assistantContent.trim())
-        return
+    const assistant = messagesStore.getMessageById(assistantMessageId)
+    const assistantContent = assistant?.content || ''
+    if (!assistantContent.trim())
+      return
 
-      const context = `User:\n${firstUserMessage}\n\nAssistant:\n${assistantContent}`
-      const title = await generateTopicTitleFromText(context)
-      if (!title)
-        return
+    const context = `User:\n${firstUserMessage}\n\nAssistant:\n${assistantContent}`
+    const title = await generateTopicTitleFromText(context)
+    if (!title)
+      return
 
-      if (getRoomName(roomId) !== expectedCurrentRoomName)
-        return
+    if (getRoomName(roomId) !== expectedCurrentRoomName)
+      return
 
-      await roomsStore.updateRoom(roomId, { name: title })
-    }
-    catch (error) {
-      console.warn('Failed to update room title to topic', error)
-    }
+    await roomsStore.updateRoom(roomId, { name: title })
   }
 
   async function generateResponse(
@@ -147,7 +139,6 @@ export const useConversationStore = defineStore('conversation', () => {
       newMsgId = id
     }
 
-    // Notify about the new message creation
     options?.onMessageCreated?.(newMsgId)
 
     messagesStore.startGenerating(newMsgId)
@@ -174,20 +165,13 @@ export const useConversationStore = defineStore('conversation', () => {
         ],
       }
 
-      let isSupportTools = false
-      try {
-        const capabilities: Record<string, boolean> = hasCapabilities(
-          provider as ProviderNames,
-          model as ModelIdsByProvider<ProviderNames>,
-          ['tool-call'] as CapabilitiesByModel<ProviderNames, ModelIdsByProvider<ProviderNames>>,
-        )
-        isSupportTools = capabilities['tool-call']
-      }
-      catch (error) {
-        console.error('Failed to check if model supports tools', error)
-      }
+      const capabilities: Record<string, boolean> = hasCapabilities(
+        provider as ProviderNames,
+        model as ModelIdsByProvider<ProviderNames>,
+        ['tool-call'] as CapabilitiesByModel<ProviderNames, ModelIdsByProvider<ProviderNames>>,
+      )
+      const isSupportTools = capabilities['tool-call']
 
-      // Get conversation messages for the current branch
       const branch = messagesStore.getBranchById(parentId)
       const conversationMessages = branch.messages
         .filter(msg => msg.role !== 'system')
@@ -256,7 +240,6 @@ export const useConversationStore = defineStore('conversation', () => {
       return
     }
 
-    // Clear previous summary if any
     await messagesStore.updateSummary(messageId, '')
     await messagesStore.retrieveMessages()
 
@@ -277,7 +260,6 @@ export const useConversationStore = defineStore('conversation', () => {
       return
     }
 
-    // Set generating status
     messagesStore.startGenerating(messageId)
 
     const prevAbortController = streamTextAbortControllers.value.get(messageId)
@@ -307,7 +289,7 @@ export const useConversationStore = defineStore('conversation', () => {
     }
     catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        return // Silently ignore abort errors
+        return
       }
       console.error('Summarization failed', error)
       toast.error('Summarization failed')
@@ -345,23 +327,10 @@ export const useConversationStore = defineStore('conversation', () => {
       return
     }
 
-    const roomId = message.room_id
-    if (!roomId) {
-      console.error('Message has no room_id')
+    if (!message.room_id)
       return
-    }
 
-    try {
-      await generateResponse(roomId, message.parent_id, message.provider as ProviderNames, message.model, messageId)
-    }
-    catch (error) {
-      const err = error as Error
-      if (err.name === 'AbortError') {
-        return
-      }
-      console.error(error)
-      toast.error('Failed to regenerate response')
-    }
+    await generateResponse(message.room_id, message.parent_id, message.provider as ProviderNames, message.model, messageId)
   }
 
   async function sendMessage(
@@ -377,13 +346,11 @@ export const useConversationStore = defineStore('conversation', () => {
       return
     }
 
-    // Check if parent is generating
     if (parentId && streamTextAbortControllers.value.has(parentId))
       return
 
     sendingRooms.value.add(roomId)
 
-    // Parse model from message
     const { model, message } = parseMessage(messageText)
 
     try {
@@ -401,7 +368,6 @@ export const useConversationStore = defineStore('conversation', () => {
       )
       await messagesStore.retrieveMessages()
 
-      // Notify about user message
       options?.onUserMessageCreated?.(id)
 
       sendingRooms.value.delete(roomId)
@@ -459,18 +425,7 @@ export const useConversationStore = defineStore('conversation', () => {
       onMessageCreated?: (messageId: string) => void
     },
   ) {
-    try {
-      return await generateResponse(roomId, parentId, provider, model, undefined, options)
-    }
-    catch (error) {
-      const err = error as Error
-      if (err.name === 'AbortError') {
-        return null
-      }
-      console.error(error)
-      toast.error('Failed to fork response')
-      return null
-    }
+    return await generateResponse(roomId, parentId, provider, model, undefined, options)
   }
 
   function isSending(roomId: string) {
@@ -481,7 +436,6 @@ export const useConversationStore = defineStore('conversation', () => {
     return streamTextAbortControllers.value.has(messageId)
   }
 
-  // Focus helper for the current room
   function focusNewMessage(messageId: string) {
     const roomViewStateStore = useRoomViewStateStore()
     const { selectedMessageId } = storeToRefs(roomViewStateStore)
@@ -491,23 +445,16 @@ export const useConversationStore = defineStore('conversation', () => {
   }
 
   return {
-    // State
     sendingRooms,
-
-    // Actions
     sendMessage,
     generateResponse,
     regenerate,
     summarize,
     abort,
     forkWith,
-
-    // Queries
     isSending,
     isGeneratingMessage,
     hasGeneratingAncestor,
-
-    // Utils
     focusNewMessage,
   }
 })
