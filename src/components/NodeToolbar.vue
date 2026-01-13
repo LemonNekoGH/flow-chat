@@ -17,6 +17,8 @@ const emit = defineEmits<{
   (e: 'focusIn'): void
   (e: 'delete'): void
   (e: 'copy'): void
+  (e: 'summarize'): void
+  (e: 'regenerate'): void
   (e: 'send', message: string): void
 }>()
 
@@ -26,6 +28,32 @@ const messagesStore = useMessagesStore()
 const { hasAnyMessages } = storeToRefs(messagesStore)
 const roomViewStateStore = useRoomViewStateStore()
 const { selectedMessage } = storeToRefs(roomViewStateStore)
+
+const isSelectedAssistant = computed(() => selectedMessage.value?.role === 'assistant')
+const isSelectedGenerating = computed(() => {
+  if (!selectedMessage.value) {
+    return false
+  }
+  return messagesStore.isGenerating(selectedMessage.value.id)
+})
+const selectedHasSummary = computed(() => !!selectedMessage.value?.summary)
+const selectedShowSummary = computed(() => selectedMessage.value?.show_summary ?? false)
+
+function handleToggleSummary() {
+  if (!selectedMessage.value) {
+    return
+  }
+
+  const messageId = selectedMessage.value.id
+
+  if (!selectedHasSummary.value && !isSelectedGenerating.value) {
+    emit('summarize')
+    void messagesStore.updateShowSummary(messageId, true) // Switch immediately to show "Summarizing..." or stream
+    return
+  }
+
+  void messagesStore.updateShowSummary(messageId, !selectedShowSummary.value)
+}
 
 const toolbarStyle = ref<{ left?: string, right?: string, top?: string, bottom?: string }>({
   top: '50%',
@@ -240,6 +268,24 @@ function handleSend() {
           @click="emit('copy')"
         >
           Copy
+        </Button>
+        <Button
+          v-if="isSelectedAssistant && !isSelectedGenerating"
+          variant="secondary-muted"
+          size="sm"
+          class="h-8 text-xs"
+          @click="handleToggleSummary"
+        >
+          {{ selectedShowSummary ? 'Hide Summary' : (selectedHasSummary ? 'Show Summary' : 'Summarize') }}
+        </Button>
+        <Button
+          v-if="isSelectedAssistant && !isSelectedGenerating"
+          variant="secondary-muted"
+          size="sm"
+          class="h-8 text-xs"
+          @click="emit('regenerate')"
+        >
+          {{ selectedShowSummary ? 'Regenerate Summary' : 'Regenerate' }}
         </Button>
         <Button
           v-if="selectedMessage.role === 'user'"
