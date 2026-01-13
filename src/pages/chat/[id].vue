@@ -292,6 +292,20 @@ function handleAbort(messageId: string) {
   conversationStore.abort(messageId)
 }
 
+function handleToolbarRegenerate() {
+  if (!selectedMessageId.value) {
+    return
+  }
+  void handleRegenerate(selectedMessageId.value)
+}
+
+function handleToolbarSummarize() {
+  if (!selectedMessageId.value) {
+    return
+  }
+  void handleSummarize(selectedMessageId.value)
+}
+
 async function handleRegenerate(messageId: string) {
   await conversationStore.regenerate(messageId)
 }
@@ -338,7 +352,7 @@ onMounted(async () => {
       <Controls />
       <MiniMap :mask-color="strokeColor" zoomable pannable />
       <template #node-assistant="props">
-        <AssistantNode v-bind="props" class="nodrag" @abort="handleAbort(props.id)" @regenerate="handleRegenerate(props.id)" @summarize="handleSummarize(props.id)" />
+        <AssistantNode v-bind="props" class="nodrag" @abort="handleAbort(props.id)" />
       </template>
       <template #node-system="props">
         <SystemNode v-bind="props" class="nodrag" />
@@ -354,6 +368,8 @@ onMounted(async () => {
       @focus-in="handleContextMenuFocusIn"
       @delete="handleContextMenuDelete"
       @copy="handleContextMenuCopy"
+      @regenerate="handleToolbarRegenerate"
+      @summarize="handleToolbarSummarize"
       @send="handleSendButton"
     />
     <div
