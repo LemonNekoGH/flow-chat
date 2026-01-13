@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import type { CapabilitiesByModel, ModelIdsByProvider, ProviderNames } from '@moeru-ai/jem'
+import type { ProviderNames } from '@moeru-ai/jem'
 import type { NodeMouseEvent } from '@vue-flow/core'
 import type { AcceptableValue } from 'reka-ui'
-import type { BaseMessage } from '~/types/messages'
-import { hasCapabilities } from '@moeru-ai/jem'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { VueFlow } from '@vue-flow/core'
@@ -12,7 +10,6 @@ import { useClipboard, useElementBounding, useEventListener } from '@vueuse/core
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, provide, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
-import { generateText, streamText } from 'xsai'
 import ConversationView from '~/components/ConversationView.vue'
 import ModelSelector from '~/components/ModelSelector.vue'
 import AssistantNode from '~/components/nodes/AssistantNode.vue'
@@ -25,6 +22,7 @@ import { Input } from '~/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select'
 import { Textarea } from '~/components/ui/textarea'
 import { isDark } from '~/composables/dark'
+import { useConversationStore } from '~/stores/conversation'
 import { useDatabaseStore } from '~/stores/database'
 import { useDialogStore } from '~/stores/dialog'
 import { useMessagesStore } from '~/stores/messages'
@@ -32,19 +30,17 @@ import { ChatMode, useModeStore } from '~/stores/mode'
 import { useRoomsStore } from '~/stores/rooms'
 import { useRoomViewStateStore } from '~/stores/roomViewState'
 import { useSettingsStore } from '~/stores/settings'
-import { createImageTools, createMemoryTools } from '~/tools'
-import { parseMessage } from '~/utils/chat'
-import { asyncIteratorFromReadableStream } from '~/utils/interator'
-import { SUMMARY_PROMPT, TOPIC_TITLE_PROMPT, useSystemPrompt } from '~/utils/prompts/prompts'
 
 const dbStore = useDatabaseStore()
 
 const settingsStore = useSettingsStore()
-const { defaultTextModel, currentProvider } = storeToRefs(settingsStore)
+const { defaultTextModel } = storeToRefs(settingsStore)
 
 const messagesStore = useMessagesStore()
 const { hasAnyMessages } = storeToRefs(messagesStore)
 const roomsStore = useRoomsStore()
+
+const conversationStore = useConversationStore()
 
 const { currentMode } = storeToRefs(useModeStore())
 
@@ -62,16 +58,12 @@ const darkColor = 'rgb(34,34,34,0.7)'
 const strokeColor = computed(() => (isDark.value ? darkColor : defaultColor))
 
 const inputMessage = ref('')
-const isSending = ref(false)
 const isConversationMode = computed(() => currentMode.value === ChatMode.CONVERSATION)
-const systemPrompt = useSystemPrompt()
 
-// Model selection
 const showModelSelector = ref(false)
 const inlineModelCommandValue = ref('')
 const inlineModelCommandProvider = ref<ProviderNames | null>(null)
 
-// Watch for "model=" in the input
 watch(inputMessage, (newValue) => {
   // Show only if input starts with 'model=' and does not contain white-spaces
   if (newValue.startsWith('model=') && !newValue.match(/\s/)) {
@@ -93,13 +85,11 @@ watch(inputMessage, (newValue) => {
   }
 }, { immediate: true })
 
-// Handle model selection from the component
 function handleModelSelect(model: string) {
   inlineModelCommandValue.value = model
   inputMessage.value = `model=${model} `
 }
 
-// #region vue flow event handlers
 function handleNodeClick(event: NodeMouseEvent) {
   selectedMessageId.value = event.node.id
 }
@@ -120,7 +110,6 @@ function handleNodeContextMenu(event: NodeMouseEvent) {
   const mouseEvent = event.event as MouseEvent
   mouseEvent.preventDefault()
 }
-// #endregion
 
 useEventListener('keydown', (event) => {
   if ((event.key === 'Backspace' || event.key === 'Delete') && selectedMessageId.value) {
@@ -134,15 +123,11 @@ useEventListener('keydown', (event) => {
   }
 })
 
-// delete the current selected node
 async function deleteSelectedNode(nodeId: string) {
-  // get parent node
   const parentId = messagesStore.getMessageById(nodeId)?.parent_id
-  // delete the node and all its descendants from store
   await messagesStore.deleteSubtree(nodeId)
   await messagesStore.retrieveMessages()
 
-  // Auto select the parent node or cancel selection
   if (parentId) {
     selectedMessageId.value = parentId
     roomViewStateStore.setCenterToNode(parentId)
@@ -170,229 +155,9 @@ async function handleContextMenuDelete() {
   })
 }
 
-const streamTextAbortControllers = ref<Map<string, AbortController>>(new Map())
-const streamTextRunIds = ref<Map<string, number>>(new Map())
-
-function nextStreamRunId(messageId: string) {
-  const current = streamTextRunIds.value.get(messageId) ?? 0
-  const next = current + 1
-  streamTextRunIds.value.set(messageId, next)
-  return next
-}
-
-function hasGeneratingAncestor(messageId: string) {
-  let currentId = messagesStore.getMessageById(messageId)?.parent_id
-  while (currentId) {
-    if (messagesStore.isGenerating(currentId))
-      return true
-
-    currentId = messagesStore.getMessageById(currentId)?.parent_id
-  }
-  return false
-}
-
-function getRoomName(roomId: string) {
-  return roomsStore.rooms.find(r => r.id === roomId)?.name ?? ''
-}
-
-function isDefaultRoomName(name: string) {
-  const trimmed = name.trim()
-  if (!trimmed)
-    return true
-
-  // Seed names / tutorial
-  if (trimmed === 'Default Chat' || trimmed === 'Tutorial')
-    return true
-
-  // RoomSelector creates: `Chat ${format(new Date(), 'MMM d h:mm a', { locale: enUS })}`
-  // Examples: "Chat Jan 6 3:21 PM", "Chat Dec 31 11:59 AM"
-  return /^Chat [A-Za-z]{3} \d{1,2} \d{1,2}:\d{2} [AP]M$/.test(trimmed)
-}
-
-async function generateTopicTitleFromText(text: string) {
-  const summaryProviderName = settingsStore.summaryTextModel.provider || defaultTextModel.value.provider
-  const summaryProvider = settingsStore.configuredTextProviders.find(p => p.name === summaryProviderName)
-
-  const defaultModel = defaultTextModel.value.model
-  const summaryModelName = settingsStore.summaryTextModel.model
-  const model = summaryModelName || defaultModel
-
-  if (!model || !summaryProvider?.baseURL) {
-    return ''
-  }
-
-  const { text: topicTitle } = await generateText({
-    apiKey: summaryProvider.apiKey,
-    baseURL: summaryProvider.baseURL,
-    model,
-    messages: [
-      { role: 'user', content: `${TOPIC_TITLE_PROMPT}\n\n${text}` },
-    ],
-  })
-
-  return topicTitle
-}
-
-async function updateRoomTitleToTopic(roomId: string, firstUserMessage: string, assistantMessageId: string, expectedCurrentRoomName: string) {
-  try {
-    if (getRoomName(roomId) !== expectedCurrentRoomName)
-      return
-
-    const assistant = messagesStore.getMessageById(assistantMessageId)
-    const assistantContent = assistant?.content || ''
-    if (!assistantContent.trim())
-      return
-
-    const context = `User:\n${firstUserMessage}\n\nAssistant:\n${assistantContent}`
-    const title = await generateTopicTitleFromText(context)
-    if (!title)
-      return
-
-    if (getRoomName(roomId) !== expectedCurrentRoomName)
-      return
-
-    await roomsStore.updateRoom(roomId, { name: title })
-  }
-  catch (error) {
-    console.warn('Failed to update room title to topic', error)
-  }
-}
-
-async function generateResponse(parentId: string | null, provider: ProviderNames, model: string, regenerateId?: string): Promise<string | null> {
-  if (!model) {
-    toast.error('Please select a model')
-    return null
-  }
-
-  if (!currentProvider.value?.baseURL) {
-    toast.error('Please select a provider')
-    return null
-  }
-
-  const systemPromptResult = await systemPrompt.buildSystemPrompt(currentRoomId.value ?? null)
-
-  let newMsgId: string
-  if (regenerateId) {
-    newMsgId = regenerateId
-    await messagesStore.setContent(newMsgId, '')
-  }
-  else {
-    const { id } = await messagesStore.newMessage('', 'assistant', parentId, provider, model, currentRoomId.value!, systemPromptResult.memoryIds)
-    newMsgId = id
-  }
-
-  await messagesStore.retrieveMessages()
-
-  messagesStore.startGenerating(newMsgId)
-  const prevAbortController = streamTextAbortControllers.value.get(newMsgId)
-  prevAbortController?.abort('Superseded by new generation')
-  const runId = nextStreamRunId(newMsgId)
-  const abortController = new AbortController()
-  streamTextAbortControllers.value.set(newMsgId, abortController)
-
-  try {
-    const tools = {
-      tools: [
-        ...(await createImageTools({ // TODO: more tools
-          apiKey: settingsStore.imageGeneration.apiKey,
-          baseURL: 'https://api.openai.com/v1',
-          piniaStore: messagesStore,
-          messageId: newMsgId,
-        })),
-        ...(await createMemoryTools({
-          roomId: currentRoomId.value ?? null,
-          messageId: newMsgId,
-          piniaStore: messagesStore,
-        })),
-      ],
-    }
-
-    let isSupportTools = false
-    try {
-      const capabilities: Record<string, boolean> = hasCapabilities(
-        provider as ProviderNames,
-        model as ModelIdsByProvider<ProviderNames>,
-        ['tool-call'] as CapabilitiesByModel<ProviderNames, ModelIdsByProvider<ProviderNames>>,
-      )
-      isSupportTools = capabilities['tool-call']
-    }
-    catch (error) {
-      console.error('Failed to check if model supports tools', error)
-    }
-
-    const conversationMessages = currentBranch.value.messages
-      .filter(msg => msg.role !== 'system')
-      .map(({ content, role }): BaseMessage => ({ content, role }))
-
-    const allMessages = [{
-      content: systemPromptResult.prompt,
-      role: 'system',
-    } satisfies BaseMessage, ...conversationMessages]
-
-    const { textStream } = await streamText({
-      ...(isSupportTools ? tools : {}),
-      maxSteps: 10,
-      apiKey: currentProvider.value?.apiKey,
-      baseURL: currentProvider.value?.baseURL,
-      model,
-      messages: allMessages as any, // FIXME: migrate to enum later
-      abortSignal: abortController.signal,
-    })
-
-    // auto select the answer
-    selectedMessageId.value = newMsgId
-    roomViewStateStore.focusFlowNode(newMsgId, { center: true })
-    if (currentRoomId.value) {
-      try {
-        await dbStore.waitForDbInitialized()
-        await roomsStore.updateRoomState(currentRoomId.value, { focusNodeId: newMsgId })
-      }
-      catch (error) {
-        console.error('Failed to persist focus node', error)
-      }
-    }
-
-    const { useToolCallModel } = await import('~/models/tool-calls')
-    const toolCallModel = useToolCallModel()
-    let lastCheckedToolCallId: string | null = null
-
-    for await (const textPart of asyncIteratorFromReadableStream(textStream, async v => v)) {
-      if (streamTextRunIds.value.get(newMsgId) !== runId || abortController.signal.aborted)
-        break
-
-      const toolCalls = await toolCallModel.getByMessageId(newMsgId)
-      const imageToolCall = toolCalls.find(tc => tc.tool_name === 'generate_image' && tc.id !== lastCheckedToolCallId && tc.result)
-
-      if (imageToolCall) {
-        const result = imageToolCall.result as { imageBase64?: string } | null
-        if (result?.imageBase64) {
-          await messagesStore.appendContent(newMsgId, `![generated image](data:image/png;base64,${result.imageBase64})`)
-          lastCheckedToolCallId = imageToolCall.id
-        }
-      }
-
-      if (textPart) {
-        await messagesStore.appendContent(newMsgId, textPart)
-      }
-    }
-
-    return newMsgId
-  }
-  finally {
-    if (streamTextRunIds.value.get(newMsgId) === runId) {
-      messagesStore.stopGenerating(newMsgId)
-      streamTextAbortControllers.value.delete(newMsgId)
-      streamTextRunIds.value.delete(newMsgId)
-      await messagesStore.retrieveMessages()
-      if (abortController.signal.reason === 'Aborted by user')
-        toast.success('Generation aborted')
-    }
-  }
-}
-
 async function handleSendButton(messageText?: string) {
   const messageToSend = messageText ?? inputMessage.value
-  if (!messageToSend || isSending.value) {
+  if (!messageToSend) {
     return
   }
 
@@ -400,53 +165,40 @@ async function handleSendButton(messageText?: string) {
   if (!roomId)
     return
 
-  const isFirstUserMessageInRoom = messagesStore.messages.filter(m => m.role === 'user').length === 0
-  const initialRoomName = getRoomName(roomId)
-  const shouldAutoRename = isFirstUserMessageInRoom && isDefaultRoomName(initialRoomName)
-
-  const parentId = selectedMessageId.value
-  if (parentId && streamTextAbortControllers.value.has(parentId))
+  if (conversationStore.isSending(roomId))
     return
 
-  isSending.value = true
+  const parentId = selectedMessageId.value
+  if (parentId && conversationStore.isGeneratingMessage(parentId))
+    return
 
-  const { model, message } = parseMessage(messageToSend)
+  const modelMatch = messageToSend.match(/^model=(\S+)\s+/)
+  const modelPrefix = modelMatch ? modelMatch[1] : null
 
-  try {
-    const { id } = await messagesStore.newMessage(message, 'user', selectedMessageId.value, defaultTextModel.value.provider, model ?? defaultTextModel.value.model, roomId)
-    await messagesStore.retrieveMessages()
-
-    inputMessage.value = model ? `model=${model} ` : ''
-    selectedMessageId.value = id
-    isSending.value = false
-
-    let expectedRoomNameForTopic = initialRoomName
-    if (shouldAutoRename) {
-      if (getRoomName(roomId) === initialRoomName) {
-        await roomsStore.updateRoom(roomId, { name: message })
-        expectedRoomNameForTopic = message
-      }
-    }
-
-    const assistantMessageId = await generateResponse(id, defaultTextModel.value.provider as ProviderNames, model ?? defaultTextModel.value.model)
-
-    if (shouldAutoRename && assistantMessageId) {
-      updateRoomTitleToTopic(roomId, message, assistantMessageId, expectedRoomNameForTopic)
-    }
-  }
-  catch (error) {
-    isSending.value = false
-    const err = error as Error
-    if (err.name === 'AbortError') {
-      return
-    }
-    if (err.message.includes('does not support tools')) {
-      toast.error('This model does not support tools')
-      return
-    }
-    console.error(error)
-    toast.error('Failed to generate response') // TODO: show error in message
-  }
+  await conversationStore.sendMessage(
+    roomId,
+    messageToSend,
+    parentId,
+    {
+      onUserMessageCreated: (messageId) => {
+        inputMessage.value = modelPrefix ? `model=${modelPrefix} ` : ''
+        selectedMessageId.value = messageId
+      },
+      onAssistantMessageCreated: async (messageId) => {
+        selectedMessageId.value = messageId
+        roomViewStateStore.focusFlowNode(messageId, { center: true })
+        if (currentRoomId.value) {
+          try {
+            await dbStore.waitForDbInitialized()
+            await roomsStore.updateRoomState(currentRoomId.value, { focusNodeId: messageId })
+          }
+          catch (error) {
+            console.error('Failed to persist focus node', error)
+          }
+        }
+      },
+    },
+  )
 }
 
 function handleContextMenuFocusIn() {
@@ -502,22 +254,34 @@ function handleForkWithProviderChange(provider: AcceptableValue) {
 async function handleForkWith() {
   showForkWithModelDialog.value = false
   showForkWithModelSelector.value = false
-  try {
-    await generateResponse(selectedMessageId.value, forkWithProvider.value as ProviderNames, forkWithModel.value)
-  }
-  catch (error) {
-    const err = error as Error
-    if (err.name === 'AbortError') {
-      return
-    }
-    console.error(error)
-    toast.error('Failed to fork response')
-  }
+
+  const roomId = currentRoomId.value
+  if (!roomId)
+    return
+
+  await conversationStore.forkWith(
+    roomId,
+    selectedMessageId.value,
+    forkWithProvider.value as ProviderNames,
+    forkWithModel.value,
+    {
+      onMessageCreated: async (messageId) => {
+        selectedMessageId.value = messageId
+        roomViewStateStore.focusFlowNode(messageId, { center: true })
+        if (currentRoomId.value) {
+          try {
+            await dbStore.waitForDbInitialized()
+            await roomsStore.updateRoomState(currentRoomId.value, { focusNodeId: messageId })
+          }
+          catch (error) {
+            console.error('Failed to persist focus node', error)
+          }
+        }
+      },
+    },
+  )
 }
 
-// Handle forking - now this just selects the message without generating
-// FIXME: feature broken
-// function handleFork(messageId: string | null, model?: string) {
 function handleFork(messageId: string | null) {
   if (messageId) {
     selectedMessageId.value = messageId
@@ -525,123 +289,20 @@ function handleFork(messageId: string | null) {
 }
 
 function handleAbort(messageId: string) {
-  const abortController = streamTextAbortControllers.value.get(messageId)
-  abortController?.abort('Aborted by user')
-  messagesStore.stopGenerating(messageId)
+  conversationStore.abort(messageId)
 }
 
 async function handleRegenerate(messageId: string) {
-  const message = messagesStore.getMessageById(messageId)
-  if (!message)
-    return
-
-  if (hasGeneratingAncestor(messageId)) {
-    toast.warning('Please wait for the previous generation to finish')
-    return
-  }
-
-  if (message.show_summary ?? false) {
-    await handleSummarize(messageId)
-    return
-  }
-
-  try {
-    await generateResponse(message.parent_id, message.provider as ProviderNames, message.model, messageId)
-  }
-  catch (error) {
-    const err = error as Error
-    if (err.name === 'AbortError') {
-      return
-    }
-    console.error(error)
-    toast.error('Failed to regenerate response')
-  }
+  await conversationStore.regenerate(messageId)
 }
 
 async function handleSummarize(messageId: string) {
-  const message = messagesStore.getMessageById(messageId)
-  if (!message)
-    return
-
-  if (hasGeneratingAncestor(messageId)) {
-    toast.warning('Please wait for the previous generation to finish')
-    return
-  }
-
-  // Clear previous summary if any
-  await messagesStore.updateSummary(messageId, '')
-  await messagesStore.retrieveMessages()
-
-  const summaryProviderName = settingsStore.summaryTextModel.provider || defaultTextModel.value.provider
-  const summaryProvider = settingsStore.configuredTextProviders.find(p => p.name === summaryProviderName)
-
-  const defaultModel = defaultTextModel.value.model
-  const summaryModelName = settingsStore.summaryTextModel.model
-  const model = summaryModelName || defaultModel
-
-  if (!model) {
-    toast.error('Please select a model')
-    return
-  }
-
-  if (!summaryProvider?.baseURL) {
-    toast.error('Please select a provider for summarization')
-    return
-  }
-
-  // Set generating status
-  messagesStore.startGenerating(messageId)
-
-  const prevAbortController = streamTextAbortControllers.value.get(messageId)
-  prevAbortController?.abort('Superseded by new summarization')
-  const runId = nextStreamRunId(messageId)
-  const abortController = new AbortController()
-  streamTextAbortControllers.value.set(messageId, abortController)
-
-  try {
-    const { textStream } = await streamText({
-      apiKey: summaryProvider.apiKey,
-      baseURL: summaryProvider.baseURL,
-      model,
-      messages: [
-        { role: 'user', content: `${SUMMARY_PROMPT}\n\n${message.content}` },
-      ],
-      abortSignal: abortController.signal,
-    })
-
-    for await (const textPart of asyncIteratorFromReadableStream(textStream, async v => v)) {
-      if (streamTextRunIds.value.get(messageId) !== runId || abortController.signal.aborted)
-        break
-      if (textPart) {
-        await messagesStore.appendSummary(messageId, textPart)
-      }
-    }
-  }
-  catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      return // Silently ignore abort errors
-    }
-    console.error('Summarization failed', error)
-    toast.error('Summarization failed')
-  }
-  finally {
-    if (streamTextRunIds.value.get(messageId) === runId) {
-      streamTextAbortControllers.value.delete(messageId)
-      streamTextRunIds.value.delete(messageId)
-      messagesStore.stopGenerating(messageId)
-      await messagesStore.retrieveMessages()
-      if (abortController.signal.reason === 'Aborted by user')
-        toast.success('Summarization aborted')
-    }
-  }
+  await conversationStore.summarize(messageId)
 }
 
 function handleFlowInit() {
   roomViewStateStore.handleInit()
-  // Trigger layout recalculation after flow initialization
-  // This ensures node dimensions are available for layout calculation
   nextTick(() => {
-    // Wait for nodes to be rendered
     requestAnimationFrame(() => {
       roomViewStateStore.triggerLayoutRecalculation()
     })
@@ -654,7 +315,6 @@ provide('containerBounding', containerBounding)
 
 onMounted(async () => {
   await dbStore.waitForDbInitialized()
-  // Initialize rooms before displaying
   await roomsStore.initialize()
   await messagesStore.retrieveMessages()
 })
