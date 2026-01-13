@@ -11,7 +11,6 @@ import { asyncIteratorFromReadableStream } from '~/utils/interator'
 import { SUMMARY_PROMPT, TOPIC_TITLE_PROMPT, useSystemPrompt } from '~/utils/prompts/prompts'
 import { useMessagesStore } from './messages'
 import { useRoomsStore } from './rooms'
-import { useRoomViewStateStore } from './roomViewState'
 import { useSettingsStore } from './settings'
 
 export const useConversationStore = defineStore('conversation', () => {
@@ -436,14 +435,6 @@ export const useConversationStore = defineStore('conversation', () => {
     return streamTextAbortControllers.value.has(messageId)
   }
 
-  function focusNewMessage(messageId: string) {
-    const roomViewStateStore = useRoomViewStateStore()
-    const { selectedMessageId } = storeToRefs(roomViewStateStore)
-
-    selectedMessageId.value = messageId
-    roomViewStateStore.focusFlowNode(messageId, { center: true })
-  }
-
   return {
     sendingRooms,
     sendMessage,
@@ -455,6 +446,5 @@ export const useConversationStore = defineStore('conversation', () => {
     isSending,
     isGeneratingMessage,
     hasGeneratingAncestor,
-    focusNewMessage,
   }
 })
