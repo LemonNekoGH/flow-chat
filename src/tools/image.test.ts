@@ -48,7 +48,7 @@ describe('createImageTools', () => {
   it('should return image base64 on success', async () => {
     vi.mocked(generateImage).mockResolvedValue({
       image: { base64: 'fake-base64-image' },
-    } as any)
+} as Awaited<ReturnType<typeof generateImage>>)
 
     const tools = await createImageTools(toolOptions)
     const generateImageTool = tools[0]
