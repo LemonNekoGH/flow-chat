@@ -20,7 +20,7 @@ vi.mock('~/models/tool-calls', () => ({
 describe('createImageTools', () => {
   const mockPiniaStore = {
     appendContent: vi.fn(),
-  } as any
+} as unknown as import('./image').CreateImageToolOptions['piniaStore']
 
   const toolOptions = {
     apiKey: 'test-key',
