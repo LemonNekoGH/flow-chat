@@ -51,11 +51,11 @@ onMounted(() => {
 
 <template>
   <div class="space-y-4">
-    <div class="flex items-center justify-between">
+    <div class="flex flex-wrap items-center justify-between gap-y-4">
       <h2 class="text-xl font-semibold">
         Memories
       </h2>
-      <div class="flex gap-2">
+      <div class="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" :class="{ 'bg-primary/10': filterScope === 'all' }" @click="filterScope = 'all'">
           All ({{ memories.length }})
         </Button>
