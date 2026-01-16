@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AttachmentPreview } from '~/types/attachment'
+import type { Attachment } from '~/types/attachment'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
@@ -16,67 +16,86 @@ const props = withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
-  (e: 'filesChanged', files: AttachmentPreview[]): void
+  (e: 'filesChanged', files: Attachment[]): void
 }>()
 
 const { t } = useI18n()
 const fileInputRef = ref<HTMLInputElement>()
-const attachments = ref<AttachmentPreview[]>([])
+const attachments = ref<Attachment[]>([])
 const isDragging = ref(false)
 
 const acceptString = computed(() => props.acceptedTypes.join(','))
 
-function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
-}
-
-async function processFile(file: File): Promise<AttachmentPreview | null> {
+async function processFile(file: File) {
   // Check file size
   if (file.size > props.maxFileSize * 1024 * 1024) {
-    toast.error(t('file_upload.size_exceeded', { size: props.maxFileSize }))
-    return null
+    throw new Error(t('file_upload.size_exceeded', { size: props.maxFileSize }))
   }
 
   // Check file type
   if (!props.acceptedTypes.includes(file.type)) {
-    toast.error(t('file_upload.invalid_type'))
-    return null
+    throw new Error(t('file_upload.invalid_type'))
   }
 
-  return new Promise((resolve) => {
+  return new Promise<Attachment>((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = (event) => {
       const data = event.target?.result as string
-      const isImage = file.type.startsWith('image/')
 
-      const attachment: AttachmentPreview = {
-        id: generateId(),
-        type: isImage ? 'image' : 'file',
-        name: file.name,
-        mimeType: file.type,
-        data,
-        isUploading: false,
-      }
+      let attachment: Attachment
 
       // Get image dimensions if it's an image
-      if (isImage) {
-        const img = new Image()
-        img.onload = () => {
-          attachment.width = img.width
-          attachment.height = img.height
-          resolve(attachment)
+      if (file.type.startsWith('image/')) {
+        attachment = {
+          fileName: file.name,
+          id: crypto.randomUUID(),
+          type: 'image_url',
+          image_url: {
+            url: data,
+          },
         }
-        img.onerror = () => resolve(attachment)
-        img.src = data
-      }
-      else {
+
         resolve(attachment)
+        return
       }
+
+      if (file.type.startsWith('audio/')) {
+        if (!['mp3', 'wav'].includes(file.type.split('/')[1] as 'mp3' | 'wav')) {
+          reject(new Error('Invalid audio format'))
+          return
+        }
+
+        attachment = {
+          fileName: file.name,
+          id: crypto.randomUUID(),
+          type: 'input_audio',
+          input_audio: {
+            data,
+            format: file.type.split('/')[1] as 'mp3' | 'wav',
+          },
+        }
+
+        resolve(attachment)
+        return
+      }
+
+      attachment = {
+        fileName: file.name,
+        id: crypto.randomUUID(),
+        type: 'file',
+        file: {
+          file_data: data,
+          filename: file.name,
+        },
+      }
+
+      resolve(attachment)
     }
+
     reader.onerror = () => {
-      toast.error(t('file_upload.read_error'))
-      resolve(null)
+      reject(new Error('Failed to read file'))
     }
+
     reader.readAsDataURL(file)
   })
 }
@@ -91,9 +110,8 @@ async function handleFiles(files: FileList | File[]) {
   }
 
   const processedFiles = await Promise.all(fileArray.map(processFile))
-  const validFiles = processedFiles.filter((f): f is AttachmentPreview => f !== null)
 
-  attachments.value = [...attachments.value, ...validFiles]
+  attachments.value = processedFiles
   emit('filesChanged', attachments.value)
 }
 
@@ -186,12 +204,12 @@ defineExpose({
       >
         <!-- Image preview -->
         <div
-          v-if="attachment.type === 'image'"
+          v-if="attachment.type === 'image_url'"
           class="h-16 w-16 overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800"
         >
           <img
-            :src="attachment.data"
-            :alt="attachment.name"
+            :src="attachment.image_url.url"
+            :alt="attachment.image_url.url"
             class="h-full w-full object-cover"
           >
         </div>
@@ -202,7 +220,7 @@ defineExpose({
           class="h-16 w-16 flex flex-col items-center justify-center rounded-lg bg-gray-100 p-2 dark:bg-gray-800"
         >
           <div class="i-solar-file-bold text-xl text-gray-500" />
-          <span class="mt-1 max-w-full truncate text-xs text-gray-500">{{ attachment.name }}</span>
+          <span class="mt-1 max-w-full truncate text-xs text-gray-500">{{ attachment.fileName }}</span>
         </div>
 
         <!-- Remove button -->

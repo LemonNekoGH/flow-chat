@@ -1,5 +1,5 @@
 {
-  "id": "b753280d-ee05-4bfd-9046-7d9bdc1fb919",
+  "id": "fa9a21b5-f1fc-493f-9a4c-a02ee2c446b2",
   "prevId": "a125feea-3d9e-4fba-88f8-7544422b0536",
   "version": "7",
   "dialect": "postgresql",
@@ -98,7 +98,7 @@
         },
         "content": {
           "name": "content",
-          "type": "text",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": true
         },
@@ -157,13 +157,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "ARRAY[]::text[]"
-        },
-        "attachments": {
-          "name": "attachments",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
         },
         "created_at": {
           "name": "created_at",

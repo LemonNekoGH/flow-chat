@@ -1,4 +1,4 @@
-import type { Attachment } from '~/types/attachment'
+import type { CommonContentPart } from 'xsai'
 import type { Message, MessageRole } from '~/types/messages'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
@@ -24,17 +24,16 @@ export const useMessagesStore = defineStore('messages', () => {
 
   // Business logic
   function newMessage(
-    text: string,
+    content: CommonContentPart[],
     role: MessageRole,
     parentId: string | null,
     provider: string,
     model: string,
     roomId: string,
     memory?: string[],
-    attachments?: Attachment[],
   ) {
     return messageModel.create({
-      content: text,
+      content,
       role,
       parent_id: parentId,
       provider,
@@ -42,24 +41,32 @@ export const useMessagesStore = defineStore('messages', () => {
       room_id: roomId,
       memory: memory || [],
       summary: null,
-      attachments: attachments || [],
     })
   }
 
   // pass `""` to `text` to update the message without appending content
-  async function appendContent(id: string, text: string) {
-    await messageModel.appendContent(id, text)
+  // THE LAST PART MUST BE A TEXT PART
+  async function appendToLastTextPart(id: string, text: string) {
+    const msg = getMessageById(id)
+    if (!msg || msg.content.length === 0 || msg.content[msg.content.length - 1].type !== 'text')
+      throw new Error('The last part must be a text part')
+
+    await messageModel.appendToLastTextPart(id, text)
 
     mutateMessageById(id, (msg) => {
-      msg.content += text
+      const lastPart = msg.content[msg.content.length - 1]
+      if (lastPart.type !== 'text')
+        throw new Error('The last part must be a text part')
+
+      lastPart.text += text
     })
   }
 
-  async function setContent(id: string, text: string) {
-    await messageModel.updateContent(id, text)
+  async function setContent(id: string, content: CommonContentPart[]) {
+    await messageModel.updateContent(id, content)
 
     mutateMessageById(id, (msg) => {
-      msg.content = text
+      msg.content = content
     })
   }
 
@@ -192,7 +199,7 @@ export const useMessagesStore = defineStore('messages', () => {
     // Actions
     newMessage,
     setContent,
-    appendContent,
+    appendToLastTextPart,
     deleteMessages,
     deleteSubtree,
 

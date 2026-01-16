@@ -1,11 +1,10 @@
-import type { Attachment } from './attachment'
+import type { CommonContentPart } from 'xsai'
 
 export type MessageRole = 'user' | 'assistant' | 'system'
 
 export interface BaseMessage {
-  content: string
+  content: CommonContentPart[]
   role: string // FIXME: use enum in pglite
-  attachments?: Attachment[]
 }
 
 export interface Message extends BaseMessage {
@@ -17,5 +16,4 @@ export interface Message extends BaseMessage {
   summary: string | null
   show_summary?: boolean
   memory?: string[]
-  attachments: Attachment[]
 }

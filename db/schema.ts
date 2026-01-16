@@ -1,3 +1,4 @@
+import type { CommonContentPart } from 'xsai'
 import { sql } from 'drizzle-orm'
 import { boolean, doublePrecision, index, jsonb, pgTable, text, timestamp, uuid, vector } from 'drizzle-orm/pg-core'
 
@@ -25,7 +26,7 @@ export const rooms = pgTable('rooms', () => ({
 
 export const messages = pgTable('messages', {
   id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
-  content: text('content').notNull(),
+  content: jsonb('content').notNull().$type<CommonContentPart[]>(),
   model: text('model').notNull(),
   provider: text('provider').notNull(),
   role: text('role').notNull(),
@@ -35,7 +36,6 @@ export const messages = pgTable('messages', {
   summary: text('summary'),
   show_summary: boolean('show_summary').notNull().default(false),
   memory: text('memory').array().notNull().default(sql`ARRAY[]::text[]`),
-  attachments: jsonb('attachments').notNull().default(sql`'[]'::jsonb`),
   created_at: timestamp('created_at').notNull().default(sql`now()`),
   updated_at: timestamp('updated_at').notNull().default(sql`now()`),
 }, table => [
