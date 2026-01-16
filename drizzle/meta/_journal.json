@@ -43,6 +43,13 @@
       "when": 1766917867180,
       "tag": "0005_sudden_viper",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1768587007106,
+      "tag": "0006_lyrical_pretty_boy",
+      "breakpoints": true
     }
   ]
 }

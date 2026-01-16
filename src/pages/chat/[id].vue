@@ -2,6 +2,7 @@
 import type { ProviderNames } from '@moeru-ai/jem'
 import type { NodeMouseEvent } from '@vue-flow/core'
 import type { AcceptableValue } from 'reka-ui'
+import type { Attachment } from '~/types/attachment'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { VueFlow } from '@vue-flow/core'
@@ -10,7 +11,9 @@ import { useClipboard, useElementBounding, useEventListener } from '@vueuse/core
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, provide, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
+import AttachmentDisplay from '~/components/AttachmentDisplay.vue'
 import ConversationView from '~/components/ConversationView.vue'
+import FileUpload from '~/components/FileUpload.vue'
 import ModelSelector from '~/components/ModelSelector.vue'
 import AssistantNode from '~/components/nodes/AssistantNode.vue'
 import SystemNode from '~/components/nodes/SystemNode.vue'
@@ -59,6 +62,18 @@ const strokeColor = computed(() => (isDark.value ? darkColor : defaultColor))
 
 const inputMessage = ref('')
 const isConversationMode = computed(() => currentMode.value === ChatMode.CONVERSATION)
+
+// File upload state
+const pendingAttachments = ref<Attachment[]>([]) // TODO: show attachments for every message
+const showFileUpload = ref(false)
+
+function handleFilesChanged(files: Attachment[]) {
+  pendingAttachments.value = files
+}
+
+function toggleFileUpload() {
+  showFileUpload.value = !showFileUpload.value
+}
 
 const showModelSelector = ref(false)
 const inlineModelCommandValue = ref('')
@@ -157,13 +172,16 @@ async function handleContextMenuDelete() {
 
 async function handleSendButton(messageText?: string) {
   const messageToSend = messageText ?? inputMessage.value
-  if (!messageToSend) {
-    return
-  }
+  const attachments = pendingAttachments.value
 
   const roomId = currentRoomId.value
   if (!roomId)
     return
+
+  // Allow sending with just attachments (no text) or with text
+  if ((!messageToSend && attachments.length === 0) || conversationStore.isSending(roomId)) {
+    return
+  }
 
   if (conversationStore.isSending(roomId))
     return
@@ -215,7 +233,11 @@ async function handleContextMenuCopy() {
     return
   }
 
-  const text = model && role === 'user' ? `model=${model} ${content}` : content
+  const text = model && role === 'user' ? `model=${model} ${content}` : content.filter(part => part.type === 'text').map(part => part.text).join('')
+  if (!text) {
+    toast.warning('No text to copy')
+    return
+  }
 
   try {
     await copy(text)
@@ -374,10 +396,11 @@ onMounted(async () => {
     />
     <div
       v-show="currentMode === ChatMode.CONVERSATION"
-      class="w-full flex flex-1 justify-center overflow-hidden px-4 sm:px-6"
+      class="w-full flex flex-1 flex-col justify-center overflow-hidden px-4 sm:px-6"
     >
       <ConversationView
-        class="w-full max-w-screen-md flex-1"
+        v-if="currentBranch.messages.length > 0"
+        class="mx-auto w-full max-w-screen-md flex-1"
         :messages="currentBranch.messages"
         @fork-message="handleFork"
         @abort-message="handleAbort"
@@ -390,23 +413,53 @@ onMounted(async () => {
           'bg-neutral-100 dark:bg-neutral-900': !isConversationMode,
         }"
       >
-        <div class="relative mx-auto w-full max-w-screen-md flex rounded-lg bg-neutral-100 p-2 shadow-lg transition-colors dark:bg-neutral-900">
-          <Textarea
-            v-model="inputMessage"
-            placeholder="Enter to send message, Shift+Enter for new-line"
-            max-h-60vh w-full resize-none border-gray-300 rounded-sm px-3 py-2 outline-none dark:bg-neutral-800 focus:ring-2 focus:ring-black dark:focus:ring-white
-            transition="all duration-200 ease-in-out"
-            @keydown.enter.exact.prevent="handleSendButton"
+        <div class="relative mx-auto w-full max-w-screen-md flex flex-col rounded-lg bg-neutral-100 p-2 shadow-lg transition-colors dark:bg-neutral-900">
+          <!-- File upload area -->
+          <div v-if="showFileUpload" class="mb-2">
+            <FileUpload
+              :max-files="5"
+              :max-file-size="10"
+              @files-changed="handleFilesChanged"
+            />
+          </div>
+
+          <!-- Pending attachments preview -->
+          <AttachmentDisplay
+            v-if="pendingAttachments.length > 0 && !showFileUpload"
+            :attachments="pendingAttachments"
+            compact
+            class="mb-2"
           />
-          <ModelSelector
-            v-if="showModelSelector"
-            v-model:show-model-selector="showModelSelector"
-            :search-term="inputMessage.substring(6)"
-            @select-model="handleModelSelect"
-          />
-          <Button absolute bottom-3 right-3 @click="handleSendButton">
-            Send
-          </Button>
+
+          <div class="relative flex items-end gap-2">
+            <!-- File upload toggle button -->
+            <Button
+              variant="ghost"
+              size="sm"
+              class="mb-1 shrink-0"
+              :class="{ 'text-primary': showFileUpload || pendingAttachments.length > 0 }"
+              @click="toggleFileUpload"
+            >
+              <div class="i-solar-gallery-add-bold text-lg" />
+            </Button>
+
+            <Textarea
+              v-model="inputMessage"
+              placeholder="Enter to send message, Shift+Enter for new-line"
+              max-h-60vh w-full resize-none border-gray-300 rounded-sm px-3 py-2 outline-none dark:bg-neutral-800 focus:ring-2 focus:ring-black dark:focus:ring-white
+              transition="all duration-200 ease-in-out"
+              @keydown.enter.exact.prevent="handleSendButton"
+            />
+            <ModelSelector
+              v-if="showModelSelector"
+              v-model:show-model-selector="showModelSelector"
+              :search-term="inputMessage.substring(6)"
+              @select-model="handleModelSelect"
+            />
+            <Button class="mb-1 shrink-0" @click="handleSendButton()">
+              Send
+            </Button>
+          </div>
           <Dialog v-model:open="showForkWithModelDialog">
             <DialogContent>
               <DialogHeader>

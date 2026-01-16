@@ -1,27 +1,18 @@
-import type { InferSelectModel } from 'drizzle-orm'
+import type { CommonContentPart } from 'xsai'
 import type { Message } from '~/types/messages'
 import { and, cosineDistance, desc, eq, getTableColumns, ilike, inArray, isNull, sql } from 'drizzle-orm'
 import { useDatabaseStore } from '~/stores/database'
 import * as schema from '../../db/schema'
 
-type MessageRow = InferSelectModel<typeof schema.messages>
-
-function toMessage(row: MessageRow): Message {
-  return {
-    ...row,
-    memory: row.memory,
-  }
-}
-
 export function useMessageModel() {
   const dbStore = useDatabaseStore()
 
   function getAll() {
-    return dbStore.db().select().from(schema.messages).then(rows => rows.map(toMessage))
+    return dbStore.db().select().from(schema.messages)
   }
 
   function getByRoomId(roomId: string) {
-    return dbStore.db().select().from(schema.messages).where(eq(schema.messages.room_id, roomId)).then(rows => rows.map(toMessage))
+    return dbStore.db().select().from(schema.messages).where(eq(schema.messages.room_id, roomId))
   }
 
   function deleteByIds(ids: string[]) {
@@ -31,11 +22,9 @@ export function useMessageModel() {
   }
 
   async function create(msg: Omit<Message, 'id'>) {
-    const message = await dbStore.withCheckpoint((db) => {
+    return await dbStore.withCheckpoint((db) => {
       return db.insert(schema.messages).values(msg).returning()
     })
-
-    return toMessage(message[0])
   }
 
   function update(id: string, msg: Message) {
@@ -44,13 +33,21 @@ export function useMessageModel() {
     })
   }
 
-  function appendContent(id: string, content: string) {
+  function appendToLastTextPart(id: string, content: string) {
     return dbStore.withCheckpoint((db) => {
-      return db.execute(sql`UPDATE messages SET content = content || ${content} WHERE id = ${id}`)
+      return db.execute(sql`
+        UPDATE messages
+        SET content = jsonb_set(
+          content,
+          array[(jsonb_array_length(content) - 1)::int, 'text']::text[],
+          to_jsonb((content->(jsonb_array_length(content) - 1)->>'text') || '${content}')
+        )
+        WHERE id = ${id}
+      `)
     })
   }
 
-  function updateContent(id: string, content: string) {
+  function updateContent(id: string, content: CommonContentPart[]) {
     return dbStore.withCheckpoint((db) => {
       return db.update(schema.messages).set({ content }).where(eq(schema.messages.id, id))
     })
@@ -84,11 +81,10 @@ export function useMessageModel() {
       .select()
       .from(schema.messages)
       .where(and(...conditions))
-      .then(rows => rows.map(toMessage))
   }
 
   function notEmbeddedMessages() {
-    return dbStore.db().select().from(schema.messages).where(isNull(schema.messages.embedding)).then(rows => rows.map(toMessage))
+    return dbStore.db().select().from(schema.messages).where(isNull(schema.messages.embedding))
   }
 
   function updateEmbedding(id: string, embedding: number[]) {
@@ -104,7 +100,7 @@ export function useMessageModel() {
       .from(schema.messages)
       .orderBy(t => desc(t.similarity))
       .limit(limit)
-      .then(rows => rows.map(row => ({ ...toMessage(row), similarity: row.similarity })))
+      .then(rows => rows.map(row => ({ ...row, similarity: row.similarity })))
   }
 
   return {
@@ -113,7 +109,7 @@ export function useMessageModel() {
     deleteByIds,
     create,
     update,
-    appendContent,
+    appendToLastTextPart,
     searchByContent,
     notEmbeddedMessages,
     updateEmbedding,
