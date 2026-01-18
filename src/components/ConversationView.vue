@@ -13,6 +13,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{
   (e: 'forkMessage', messageId: string, model?: string): void
+  (e: 'mergeMessage', messageId: string): void
   (e: 'abortMessage', messageId: string): void
   (e: 'regenerateMessage', messageId: string): void
 }>()
@@ -150,6 +151,14 @@ function handleContextMenuForkWith() {
   handleContextMenuFork()
 }
 
+function handleContextMenuMerge() {
+  const messageId = contextMenu.value.messageId
+  closeContextMenu()
+  if (messageId) {
+    emit('mergeMessage', messageId)
+  }
+}
+
 async function handleContextMenuCopy() {
   const messageId = contextMenu.value.messageId
   const text = selectedText.value
@@ -282,6 +291,7 @@ useEventListener(containerRef, 'scroll', updateShouldAutoScroll)
       :role="contextMenu.role"
       @fork="handleContextMenuFork"
       @fork-with="handleContextMenuForkWith"
+      @merge="handleContextMenuMerge"
       @focus-in="handleContextMenuFocusIn"
       @copy="handleContextMenuCopy"
     />

@@ -282,6 +282,33 @@ async function handleForkWith() {
   )
 }
 
+const showMergeBranchDialog = ref(false)
+const mergeTargetId = ref<string | null>(null)
+
+const mergeCandidates = computed(() => {
+  const messages = messagesStore.messages
+  const parentIds = new Set(messages.map(m => m.parent_id).filter(Boolean))
+  return messages.filter(msg => !parentIds.has(msg.id) && msg.id !== selectedMessageId.value)
+})
+
+function handleMerge(messageId?: string) {
+  if (messageId) {
+    selectedMessageId.value = messageId
+  }
+  if (!selectedMessageId.value) return
+  
+  mergeTargetId.value = null
+  showMergeBranchDialog.value = true
+}
+
+async function confirmMerge() {
+  if (!selectedMessageId.value || !mergeTargetId.value) return
+  
+  await messagesStore.mergeBranch(selectedMessageId.value, mergeTargetId.value)
+  showMergeBranchDialog.value = false
+  toast.success('Branch merged')
+}
+
 function handleFork(messageId: string | null) {
   if (messageId) {
     selectedMessageId.value = messageId
@@ -365,6 +392,7 @@ onMounted(async () => {
       :node-id="currentMode === ChatMode.FLOW ? selectedMessageId : null"
       @fork="handleFork(selectedMessageId)"
       @fork-with="handleContextMenuForkWith"
+      @merge="handleMerge()"
       @focus-in="handleContextMenuFocusIn"
       @delete="handleContextMenuDelete"
       @copy="handleContextMenuCopy"
@@ -380,6 +408,7 @@ onMounted(async () => {
         class="w-full max-w-screen-md flex-1"
         :messages="currentBranch.messages"
         @fork-message="handleFork"
+        @merge-message="handleMerge"
         @abort-message="handleAbort"
         @regenerate-message="handleRegenerate"
       />
@@ -440,6 +469,44 @@ onMounted(async () => {
               <Button @click="handleForkWith">
                 Fork
               </Button>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog v-model:open="showMergeBranchDialog">
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Merge Branch</DialogTitle>
+              </DialogHeader>
+              <div class="space-y-4">
+                <div class="text-sm text-gray-500">
+                  Select a branch to merge into the current conversation. The messages from the selected branch will be appended to the current node.
+                </div>
+                <Select v-model="mergeTargetId">
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a branch..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem 
+                      v-for="msg in mergeCandidates" 
+                      :key="msg.id" 
+                      :value="msg.id"
+                    >
+                      <div class="flex flex-col gap-1 max-w-[300px]">
+                        <span class="truncate font-medium">{{ msg.role === 'user' ? 'User' : 'Assistant' }}</span>
+                        <span class="truncate text-xs text-gray-500">{{ msg.content.slice(0, 50) }}...</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <div class="flex justify-end gap-2">
+                  <Button variant="secondary" @click="showMergeBranchDialog = false">
+                    Cancel
+                  </Button>
+                  <Button @click="confirmMerge" :disabled="!mergeTargetId">
+                    Merge
+                  </Button>
+                </div>
+              </div>
             </DialogContent>
           </Dialog>
         </div>

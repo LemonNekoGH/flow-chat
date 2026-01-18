@@ -14,6 +14,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'fork'): void
   (e: 'forkWith'): void
+  (e: 'merge'): void
   (e: 'focusIn'): void
   (e: 'delete'): void
   (e: 'copy'): void
@@ -304,6 +305,14 @@ function handleSend() {
           @click="emit('forkWith')"
         >
           Fork With...
+        </Button>
+        <Button
+          variant="secondary-muted"
+          size="sm"
+          class="h-8 text-xs"
+          @click="emit('merge')"
+        >
+          Merge
         </Button>
         <Button
           variant="secondary-muted"
