@@ -81,6 +81,15 @@ style: better style for markdown view (#53)
 3. Scope is optional and should only be used when it helps understand the commit
 4. Keep commit messages concise; detailed explanations can be added in PR descriptions
 
+## Pull Request Requirements
+
+- **Use English** for PR titles and descriptions
+- **PR title format**: follow the same Conventional Commits format as commit messages:
+
+```
+<type>(<scope>): <subject>
+```
+
 ## Code Quality Guidelines
 
 ### Type Safety
