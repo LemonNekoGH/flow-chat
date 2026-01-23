@@ -1,10 +1,10 @@
-import type { useMessagesStore } from '~/stores/messages'
 import { useToolCallModel } from '~/models/tool-calls'
+import { useConversationStore } from '~/stores/conversation'
+import { useMessagesStore } from '~/stores/messages'
 
 interface WithToolCallLogOptions {
   toolName: string
   messageId: string
-  piniaStore: ReturnType<typeof useMessagesStore>
   parameters: unknown
 }
 
@@ -13,8 +13,10 @@ export async function withToolCallLog<T>(
   execute: () => Promise<T>,
 ): Promise<T> {
   const toolCallModel = useToolCallModel()
+  const messagesStore = useMessagesStore()
+  const conversationStore = useConversationStore()
 
-  const toolCall = await toolCallModel.create({
+  const toolCall = await toolCallModel.create({ // FIXME: use transaction to ensure consistency
     message_id: options.messageId,
     tool_name: options.toolName,
     parameters: options.parameters,
@@ -23,11 +25,12 @@ export async function withToolCallLog<T>(
 
   try {
     const result = await execute()
+    conversationStore.checkAndFlushTokensBuffer(options.messageId, true) // force flush tokens buffer when receive any tool calls
 
     await toolCallModel.updateResult(toolCall.id, result)
 
     const toolCallMarkdown = `\n\n:::tool-call ${toolCall.id}:::\n\n`
-    await options.piniaStore.appendContent(options.messageId, toolCallMarkdown)
+    await messagesStore.appendContent(options.messageId, toolCallMarkdown)
 
     return result
   }

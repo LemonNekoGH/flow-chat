@@ -21,7 +21,7 @@ const isOpen = ref(props.defaultOpen ?? false)
           :class="{ 'rotate-180': isOpen }"
         />
         <div class="font-medium">
-          Thinking tokens
+          {{ isOpen ? 'Hide thinking' : 'Show thinking' }}
         </div>
       </div>
     </button>
@@ -30,7 +30,7 @@ const isOpen = ref(props.defaultOpen ?? false)
       v-if="isOpen"
       class="border-t border-violet-200 bg-white dark:border-violet-800 dark:bg-violet-900"
     >
-      <div class="p-2 text-xs text-violet-700 whitespace-pre-wrap break-words dark:text-violet-200">
+      <div class="whitespace-pre-wrap break-words p-2 text-xs text-violet-700 dark:text-violet-200">
         <slot />
       </div>
     </div>

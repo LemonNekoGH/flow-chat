@@ -30,7 +30,7 @@ export const rehypeThinkingTokens: Plugin<[], Root> = () => {
       node.tagName = 'div'
       node.properties = {
         ...properties,
-        class: classList,
+        'class': classList,
         'data-thinking': 'true',
         'data-thinking-tag': tagName,
       }

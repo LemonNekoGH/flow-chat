@@ -3,7 +3,7 @@ import type { AcceptableValue } from 'reka-ui'
 import type { Provider } from '~/types/settings'
 
 import { providers } from '@moeru-ai/jem'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import Button from '~/components/ui/button/Button.vue'
 import Input from '~/components/ui/input/Input.vue'
@@ -52,6 +52,15 @@ function handleChangeProvider(selectedProvider: AcceptableValue) {
     editingProvider.baseURL = baseURL
   }
 }
+
+const providersIncludeOllama = computed(() => {
+  return [...providers, {
+    id: crypto.randomUUID(),
+    name: 'Ollama',
+    apiKey: '',
+    baseURL: 'http://localhost:11434/v1',
+  }]
+}) // FIXME: workaround, Ollama is not in the JEM catalog
 
 function handleDeleteProvider(provider: Provider) {
   settingsStore.configuredTextProviders = settingsStore.configuredTextProviders.filter(p => p.name !== provider.name)
@@ -108,7 +117,7 @@ function handleDeleteProvider(provider: Provider) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem v-for="p in providers" :key="p.name" :value="p.name">
+              <SelectItem v-for="p in providersIncludeOllama" :key="p.name" :value="p.name">
                 {{ p.name }}
               </SelectItem>
             </SelectContent>
