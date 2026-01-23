@@ -24,7 +24,6 @@ export async function createImageTools(options: CreateImageToolOptions) {
           {
             toolName: 'generate_image',
             messageId: options.messageId,
-            piniaStore: options.piniaStore,
             parameters: { prompt },
           },
           async () => {

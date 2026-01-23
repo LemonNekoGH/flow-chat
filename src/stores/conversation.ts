@@ -1,10 +1,15 @@
-import type { CapabilitiesByModel, ModelIdsByProvider, ProviderNames } from '@moeru-ai/jem'
+import type {
+  CapabilitiesByModel,
+  ModelIdsByProvider,
+  ProviderNames,
+} from '@moeru-ai/jem'
 import type { BaseMessage } from '~/types/messages'
 import { hasCapabilities } from '@moeru-ai/jem'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref } from 'vue'
 import { toast } from 'vue-sonner'
 import { generateText, streamText } from 'xsai'
+import { useToolCallModel } from '~/models/tool-calls'
 import { createImageTools, createMemoryTools } from '~/tools'
 import { parseMessage } from '~/utils/chat'
 import { asyncIteratorFromReadableStream } from '~/utils/interator'
@@ -19,12 +24,39 @@ export const useConversationStore = defineStore('conversation', () => {
 
   const messagesStore = useMessagesStore()
   const roomsStore = useRoomsStore()
+  const toolCallModel = useToolCallModel()
 
   const streamTextAbortControllers = ref<Map<string, AbortController>>(new Map())
   const streamTextRunIds = ref<Map<string, number>>(new Map())
   const sendingRooms = ref<Set<string>>(new Set())
+  const tokensBuffers = ref<Map<string, string[]>>(new Map())
 
   const systemPrompt = useSystemPrompt()
+
+  async function saveToTokensBuffer(messageId: string, text: string) {
+    const tokensBuffer = tokensBuffers.value.get(messageId)
+    if (!tokensBuffer) {
+      tokensBuffers.value.set(messageId, [text])
+      return
+    }
+
+    tokensBuffer.push(text)
+  }
+
+  async function checkAndFlushTokensBuffer(messageId: string, forceFlush: boolean = false) {
+    const tokensBuffer = tokensBuffers.value.get(messageId)
+    if (!tokensBuffer) {
+      return
+    }
+
+    if (!forceFlush && tokensBuffer.length < 20) {
+      return
+    }
+
+    await messagesStore.appendContent(messageId, tokensBuffer)
+    tokensBuffer.length = 0
+    await messagesStore.retrieveMessages()
+  }
 
   function nextStreamRunId(messageId: string) {
     const current = streamTextRunIds.value.get(messageId) ?? 0
@@ -106,6 +138,36 @@ export const useConversationStore = defineStore('conversation', () => {
     await roomsStore.updateRoom(roomId, { name: title })
   }
 
+  async function processStream(
+    newMsgId: string,
+    runId: number,
+    abortController: AbortController,
+    stream: ReadableStream<string>,
+  ) {
+    let lastCheckedToolCallId: string | null = null
+
+    for await (const textPart of asyncIteratorFromReadableStream(stream, async v => v)) {
+      if (streamTextRunIds.value.get(newMsgId) !== runId || abortController.signal.aborted)
+        break
+
+      const toolCalls = await toolCallModel.getByMessageId(newMsgId) // FIXME: don't fetch all tool calls for each text part
+      const imageToolCall = toolCalls.find(tc => tc.tool_name === 'generate_image' && tc.id !== lastCheckedToolCallId && tc.result)
+
+      if (imageToolCall) {
+        const result = imageToolCall.result as { imageBase64?: string } | null
+        if (result?.imageBase64) {
+          await messagesStore.appendContent(newMsgId, `![generated image](data:image/png;base64,${result.imageBase64})`)
+          lastCheckedToolCallId = imageToolCall.id
+        }
+      }
+
+      if (textPart) {
+        await saveToTokensBuffer(newMsgId, textPart)
+        await checkAndFlushTokensBuffer(newMsgId)
+      }
+    }
+  }
+
   async function generateResponse(
     roomId: string,
     parentId: string | null,
@@ -169,7 +231,7 @@ export const useConversationStore = defineStore('conversation', () => {
         model as ModelIdsByProvider<ProviderNames>,
         ['tool-call'] as CapabilitiesByModel<ProviderNames, ModelIdsByProvider<ProviderNames>>,
       )
-      const isSupportTools = capabilities['tool-call']
+      const isSupportTools = capabilities['tool-call'] // FIXME: JEM catalog needs to be updated
 
       const branch = messagesStore.getBranchById(parentId)
       const conversationMessages = branch.messages
@@ -191,29 +253,7 @@ export const useConversationStore = defineStore('conversation', () => {
         abortSignal: abortController.signal,
       })
 
-      const { useToolCallModel } = await import('~/models/tool-calls')
-      const toolCallModel = useToolCallModel()
-      let lastCheckedToolCallId: string | null = null
-
-      for await (const textPart of asyncIteratorFromReadableStream(textStream, async v => v)) {
-        if (streamTextRunIds.value.get(newMsgId) !== runId || abortController.signal.aborted)
-          break
-
-        const toolCalls = await toolCallModel.getByMessageId(newMsgId)
-        const imageToolCall = toolCalls.find(tc => tc.tool_name === 'generate_image' && tc.id !== lastCheckedToolCallId && tc.result)
-
-        if (imageToolCall) {
-          const result = imageToolCall.result as { imageBase64?: string } | null
-          if (result?.imageBase64) {
-            await messagesStore.appendContent(newMsgId, `![generated image](data:image/png;base64,${result.imageBase64})`)
-            lastCheckedToolCallId = imageToolCall.id
-          }
-        }
-
-        if (textPart) {
-          await messagesStore.appendContent(newMsgId, textPart)
-        }
-      }
+      await processStream(newMsgId, runId, abortController, textStream)
 
       return newMsgId
     }
@@ -446,5 +486,7 @@ export const useConversationStore = defineStore('conversation', () => {
     isSending,
     isGeneratingMessage,
     hasGeneratingAncestor,
+    saveToTokensBuffer,
+    checkAndFlushTokensBuffer,
   }
 })

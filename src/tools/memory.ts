@@ -28,7 +28,6 @@ export async function createMemoryTools(options: CreateMemoryToolsOptions) {
           {
             toolName: 'write_memory',
             messageId: options.messageId,
-            piniaStore: options.piniaStore,
             parameters: { content, scope, tags },
           },
           async () => {
