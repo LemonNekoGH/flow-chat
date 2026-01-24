@@ -20,7 +20,7 @@ import 'uno.css'
 
 const router = createRouter({
   history: createWebHistory(),
-  /// / @ts-expect-error - why? should i remove layouts?
+  // @ts-expect-error - why? should i remove layouts?
   routes: setupLayouts(routes),
 })
 
