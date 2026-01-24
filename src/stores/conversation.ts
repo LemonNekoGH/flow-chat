@@ -9,7 +9,6 @@ import { defineStore, storeToRefs } from 'pinia'
 import { ref } from 'vue'
 import { toast } from 'vue-sonner'
 import { generateText, streamText } from 'xsai'
-import { useToolCallModel } from '~/models/tool-calls'
 import { createImageTools, createMemoryTools } from '~/tools'
 import { parseMessage } from '~/utils/chat'
 import { asyncIteratorFromReadableStream } from '~/utils/interator'
@@ -24,7 +23,6 @@ export const useConversationStore = defineStore('conversation', () => {
 
   const messagesStore = useMessagesStore()
   const roomsStore = useRoomsStore()
-  const toolCallModel = useToolCallModel()
 
   const streamTextAbortControllers = ref<Map<string, AbortController>>(new Map())
   const streamTextRunIds = ref<Map<string, number>>(new Map())
@@ -33,7 +31,7 @@ export const useConversationStore = defineStore('conversation', () => {
 
   const systemPrompt = useSystemPrompt()
 
-  async function saveToTokensBuffer(messageId: string, text: string) {
+  async function saveToTokensBuffer(messageId: string, text: string, _reasoning: boolean = false) {
     const tokensBuffer = tokensBuffers.value.get(messageId)
     if (!tokensBuffer) {
       tokensBuffers.value.set(messageId, [text])
@@ -143,29 +141,29 @@ export const useConversationStore = defineStore('conversation', () => {
     runId: number,
     abortController: AbortController,
     stream: ReadableStream<string>,
+    reasoning: boolean = false,
   ) {
-    let lastCheckedToolCallId: string | null = null
+    if (reasoning) {
+      await saveToTokensBuffer(newMsgId, '<think>\n', reasoning)
+      await checkAndFlushTokensBuffer(newMsgId, true)
+    }
 
     for await (const textPart of asyncIteratorFromReadableStream(stream, async v => v)) {
       if (streamTextRunIds.value.get(newMsgId) !== runId || abortController.signal.aborted)
         break
 
-      const toolCalls = await toolCallModel.getByMessageId(newMsgId) // FIXME: don't fetch all tool calls for each text part
-      const imageToolCall = toolCalls.find(tc => tc.tool_name === 'generate_image' && tc.id !== lastCheckedToolCallId && tc.result)
-
-      if (imageToolCall) {
-        const result = imageToolCall.result as { imageBase64?: string } | null
-        if (result?.imageBase64) {
-          await messagesStore.appendContent(newMsgId, `![generated image](data:image/png;base64,${result.imageBase64})`)
-          lastCheckedToolCallId = imageToolCall.id
-        }
-      }
-
-      if (textPart) {
+      if (textPart && textPart.trim()) {
         await saveToTokensBuffer(newMsgId, textPart)
         await checkAndFlushTokensBuffer(newMsgId)
       }
     }
+
+    if (reasoning) {
+      await saveToTokensBuffer(newMsgId, '\n</think>\n', reasoning)
+      await checkAndFlushTokensBuffer(newMsgId, true)
+    }
+
+    await checkAndFlushTokensBuffer(newMsgId, true)
   }
 
   async function generateResponse(
@@ -243,7 +241,7 @@ export const useConversationStore = defineStore('conversation', () => {
         role: 'system',
       } satisfies BaseMessage, ...conversationMessages]
 
-      const { textStream } = await streamText({
+      const { textStream, reasoningTextStream } = streamText({
         ...(isSupportTools ? tools : {}),
         maxSteps: 10,
         apiKey: currentProvider.value?.apiKey,
@@ -253,6 +251,7 @@ export const useConversationStore = defineStore('conversation', () => {
         abortSignal: abortController.signal,
       })
 
+      await processStream(newMsgId, runId, abortController, reasoningTextStream, true)
       await processStream(newMsgId, runId, abortController, textStream)
 
       return newMsgId
