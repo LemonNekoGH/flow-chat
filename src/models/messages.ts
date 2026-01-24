@@ -44,9 +44,11 @@ export function useMessageModel() {
     })
   }
 
-  function appendContent(id: string, content: string) {
+  function appendContent(id: string, content: string | string[]) {
+    const contentToAppend = Array.isArray(content) ? content.join('') : content
+
     return dbStore.withCheckpoint((db) => {
-      return db.execute(sql`UPDATE messages SET content = content || ${content} WHERE id = ${id}`)
+      return db.execute(sql`UPDATE messages SET content = content || ${contentToAppend} WHERE id = ${id}`)
     })
   }
 

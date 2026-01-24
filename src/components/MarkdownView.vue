@@ -5,11 +5,13 @@ import rehypeHighlight from 'rehype-highlight'
 import rehypeRaw from 'rehype-raw'
 import remarkGfm from 'remark-gfm'
 import { computed } from 'vue'
+import { rehypeThinkingTokens } from '~/utils/markdown/rehypeThinkingTokens'
 import { rehypeToolCall } from '~/utils/markdown/rehypeToolCall'
 import { remarkCaptureRaw } from '~/utils/markdown/remarkCaptureRaw'
 import { remarkToolCall } from '~/utils/markdown/remarkToolCall'
 import MarkdownCodeBlock from './MarkdownCodeBlock.vue'
 import MarkdownTable from './MarkdownTable.vue'
+import ThinkingTokensDisplay from './ThinkingTokensDisplay.vue'
 import ToolCallDisplay from './ToolCallDisplay.vue'
 import 'highlight.js/styles/github.css'
 
@@ -30,7 +32,7 @@ const remarkPlugins = computed<Pluggable[]>(() => [
   [remarkCaptureRaw, { source: props.content }],
   remarkToolCall,
 ])
-const rehypePlugins = [rehypeRaw, rehypeHighlight, rehypeToolCall]
+const rehypePlugins = [rehypeRaw, rehypeHighlight, rehypeToolCall, rehypeThinkingTokens]
 
 function getRawMarkdown(meta: MarkdownSlotMeta): string | undefined {
   const raw = meta['data-raw'] ?? meta.dataRaw
@@ -71,6 +73,11 @@ function getRawMarkdown(meta: MarkdownSlotMeta): string | undefined {
           v-if="attrs['data-tool-call-id']"
           :tool-call-id="String(attrs['data-tool-call-id'])"
         />
+        <ThinkingTokensDisplay
+          v-else-if="attrs['data-thinking']"
+        >
+          <component :is="children" />
+        </ThinkingTokensDisplay>
         <div v-else v-bind="attrs">
           <component :is="children" />
         </div>
