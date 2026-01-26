@@ -1,3 +1,4 @@
+import type { CommonContentPart } from 'xsai'
 import type { Message, MessageRole } from '~/types/messages'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
@@ -22,8 +23,8 @@ export const useMessagesStore = defineStore('messages', () => {
   }
 
   // Business logic
-  function newMessage(
-    text: string,
+  async function newMessage(
+    content: CommonContentPart[],
     role: MessageRole,
     parentId: string | null,
     provider: string,
@@ -31,8 +32,8 @@ export const useMessagesStore = defineStore('messages', () => {
     roomId: string,
     memory?: string[],
   ) {
-    return messageModel.create({
-      content: text,
+    const [message] = await messageModel.create({
+      content,
       role,
       parent_id: parentId,
       provider,
@@ -41,22 +42,45 @@ export const useMessagesStore = defineStore('messages', () => {
       memory: memory || [],
       summary: null,
     })
+
+    if (content.length > 0) {
+      await appendContent(message.id, content)
+    }
+
+    return message
   }
 
-  // pass `""` to `text` to update the message without appending content
-  async function appendContent(id: string, text: string | string[]) {
-    await messageModel.appendContent(id, text)
+  async function appendContent(id: string, part: CommonContentPart | CommonContentPart[]) {
+    if (Array.isArray(part)) {
+      await messageModel.appendContentBatch(id, part)
+
+      mutateMessageById(id, (msg) => {
+        msg.content.push(...part)
+      })
+
+      return
+    }
+
+    await messageModel.appendContent(id, part)
 
     mutateMessageById(id, (msg) => {
-      msg.content += text
+      msg.content.push(part)
     })
   }
 
-  async function setContent(id: string, text: string) {
-    await messageModel.updateContent(id, text)
+  async function deleteContent(message_id: string) {
+    await messageModel.deleteContent(message_id)
 
-    mutateMessageById(id, (msg) => {
-      msg.content = text
+    mutateMessageById(message_id, (msg) => {
+      msg.content = []
+    })
+  }
+
+  async function updateContent(message_id: string, parts: CommonContentPart[]) {
+    await messageModel.updateContent(message_id, parts)
+
+    mutateMessageById(message_id, (msg) => {
+      msg.content = parts
     })
   }
 
@@ -168,7 +192,7 @@ export const useMessagesStore = defineStore('messages', () => {
       return
 
     // TODO: try to use enum
-    messages.value = await messageModel.getByRoomId(roomsStore.currentRoomId) as Message[]
+    messages.value = await messageModel.getByRoomId(roomsStore.currentRoomId)
   }
 
   function resetState() {
@@ -188,8 +212,9 @@ export const useMessagesStore = defineStore('messages', () => {
 
     // Actions
     newMessage,
-    setContent,
     appendContent,
+    deleteContent,
+    updateContent,
     deleteMessages,
     deleteSubtree,
 

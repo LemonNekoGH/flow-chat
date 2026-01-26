@@ -21,6 +21,8 @@ const { defaultTextModel } = storeToRefs(useSettingsStore())
     <div v-if="data.message.provider !== defaultTextModel.provider || data.message.model !== defaultTextModel.model" p-2 bg="sky-200 dark:sky-800">
       @{{ data.message.provider }}/{{ data.message.model }}
     </div>
-    <MarkdownView p-2 :content="data.message.content" />
+    <div p-2>
+      <MarkdownView :content="data.message.content" />
+    </div>
   </Node>
 </template>

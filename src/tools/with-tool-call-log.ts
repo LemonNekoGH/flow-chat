@@ -25,12 +25,12 @@ export async function withToolCallLog<T>(
 
   try {
     const result = await execute()
-    conversationStore.checkAndFlushTokensBuffer(options.messageId, true) // force flush tokens buffer when receive any tool calls
+    conversationStore.checkAndFlushMessagePartBuffer(options.messageId, true) // force flush message part buffer when receive any tool calls
 
     await toolCallModel.updateResult(toolCall.id, result)
 
     const toolCallMarkdown = `\n\n:::tool-call ${toolCall.id}:::\n\n`
-    await messagesStore.appendContent(options.messageId, toolCallMarkdown)
+    await messagesStore.appendContent(options.messageId, { type: 'text', text: toolCallMarkdown })
 
     return result
   }

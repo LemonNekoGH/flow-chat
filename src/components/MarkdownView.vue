@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Pluggable } from 'unified'
+import type { CommonContentPart } from 'xsai'
 import { VueMarkdown } from '@crazydos/vue-markdown'
 import rehypeHighlight from 'rehype-highlight'
 import rehypeRaw from 'rehype-raw'
@@ -20,7 +21,7 @@ defineOptions({
 })
 
 const props = defineProps<{
-  content: string
+  content: CommonContentPart[]
 }>()
 
 interface MarkdownSlotMeta extends Record<string, unknown> {
@@ -46,7 +47,7 @@ function getRawMarkdown(meta: MarkdownSlotMeta): string | undefined {
       class="space-y-2"
       of-auto
       break-words
-      :markdown="props.content"
+      :markdown="props.content.filter(part => part.type === 'text').map(part => part.text).join('')"
       :remark-plugins="remarkPlugins"
       :rehype-plugins="rehypePlugins"
     >
