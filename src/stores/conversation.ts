@@ -5,7 +5,6 @@ import type {
 } from '@moeru-ai/jem'
 import type { CommonContentPart } from 'xsai'
 import type { BaseMessage } from '~/types/messages'
-import { hasCapabilities } from '@moeru-ai/jem'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref } from 'vue'
 import { toast } from 'vue-sonner'
@@ -231,12 +230,12 @@ export const useConversationStore = defineStore('conversation', () => {
         ],
       }
 
-      // const capabilities: Record<string, boolean> = hasCapabilities(
-      //   provider as ProviderNames,
-      //   model as ModelIdsByProvider<ProviderNames>,
-      //   ['tool-call'] as CapabilitiesByModel<ProviderNames, ModelIdsByProvider<ProviderNames>>,
-      // )
-      // const isSupportTools = capabilities['tool-call'] // FIXME: JEM catalog needs to be updated
+      const capabilities: Record<string, boolean> = hasCapabilities(
+        provider as ProviderNames,
+        model as ModelIdsByProvider<ProviderNames>,
+        ['tool-call'] as CapabilitiesByModel<ProviderNames, ModelIdsByProvider<ProviderNames>>,
+      )
+      const isSupportTools = capabilities['tool-call'] // FIXME: JEM catalog needs to be updated
 
       const branch = messagesStore.getBranchById(parentId)
       const conversationMessages = branch.messages
@@ -249,7 +248,7 @@ export const useConversationStore = defineStore('conversation', () => {
       } satisfies BaseMessage, ...conversationMessages]))
 
       const { textStream, reasoningTextStream } = streamText({
-        // ...(isSupportTools ? tools : {}),
+        ...(isSupportTools ? tools : {}),
         maxSteps: 10,
         apiKey: currentProvider.value?.apiKey,
         baseURL: currentProvider.value?.baseURL,
@@ -404,7 +403,6 @@ export const useConversationStore = defineStore('conversation', () => {
       const shouldAutoRename = isFirstUserMessageInRoom && isDefaultRoomName(initialRoomName)
 
       const content: CommonContentPart[] = [{ type: 'text', text: message }]
-      console.log('newMessage', content)
       const { id } = (await messagesStore.newMessage(
         content,
         'user',
