@@ -230,12 +230,12 @@ export const useConversationStore = defineStore('conversation', () => {
         ],
       }
 
-      const capabilities: Record<string, boolean> = hasCapabilities(
-        provider as ProviderNames,
-        model as ModelIdsByProvider<ProviderNames>,
-        ['tool-call'] as CapabilitiesByModel<ProviderNames, ModelIdsByProvider<ProviderNames>>,
-      )
-      const isSupportTools = capabilities['tool-call'] // FIXME: JEM catalog needs to be updated
+      // const capabilities: Record<string, boolean> = hasCapabilities(
+      //   provider as ProviderNames,
+      //   model as ModelIdsByProvider<ProviderNames>,
+      //   ['tool-call'] as CapabilitiesByModel<ProviderNames, ModelIdsByProvider<ProviderNames>>,
+      // )
+      // const isSupportTools = capabilities['tool-call'] // FIXME: JEM catalog needs to be updated
 
       const branch = messagesStore.getBranchById(parentId)
       const conversationMessages = branch.messages
@@ -248,7 +248,7 @@ export const useConversationStore = defineStore('conversation', () => {
       } satisfies BaseMessage, ...conversationMessages]))
 
       const { textStream, reasoningTextStream } = streamText({
-        ...(isSupportTools ? tools : {}),
+        // ...(isSupportTools ? tools : {}),
         maxSteps: 10,
         apiKey: currentProvider.value?.apiKey,
         baseURL: currentProvider.value?.baseURL,

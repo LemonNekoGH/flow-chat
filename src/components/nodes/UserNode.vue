@@ -3,6 +3,7 @@ import type { NodeProps } from '@vue-flow/core'
 import type { NodeData } from '~/types/node'
 import { storeToRefs } from 'pinia'
 import { useSettingsStore } from '~/stores/settings'
+import AttachmentDisplay from '../AttachmentDisplay.vue'
 import MarkdownView from '../MarkdownView.vue'
 import Node from './Node.vue'
 
@@ -22,6 +23,12 @@ const { defaultTextModel } = storeToRefs(useSettingsStore())
       @{{ data.message.provider }}/{{ data.message.model }}
     </div>
     <div p-2>
+      <!-- <AttachmentDisplay
+        v-if="data.message.attachments && data.message.attachments.length > 0"
+        :attachments="data.message.attachments"
+        compact
+        class="mb-2"
+      /> -->
       <MarkdownView :content="data.message.content" />
     </div>
   </Node>

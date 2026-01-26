@@ -12,3 +12,9 @@ intro:
   aka: Also known as
   whats-your-name: What's your name?
 not-found: Not found
+file_upload:
+  drop_hint: Drop files here or click to upload
+  size_exceeded: File size exceeds {size}MB limit
+  invalid_type: Invalid file type. Only images are supported.
+  max_files_exceeded: Maximum {max} files allowed
+  read_error: Failed to read file

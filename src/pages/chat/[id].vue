@@ -2,6 +2,7 @@
 import type { ProviderNames } from '@moeru-ai/jem'
 import type { NodeMouseEvent } from '@vue-flow/core'
 import type { AcceptableValue } from 'reka-ui'
+import type { Attachment } from '~/types/attachment'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { VueFlow } from '@vue-flow/core'
@@ -10,7 +11,9 @@ import { useClipboard, useElementBounding, useEventListener } from '@vueuse/core
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, provide, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
+import AttachmentDisplay from '~/components/AttachmentDisplay.vue'
 import ConversationView from '~/components/ConversationView.vue'
+import FileUpload from '~/components/FileUpload.vue'
 import ModelSelector from '~/components/ModelSelector.vue'
 import AssistantNode from '~/components/nodes/AssistantNode.vue'
 import SystemNode from '~/components/nodes/SystemNode.vue'
@@ -59,6 +62,18 @@ const strokeColor = computed(() => (isDark.value ? darkColor : defaultColor))
 
 const inputMessage = ref('')
 const isConversationMode = computed(() => currentMode.value === ChatMode.CONVERSATION)
+
+// File upload state
+const pendingAttachments = ref<Attachment[]>([]) // TODO: show attachments for every message
+const showFileUpload = ref(false)
+
+function handleFilesChanged(files: Attachment[]) {
+  pendingAttachments.value = files
+}
+
+function toggleFileUpload() {
+  showFileUpload.value = !showFileUpload.value
+}
 
 const showModelSelector = ref(false)
 const inlineModelCommandValue = ref('')
@@ -157,12 +172,14 @@ async function handleContextMenuDelete() {
 
 async function handleSendButton(messageText?: string) {
   const messageToSend = messageText ?? inputMessage.value
+  const attachments = pendingAttachments.value
 
   const roomId = currentRoomId.value
   if (!roomId)
     return
 
-  if (!messageToSend || conversationStore.isSending(roomId)) {
+  // Allow sending with just attachments (no text) or with text
+  if ((!messageToSend && attachments.length === 0) || conversationStore.isSending(roomId)) {
     return
   }
 
@@ -397,7 +414,35 @@ onMounted(async () => {
         }"
       >
         <div class="relative mx-auto w-full max-w-screen-md flex flex-col rounded-lg bg-neutral-100 p-2 shadow-lg transition-colors dark:bg-neutral-900">
+          <!-- File upload area -->
+          <div v-if="showFileUpload" class="mb-2">
+            <FileUpload
+              :max-files="5"
+              :max-file-size="10"
+              @files-changed="handleFilesChanged"
+            />
+          </div>
+
+          <!-- Pending attachments preview -->
+          <AttachmentDisplay
+            v-if="pendingAttachments.length > 0 && !showFileUpload"
+            :attachments="pendingAttachments"
+            compact
+            class="mb-2"
+          />
+
           <div class="relative flex items-end gap-2">
+            <!-- File upload toggle button -->
+            <Button
+              variant="ghost"
+              size="sm"
+              class="mb-1 shrink-0"
+              :class="{ 'text-primary': showFileUpload || pendingAttachments.length > 0 }"
+              @click="toggleFileUpload"
+            >
+              <div class="i-solar-gallery-add-bold text-lg" />
+            </Button>
+
             <Textarea
               v-model="inputMessage"
               placeholder="Enter to send message, Shift+Enter for new-line"
