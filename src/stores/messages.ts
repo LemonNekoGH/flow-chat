@@ -33,7 +33,6 @@ export const useMessagesStore = defineStore('messages', () => {
     memory?: string[],
   ) {
     const [message] = await messageModel.create({
-      content,
       role,
       parent_id: parentId,
       provider,
