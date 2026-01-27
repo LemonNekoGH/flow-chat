@@ -1,15 +1,19 @@
-import type { CapabilitiesByModel, ModelIdsByProvider, ProviderNames } from '@moeru-ai/jem'
+import type {
+  // CapabilitiesByModel,
+  // ModelIdsByProvider,
+  ProviderNames,
+} from '@moeru-ai/jem'
 import type { CommonContentPart } from 'xsai'
 import type { Attachment } from '~/types/attachment'
 import type { BaseMessage } from '~/types/messages'
-import {
-  hasCapabilities,
-} from '@moeru-ai/jem'
+// import {
+//   hasCapabilities,
+// } from '@moeru-ai/jem'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref } from 'vue'
 import { toast } from 'vue-sonner'
 import { generateText, streamText } from 'xsai'
-import { createImageTools, createMemoryTools } from '~/tools'
+// import { createImageTools, createMemoryTools } from '~/tools'
 import { parseMessage } from '~/utils/chat'
 import { asyncIteratorFromReadableStream } from '~/utils/interator'
 import { SUMMARY_PROMPT, TOPIC_TITLE_PROMPT, useSystemPrompt } from '~/utils/prompts/prompts'
@@ -214,28 +218,28 @@ export const useConversationStore = defineStore('conversation', () => {
     streamTextAbortControllers.value.set(newMsgId, abortController)
 
     try {
-      const tools = {
-        tools: [
-          ...(await createImageTools({
-            apiKey: settingsStore.imageGeneration.apiKey,
-            baseURL: 'https://api.openai.com/v1',
-            piniaStore: messagesStore,
-            messageId: newMsgId,
-          })),
-          ...(await createMemoryTools({
-            roomId,
-            messageId: newMsgId,
-            piniaStore: messagesStore,
-          })),
-        ],
-      }
+      // const tools = {
+      //   tools: [
+      //     ...(await createImageTools({
+      //       apiKey: settingsStore.imageGeneration.apiKey,
+      //       baseURL: 'https://api.openai.com/v1',
+      //       piniaStore: messagesStore,
+      //       messageId: newMsgId,
+      //     })),
+      //     ...(await createMemoryTools({
+      //       roomId,
+      //       messageId: newMsgId,
+      //       piniaStore: messagesStore,
+      //     })),
+      //   ],
+      // }
 
-      const capabilities: Record<string, boolean> = hasCapabilities(
-        provider as ProviderNames,
-        model as ModelIdsByProvider<ProviderNames>,
-        ['tool-call'] as CapabilitiesByModel<ProviderNames, ModelIdsByProvider<ProviderNames>>,
-      )
-      const isSupportTools = capabilities['tool-call'] // FIXME: JEM catalog needs to be updated
+      // const capabilities: Record<string, boolean> = hasCapabilities(
+      //   provider as ProviderNames,
+      //   model as ModelIdsByProvider<ProviderNames>,
+      //   ['tool-call'] as CapabilitiesByModel<ProviderNames, ModelIdsByProvider<ProviderNames>>,
+      // )
+      // const isSupportTools = capabilities['tool-call'] // FIXME: JEM catalog needs to be updated
 
       const branch = messagesStore.getBranchById(parentId)
       const conversationMessages = branch.messages
@@ -248,7 +252,7 @@ export const useConversationStore = defineStore('conversation', () => {
       } satisfies BaseMessage, ...conversationMessages]))
 
       const { textStream, reasoningTextStream } = streamText({
-        ...(isSupportTools ? tools : {}),
+        // ...(isSupportTools ? tools : {}),
         maxSteps: 10,
         apiKey: currentProvider.value?.apiKey,
         baseURL: currentProvider.value?.baseURL,
