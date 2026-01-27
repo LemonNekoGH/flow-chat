@@ -1,10 +1,10 @@
-import type {
-  CapabilitiesByModel,
-  ModelIdsByProvider,
-  ProviderNames,
-} from '@moeru-ai/jem'
+import type { CapabilitiesByModel, ModelIdsByProvider, ProviderNames } from '@moeru-ai/jem'
 import type { CommonContentPart } from 'xsai'
+import type { Attachment } from '~/types/attachment'
 import type { BaseMessage } from '~/types/messages'
+import {
+  hasCapabilities,
+} from '@moeru-ai/jem'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref } from 'vue'
 import { toast } from 'vue-sonner'
@@ -230,12 +230,12 @@ export const useConversationStore = defineStore('conversation', () => {
         ],
       }
 
-      // const capabilities: Record<string, boolean> = hasCapabilities(
-      //   provider as ProviderNames,
-      //   model as ModelIdsByProvider<ProviderNames>,
-      //   ['tool-call'] as CapabilitiesByModel<ProviderNames, ModelIdsByProvider<ProviderNames>>,
-      // )
-      // const isSupportTools = capabilities['tool-call'] // FIXME: JEM catalog needs to be updated
+      const capabilities: Record<string, boolean> = hasCapabilities(
+        provider as ProviderNames,
+        model as ModelIdsByProvider<ProviderNames>,
+        ['tool-call'] as CapabilitiesByModel<ProviderNames, ModelIdsByProvider<ProviderNames>>,
+      )
+      const isSupportTools = capabilities['tool-call'] // FIXME: JEM catalog needs to be updated
 
       const branch = messagesStore.getBranchById(parentId)
       const conversationMessages = branch.messages
@@ -248,7 +248,7 @@ export const useConversationStore = defineStore('conversation', () => {
       } satisfies BaseMessage, ...conversationMessages]))
 
       const { textStream, reasoningTextStream } = streamText({
-        // ...(isSupportTools ? tools : {}),
+        ...(isSupportTools ? tools : {}),
         maxSteps: 10,
         apiKey: currentProvider.value?.apiKey,
         baseURL: currentProvider.value?.baseURL,
@@ -380,6 +380,7 @@ export const useConversationStore = defineStore('conversation', () => {
   async function sendMessage(
     roomId: string,
     messageText: string,
+    attachments: Attachment[],
     parentId: string | null,
     options?: {
       onUserMessageCreated?: (messageId: string) => void
@@ -402,7 +403,11 @@ export const useConversationStore = defineStore('conversation', () => {
       const initialRoomName = getRoomName(roomId)
       const shouldAutoRename = isFirstUserMessageInRoom && isDefaultRoomName(initialRoomName)
 
-      const content: CommonContentPart[] = [{ type: 'text', text: message }]
+      const pureAttachments = attachments.map((a) => {
+        const { fileName: _, id: __, ...rest } = a
+        return rest
+      })
+      const content: CommonContentPart[] = [{ type: 'text', text: message }, ...pureAttachments]
       const { id } = (await messagesStore.newMessage(
         content,
         'user',

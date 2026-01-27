@@ -196,10 +196,12 @@ async function handleSendButton(messageText?: string) {
   await conversationStore.sendMessage(
     roomId,
     messageToSend,
+    pendingAttachments.value,
     parentId,
     {
       onUserMessageCreated: (messageId) => {
         inputMessage.value = modelPrefix ? `model=${modelPrefix} ` : ''
+        pendingAttachments.value = []
         selectedMessageId.value = messageId
       },
       onAssistantMessageCreated: async (messageId) => {

@@ -51,7 +51,7 @@ export function useMessageModel() {
     })
   }
 
-  async function create(msg: Omit<Message, 'id'>) {
+  async function create(msg: Omit<typeof schema.messages.$inferInsert, 'id' | 'created_at' | 'updated_at' | 'embedding' | 'show_summary'>) {
     return await dbStore.withCheckpoint((db) => {
       return db.insert(schema.messages).values(msg).returning()
     })

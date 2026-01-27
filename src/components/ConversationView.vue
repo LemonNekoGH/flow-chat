@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import type { Attachment } from '~/types/attachment'
 import type { Message } from '~/types/messages'
 import { useEventListener } from '@vueuse/core'
 import { computed, nextTick, ref, watch } from 'vue'
 import { useMessagesStore } from '~/stores/messages'
+import AttachmentDisplay from './AttachmentDisplay.vue'
 import ConversationNodeContextMenu from './ConversationNodeContextMenu.vue'
 import MarkdownView from './MarkdownView.vue'
 import SystemPrompt from './SystemPrompt.vue'
@@ -151,6 +153,10 @@ function handleAbort(messageId: string) {
 useEventListener('click', closeContextMenu)
 
 useEventListener(containerRef, 'scroll', updateShouldAutoScroll)
+
+function getAttachments(message: Message) {
+  return message.content.filter(part => part.type !== 'text') as Attachment[]
+}
 </script>
 
 <template>
@@ -183,6 +189,14 @@ useEventListener(containerRef, 'scroll', updateShouldAutoScroll)
             class="relative min-w-0 flex-1 rounded-lg p-4"
             :class="message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'"
           >
+            <!-- FIXME: get attachments twice, can we optimize this? -->
+            <AttachmentDisplay
+              v-if="getAttachments(message).length > 0"
+              :attachments="getAttachments(message)"
+              compact
+              class="mb-2"
+            />
+
             <MarkdownView
               :content="message.content"
               :dark="message.role === 'user'"
