@@ -148,22 +148,25 @@ export const useConversationStore = defineStore('conversation', () => {
     stream: ReadableStream<string>,
     reasoning: boolean = false,
   ) {
-    if (reasoning) {
-      await saveMessagePartToBuffer(newMsgId, { type: 'text', text: '<think>\n' })
-      await checkAndFlushMessagePartBuffer(newMsgId, true)
-    }
+    let isReasoningBlockStarted = false
 
     for await (const textPart of asyncIteratorFromReadableStream(stream, async v => v)) {
       if (streamTextRunIds.value.get(newMsgId) !== runId || abortController.signal.aborted)
         break
 
       if (textPart && textPart.trim()) {
+        if (reasoning && !isReasoningBlockStarted) {
+          isReasoningBlockStarted = true
+          await saveMessagePartToBuffer(newMsgId, { type: 'text', text: '<think>\n' })
+          await checkAndFlushMessagePartBuffer(newMsgId, true)
+        }
+
         await saveMessagePartToBuffer(newMsgId, { type: 'text', text: textPart })
         await checkAndFlushMessagePartBuffer(newMsgId)
       }
     }
 
-    if (reasoning) {
+    if (reasoning && isReasoningBlockStarted) {
       await saveMessagePartToBuffer(newMsgId, { type: 'text', text: '\n</think>\n' })
       await checkAndFlushMessagePartBuffer(newMsgId, true)
     }
