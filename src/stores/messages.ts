@@ -203,6 +203,48 @@ export const useMessagesStore = defineStore('messages', () => {
     return messages.value.some(message => message.parent_id === messageId)
   }
 
+  async function mergeBranch(targetNodeId: string, sourceLeafId: string) {
+    const targetBranch = getBranchById(targetNodeId)
+    const sourceBranch = getBranchById(sourceLeafId)
+
+    const sourcePath = sourceBranch.messages
+    const targetPathIds = targetBranch.ids
+
+    let startIndex = 0
+    // Find the first message in sourcePath that is NOT in targetPath
+    for (let i = 0; i < sourcePath.length; i++) {
+      if (!targetPathIds.has(sourcePath[i].id)) {
+        startIndex = i
+        break
+      }
+    }
+
+    // If sourceLeafId is in targetPath, source is an ancestor of target (or same node)
+    // In this case, there's nothing "new" to merge from source to target.
+    if (targetPathIds.has(sourceLeafId)) {
+      return targetNodeId
+    }
+
+    const messagesToCopy = sourcePath.slice(startIndex)
+    let currentParentId = targetNodeId
+
+    for (const msg of messagesToCopy) {
+      const newMsg = await newMessage(
+        msg.content,
+        msg.role,
+        currentParentId,
+        msg.provider,
+        msg.model,
+        msg.room_id!,
+        msg.memory,
+      )
+      currentParentId = newMsg.id
+    }
+
+    await retrieveMessages()
+    return currentParentId
+  }
+
   return {
     // State
     messages,
@@ -216,6 +258,7 @@ export const useMessagesStore = defineStore('messages', () => {
     updateContent,
     deleteMessages,
     deleteSubtree,
+    mergeBranch,
 
     // Queries
     getMessageById,
