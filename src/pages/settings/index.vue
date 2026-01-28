@@ -5,6 +5,7 @@ import { storeToRefs } from 'pinia'
 import { DialogOverlay } from 'reka-ui'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { toast } from 'vue-sonner'
 import MemoryManager from '~/components/MemoryManager.vue'
 import ModelSelector from '~/components/ModelSelector.vue'
 import TemplateManager from '~/components/TemplateManager.vue'
@@ -22,6 +23,7 @@ import SelectItem from '~/components/ui/select/SelectItem.vue'
 import SelectTrigger from '~/components/ui/select/SelectTrigger.vue'
 
 import SelectValue from '~/components/ui/select/SelectValue.vue'
+import { useExportModel } from '~/models/export'
 import { useDatabaseStore } from '~/stores/database'
 import { useMessagesStore } from '~/stores/messages'
 import { useRoomsStore } from '~/stores/rooms'
@@ -41,7 +43,11 @@ const showModelSelector = ref(false)
 const showSummaryModelSelector = ref(false)
 const showDeleteAllMessagesDialog = ref(false)
 const dbStore = useDatabaseStore()
+const exportModel = useExportModel()
 const SAME_AS_DEFAULT_PROVIDER = '__same_as_default__'
+const isExporting = ref(false)
+const isImporting = ref(false)
+const importFileInput = ref<HTMLInputElement | null>(null)
 
 // Handle model selection
 function handleModelSelect(selectedModelValue: string) {
@@ -85,6 +91,46 @@ async function resetTutorial() {
 
 async function deleteAllMessages() {
   showDeleteAllMessagesDialog.value = true
+}
+
+async function exportData() {
+  isExporting.value = true
+  try {
+    await exportModel.exportDatabaseDump()
+    toast.success('Database exported')
+  }
+  catch (error) {
+    console.error('Failed to export:', error)
+    toast.error('Failed to export database')
+  }
+  finally {
+    isExporting.value = false
+  }
+}
+
+function triggerImport() {
+  importFileInput.value?.click()
+}
+
+async function handleImportFileSelect(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file)
+    return
+
+  isImporting.value = true
+  try {
+    await exportModel.importDatabaseDump(file)
+    // Page will reload automatically
+  }
+  catch (error) {
+    console.error('Failed to import:', error)
+    toast.error('Failed to import database')
+    isImporting.value = false
+  }
+  finally {
+    input.value = ''
+  }
 }
 
 async function confirmDeleteAllMessages() {
@@ -253,6 +299,26 @@ onMounted(async () => {
         Reset Tutorial
       </Button>
 
+      <!-- Data Backup -->
+      <div class="card border rounded-lg p-6 shadow-sm">
+        <h2 class="mb-4 text-xl font-semibold">
+          Data Backup
+        </h2>
+        <div class="flex flex-col gap-3">
+          <Button id="export-data-button" variant="outline" :disabled="isExporting" @click="exportData">
+            <span v-if="isExporting" class="i-carbon-circle-dash mr-2 animate-spin" />
+            Export Data
+          </Button>
+          <Button id="import-data-button" variant="outline" :disabled="isImporting" @click="triggerImport">
+            <span v-if="isImporting" class="i-carbon-circle-dash mr-2 animate-spin" />
+            Import Data
+          </Button>
+          <p class="text-xs text-gray-500">
+            Import will replace all existing data. Please ensure the backup file is from a compatible version.
+          </p>
+        </div>
+      </div>
+
       <Button id="delete-all-messages-button" variant="outline" @click="deleteAllMessages">
         Delete all messages
       </Button>
@@ -300,5 +366,14 @@ onMounted(async () => {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <!-- Hidden file input for import -->
+    <input
+      ref="importFileInput"
+      type="file"
+      accept=".tar.gz,.tgz"
+      class="hidden"
+      @change="handleImportFileSelect"
+    >
   </div>
 </template>
