@@ -43,10 +43,12 @@ export const useDatabaseStore = defineStore('database', () => {
   }
 
   async function clearDb() {
-    await db().execute('DROP TABLE IF EXISTS __migrations;')
+    await db().execute('DROP TABLE IF EXISTS tool_calls;')
     await db().execute('DROP TABLE IF EXISTS messages;')
+    await db().execute('DROP TABLE IF EXISTS memories;')
     await db().execute('DROP TABLE IF EXISTS rooms;')
     await db().execute('DROP TABLE IF EXISTS templates;')
+    await db().execute('DROP TABLE IF EXISTS __migrations;')
     await db().execute('CHECKPOINT;')
   }
 
