@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { format } from 'date-fns'
 import { enUS } from 'date-fns/locale'
+import type { ExportedRoomMessages } from '~/types/messages'
 import { nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
 import Button from '~/components/ui/button/Button.vue'
@@ -9,21 +10,28 @@ import DialogContent from '~/components/ui/dialog/DialogContent.vue'
 import DialogHeader from '~/components/ui/dialog/DialogHeader.vue'
 import DialogTitle from '~/components/ui/dialog/DialogTitle.vue'
 import Input from '~/components/ui/input/Input.vue'
+import Textarea from '~/components/ui/textarea/Textarea.vue'
 import { useDatabaseStore } from '~/stores/database'
+import { useMessagesStore } from '~/stores/messages'
 import { useRoomsStore } from '~/stores/rooms'
 import { useSettingsStore } from '~/stores/settings'
 
 const roomsStore = useRoomsStore()
 const settingsStore = useSettingsStore()
+const messagesStore = useMessagesStore()
 
 // Dialog states
 const showRenameDialog = ref(false)
 const showDeleteConfirmDialog = ref(false)
+const showImportDialog = ref(false)
 
 // Room states
 const renameRoomId = ref('')
 const renameRoomName = ref('')
 const roomToDeleteId = ref('')
+const importRoomId = ref('')
+const importPayload = ref('')
+const importFileName = ref('')
 
 // Swipe logic
 const swipedRoomId = ref<string | null>(null)
@@ -153,6 +161,89 @@ async function deleteRoomConfirmed() {
     }
   }
 }
+
+function openImportDialog(id: string) {
+  importRoomId.value = id
+  importPayload.value = ''
+  importFileName.value = ''
+  showImportDialog.value = true
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function isExportedRoomMessages(value: unknown): value is ExportedRoomMessages {
+  if (!isRecord(value))
+    return false
+
+  if (value.version !== 1)
+    return false
+
+  if (!isRecord(value.room) || typeof value.room.id !== 'string')
+    return false
+
+  return Array.isArray(value.messages)
+}
+
+async function handleImportFile(event: Event) {
+  const target = event.target
+  const file = target instanceof HTMLInputElement ? target.files?.[0] : undefined
+  if (!file)
+    return
+
+  importPayload.value = await file.text()
+  importFileName.value = file.name
+}
+
+async function importRoomMessages() {
+  if (!importRoomId.value)
+    return
+
+  if (!importPayload.value.trim()) {
+    toast.error('Please provide a JSON export file or paste the contents')
+    return
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(importPayload.value)
+    if (!isExportedRoomMessages(parsed)) {
+      toast.error('Unsupported import format')
+      return
+    }
+
+    await messagesStore.importRoomMessages(importRoomId.value, parsed)
+    toast.success('Messages imported successfully')
+    showImportDialog.value = false
+  }
+  catch (error) {
+    console.error(error)
+    toast.error('Failed to import messages')
+  }
+}
+
+async function exportRoomMessages(roomId: string) {
+  try {
+    const payload = await messagesStore.exportRoomMessages(roomId)
+    const room = roomsStore.rooms.find(item => item.id === roomId)
+    const safeName = room?.name?.trim()
+      ? room.name.replace(/[^a-z0-9-_]+/gi, '_')
+      : 'chat'
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${safeName}-messages.json`
+    link.click()
+    URL.revokeObjectURL(url)
+    toast.success('Messages exported successfully')
+  }
+  catch (error) {
+    console.error(error)
+    toast.error('Failed to export messages')
+  }
+}
 </script>
 
 <template>
@@ -186,6 +277,12 @@ async function deleteRoomConfirmed() {
             <Button variant="ghost" size="icon" class="h-7 w-7" @click.stop="openRenameDialog(room.id, room.name)">
               <div class="i-solar-pen-2-bold text-sm" />
             </Button>
+            <Button variant="ghost" size="icon" class="h-7 w-7" @click.stop="exportRoomMessages(room.id)">
+              <div class="i-solar-download-bold text-sm" />
+            </Button>
+            <Button variant="ghost" size="icon" class="h-7 w-7" @click.stop="openImportDialog(room.id)">
+              <div class="i-solar-upload-bold text-sm" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -218,6 +315,12 @@ async function deleteRoomConfirmed() {
             <div v-if="!isMobile" class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
               <Button variant="ghost" size="icon" class="h-7 w-7" @click.stop="openRenameDialog(room.id, room.name)">
                 <div class="i-solar-pen-2-bold text-sm" />
+              </Button>
+              <Button variant="ghost" size="icon" class="h-7 w-7" @click.stop="exportRoomMessages(room.id)">
+                <div class="i-solar-download-bold text-sm" />
+              </Button>
+              <Button variant="ghost" size="icon" class="h-7 w-7" @click.stop="openImportDialog(room.id)">
+                <div class="i-solar-upload-bold text-sm" />
               </Button>
               <Button
                 variant="ghost"
@@ -270,6 +373,33 @@ async function deleteRoomConfirmed() {
           </Button>
           <Button variant="destructive" @click="deleteRoomConfirmed">
             Delete
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog v-model:open="showImportDialog">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Import Messages</DialogTitle>
+        </DialogHeader>
+        <div class="flex flex-col gap-3">
+          <Input type="file" accept="application/json" @change="handleImportFile" />
+          <div v-if="importFileName" class="text-xs text-muted-foreground">
+            Selected: {{ importFileName }}
+          </div>
+          <Textarea
+            v-model="importPayload"
+            rows="6"
+            placeholder="Paste exported JSON here"
+          />
+        </div>
+        <div class="flex justify-end gap-2">
+          <Button variant="outline" @click="showImportDialog = false">
+            Cancel
+          </Button>
+          <Button @click="importRoomMessages">
+            Import
           </Button>
         </div>
       </DialogContent>

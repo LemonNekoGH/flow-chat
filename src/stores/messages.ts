@@ -1,5 +1,5 @@
 import type { CommonContentPart } from 'xsai'
-import type { Message, MessageRole } from '~/types/messages'
+import type { ExportedRoomMessages, Message, MessageRole } from '~/types/messages'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { useMessageModel } from '~/models/messages'
@@ -203,6 +203,94 @@ export const useMessagesStore = defineStore('messages', () => {
     return messages.value.some(message => message.parent_id === messageId)
   }
 
+  async function exportRoomMessages(roomId: string): Promise<ExportedRoomMessages> {
+    const room = roomsStore.rooms.find(item => item.id === roomId)
+    if (!room) {
+      throw new Error('Room not found')
+    }
+
+    const roomMessages = await messageModel.getByRoomId(roomId)
+    return {
+      version: 1,
+      exported_at: new Date().toISOString(),
+      room: {
+        id: room.id,
+        name: room.name,
+      },
+      messages: roomMessages.map(message => ({
+        id: message.id,
+        parent_id: message.parent_id,
+        role: message.role as MessageRole,
+        provider: message.provider,
+        model: message.model,
+        summary: message.summary,
+        show_summary: message.show_summary ?? false,
+        memory: message.memory ?? [],
+        content: message.content,
+      })),
+    }
+  }
+
+  async function importRoomMessages(roomId: string, payload: ExportedRoomMessages) {
+    if (!payload || payload.version !== 1) {
+      throw new Error('Unsupported export format')
+    }
+
+    const pending = [...payload.messages]
+    const idMap = new Map<string, string>()
+    let guard = 0
+
+    while (pending.length > 0) {
+      guard += 1
+      if (guard > payload.messages.length + 1) {
+        throw new Error('Failed to resolve message parent links')
+      }
+
+      let progressed = false
+      const remaining: typeof pending = []
+
+      for (const message of pending) {
+        const parentId = message.parent_id ? idMap.get(message.parent_id) : null
+        if (message.parent_id && !parentId) {
+          remaining.push(message)
+          continue
+        }
+
+        const [created] = await messageModel.create({
+          role: message.role,
+          parent_id: parentId ?? null,
+          provider: message.provider,
+          model: message.model,
+          room_id: roomId,
+          memory: message.memory ?? [],
+          summary: message.summary ?? null,
+        })
+
+        if (message.content.length > 0) {
+          await messageModel.appendContentBatch(created.id, message.content)
+        }
+
+        if (message.show_summary) {
+          await messageModel.updateShowSummary(created.id, true)
+        }
+
+        idMap.set(message.id, created.id)
+        progressed = true
+      }
+
+      if (!progressed) {
+        throw new Error('Failed to import messages')
+      }
+
+      pending.length = 0
+      pending.push(...remaining)
+    }
+
+    if (roomsStore.currentRoomId === roomId) {
+      await retrieveMessages()
+    }
+  }
+
   return {
     // State
     messages,
@@ -235,5 +323,7 @@ export const useMessagesStore = defineStore('messages', () => {
     updateShowSummary,
 
     hasChildren,
+    exportRoomMessages,
+    importRoomMessages,
   }
 })
