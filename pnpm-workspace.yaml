@@ -1,7 +1,6 @@
-# eslint-disable pnpm/yaml-enforce-settings
 shellEmulator: true
 
-# trustPolicy: no-downgrade
+trustPolicy: no-downgrade
 
 onlyBuiltDependencies:
   - esbuild
