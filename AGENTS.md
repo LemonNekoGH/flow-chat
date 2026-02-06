@@ -83,6 +83,10 @@ style: better style for markdown view (#53)
 
 ## Code Quality Guidelines
 
+### Code Style
+
+- **Early returns**: Use early returns to reduce nested if statements and improve code readability when possible
+
 ### Type Safety
 
 - **Avoid using `any` type**: Always use proper TypeScript types. Use type inference from libraries (e.g., `InferSelectModel` from drizzle-orm) or define explicit types instead of `any`

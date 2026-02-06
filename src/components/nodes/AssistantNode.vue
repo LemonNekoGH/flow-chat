@@ -46,6 +46,6 @@ watch(() => props.data.message.summary, (newVal, oldVal) => {
     <div v-if="defaultTextModel.provider !== data.message.provider || data.message.model !== defaultTextModel.model" p-2 :bg="showSummary ? 'yellow-200 dark:yellow-800' : 'pink-200 dark:pink-800'">
       {{ data.message.provider }}/{{ data.message.model }}
     </div>
-    <MarkdownView p-2 :content="showSummary ? (data.message.summary || 'Summarizing...') : data.message.content" />
+    <MarkdownView p-2 :content="showSummary ? [{ type: 'text', text: data.message.summary || 'Summarizing...' }] : data.message.content" />
   </Node>
 </template>

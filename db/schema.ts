@@ -1,5 +1,18 @@
+import type { CommonContentPart } from 'xsai'
 import { sql } from 'drizzle-orm'
-import { boolean, doublePrecision, index, jsonb, pgTable, text, timestamp, uuid, vector } from 'drizzle-orm/pg-core'
+import {
+  boolean,
+  doublePrecision,
+  index,
+  integer,
+  jsonb,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+  vector,
+} from 'drizzle-orm/pg-core'
 
 export const templates = pgTable('templates', () => ({
   id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
@@ -25,7 +38,6 @@ export const rooms = pgTable('rooms', () => ({
 
 export const messages = pgTable('messages', {
   id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
-  content: text('content').notNull(),
   model: text('model').notNull(),
   provider: text('provider').notNull(),
   role: text('role').notNull(),
@@ -40,6 +52,18 @@ export const messages = pgTable('messages', {
 }, table => [
   index('embeddingIndex').using('hnsw', table.embedding.op('vector_cosine_ops')),
 ])
+
+export const partTypeEnum = pgEnum('part_type', ['input_audio', 'file', 'image_url', 'text'])
+
+export const message_parts = pgTable('message_parts', {
+  id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),
+  part_type: partTypeEnum('part_type').notNull().default('text'),
+  message_id: uuid('message_id').references(() => messages.id, { onDelete: 'cascade' }).notNull(),
+  content: jsonb('content').notNull().$type<CommonContentPart>(),
+  order: integer('order').notNull().default(0),
+  created_at: timestamp('created_at').notNull().default(sql`now()`),
+  updated_at: timestamp('updated_at').notNull().default(sql`now()`),
+})
 
 export const memories = pgTable('memories', () => ({
   id: uuid().primaryKey().unique().default(sql`gen_random_uuid()`),

@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import type { Attachment } from '~/types/attachment'
 import type { Message } from '~/types/messages'
-import { useClipboard, useEventListener } from '@vueuse/core'
+import { useEventListener } from '@vueuse/core'
 import { computed, nextTick, ref, watch } from 'vue'
-import { toast } from 'vue-sonner'
 import { useMessagesStore } from '~/stores/messages'
+import AttachmentDisplay from './AttachmentDisplay.vue'
 import ConversationNodeContextMenu from './ConversationNodeContextMenu.vue'
 import MarkdownView from './MarkdownView.vue'
 import SystemPrompt from './SystemPrompt.vue'
@@ -15,6 +16,7 @@ const emit = defineEmits<{
   (e: 'forkMessage', messageId: string, model?: string): void
   (e: 'abortMessage', messageId: string): void
   (e: 'regenerateMessage', messageId: string): void
+  (e: 'copyMessage', messageId: string): void
 }>()
 
 const messagesStore = useMessagesStore()
@@ -69,22 +71,6 @@ async function requestAutoScroll() {
     await nextTick()
     scrollToBottom()
   })
-}
-
-// Copy message content
-const { copy } = useClipboard()
-async function copyContent(content: string) {
-  try {
-    await copy(content)
-    toast.success('Copied to clipboard')
-  }
-  catch {
-    toast.error('Failed to copy message')
-  }
-}
-
-async function copyMessage(message: Message) {
-  await copyContent(message.content)
 }
 
 // Fork from a message
@@ -151,21 +137,7 @@ function handleContextMenuForkWith() {
 }
 
 async function handleContextMenuCopy() {
-  const messageId = contextMenu.value.messageId
-  const text = selectedText.value
-  closeContextMenu()
-
-  if (text) {
-    await copyContent(text)
-    return
-  }
-
-  if (messageId) {
-    const message = messagesStore.getMessageById(messageId)
-    if (message) {
-      await copyMessage(message)
-    }
-  }
+  emit('copyMessage', contextMenu.value.messageId)
 }
 
 function handleContextMenuFocusIn() {
@@ -181,6 +153,10 @@ function handleAbort(messageId: string) {
 useEventListener('click', closeContextMenu)
 
 useEventListener(containerRef, 'scroll', updateShouldAutoScroll)
+
+function getAttachments(message: Message) {
+  return message.content.filter(part => part.type !== 'text') as Attachment[]
+}
 </script>
 
 <template>
@@ -213,6 +189,14 @@ useEventListener(containerRef, 'scroll', updateShouldAutoScroll)
             class="relative min-w-0 flex-1 rounded-lg p-4"
             :class="message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'"
           >
+            <!-- FIXME: get attachments twice, can we optimize this? -->
+            <AttachmentDisplay
+              v-if="getAttachments(message).length > 0"
+              :attachments="getAttachments(message)"
+              compact
+              class="mb-2"
+            />
+
             <MarkdownView
               :content="message.content"
               :dark="message.role === 'user'"
@@ -232,7 +216,7 @@ useEventListener(containerRef, 'scroll', updateShouldAutoScroll)
               <button
                 class="copy-icon-btn"
                 title="Copy"
-                @click="copyMessage(message)"
+                @click="emit('copyMessage', message.id)"
               >
                 <div class="i-solar-copy-bold text-sm" />
               </button>

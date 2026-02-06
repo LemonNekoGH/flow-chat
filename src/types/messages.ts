@@ -1,7 +1,9 @@
+import type { CommonContentPart } from 'xsai'
+
 export type MessageRole = 'user' | 'assistant' | 'system'
 
 export interface BaseMessage {
-  content: string
+  content: CommonContentPart[]
   role: string // FIXME: use enum in pglite
 }
 

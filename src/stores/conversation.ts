@@ -1,16 +1,19 @@
 import type {
-  CapabilitiesByModel,
-  ModelIdsByProvider,
+  // CapabilitiesByModel,
+  // ModelIdsByProvider,
   ProviderNames,
 } from '@moeru-ai/jem'
+import type { CommonContentPart } from 'xsai'
+import type { Attachment } from '~/types/attachment'
 import type { BaseMessage } from '~/types/messages'
-import { hasCapabilities } from '@moeru-ai/jem'
+// import {
+//   hasCapabilities,
+// } from '@moeru-ai/jem'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref } from 'vue'
 import { toast } from 'vue-sonner'
 import { generateText, streamText } from 'xsai'
-import { useToolCallModel } from '~/models/tool-calls'
-import { createImageTools, createMemoryTools } from '~/tools'
+// import { createImageTools, createMemoryTools } from '~/tools'
 import { parseMessage } from '~/utils/chat'
 import { asyncIteratorFromReadableStream } from '~/utils/interator'
 import { SUMMARY_PROMPT, TOPIC_TITLE_PROMPT, useSystemPrompt } from '~/utils/prompts/prompts'
@@ -24,37 +27,40 @@ export const useConversationStore = defineStore('conversation', () => {
 
   const messagesStore = useMessagesStore()
   const roomsStore = useRoomsStore()
-  const toolCallModel = useToolCallModel()
 
   const streamTextAbortControllers = ref<Map<string, AbortController>>(new Map())
   const streamTextRunIds = ref<Map<string, number>>(new Map())
   const sendingRooms = ref<Set<string>>(new Set())
-  const tokensBuffers = ref<Map<string, string[]>>(new Map())
+  const messagePartBuffers = ref<Map<string, CommonContentPart[]>>(new Map())
 
   const systemPrompt = useSystemPrompt()
 
-  async function saveToTokensBuffer(messageId: string, text: string) {
-    const tokensBuffer = tokensBuffers.value.get(messageId)
-    if (!tokensBuffer) {
-      tokensBuffers.value.set(messageId, [text])
+  async function saveMessagePartToBuffer(messageId: string, part: CommonContentPart) {
+    const messagePartBuffer = messagePartBuffers.value.get(messageId)
+    if (!messagePartBuffer) {
+      messagePartBuffers.value.set(messageId, [part])
       return
     }
 
-    tokensBuffer.push(text)
+    messagePartBuffer.push(part)
   }
 
-  async function checkAndFlushTokensBuffer(messageId: string, forceFlush: boolean = false) {
-    const tokensBuffer = tokensBuffers.value.get(messageId)
-    if (!tokensBuffer) {
+  async function checkAndFlushMessagePartBuffer(messageId: string, forceFlush: boolean = false) {
+    const messagePartBuffer = messagePartBuffers.value.get(messageId)
+    if (!messagePartBuffer) {
       return
     }
 
-    if (!forceFlush && tokensBuffer.length < 20) {
+    if (messagePartBuffer.length === 0) {
       return
     }
 
-    await messagesStore.appendContent(messageId, tokensBuffer)
-    tokensBuffer.length = 0
+    if (!forceFlush && messagePartBuffer.length < 20) {
+      return
+    }
+
+    await messagesStore.appendContent(messageId, messagePartBuffer)
+    messagePartBuffer.length = 0
     await messagesStore.retrieveMessages()
   }
 
@@ -123,8 +129,9 @@ export const useConversationStore = defineStore('conversation', () => {
       return
 
     const assistant = messagesStore.getMessageById(assistantMessageId)
-    const assistantContent = assistant?.content || ''
-    if (!assistantContent.trim())
+
+    const assistantContent = assistant?.content || [{ text: '', type: 'text' }]
+    if (!assistantContent[0])
       return
 
     const context = `User:\n${firstUserMessage}\n\nAssistant:\n${assistantContent}`
@@ -143,29 +150,32 @@ export const useConversationStore = defineStore('conversation', () => {
     runId: number,
     abortController: AbortController,
     stream: ReadableStream<string>,
+    reasoning: boolean = false,
   ) {
-    let lastCheckedToolCallId: string | null = null
+    let isReasoningBlockStarted = false
 
     for await (const textPart of asyncIteratorFromReadableStream(stream, async v => v)) {
       if (streamTextRunIds.value.get(newMsgId) !== runId || abortController.signal.aborted)
         break
 
-      const toolCalls = await toolCallModel.getByMessageId(newMsgId) // FIXME: don't fetch all tool calls for each text part
-      const imageToolCall = toolCalls.find(tc => tc.tool_name === 'generate_image' && tc.id !== lastCheckedToolCallId && tc.result)
-
-      if (imageToolCall) {
-        const result = imageToolCall.result as { imageBase64?: string } | null
-        if (result?.imageBase64) {
-          await messagesStore.appendContent(newMsgId, `![generated image](data:image/png;base64,${result.imageBase64})`)
-          lastCheckedToolCallId = imageToolCall.id
+      if (textPart && textPart.trim()) {
+        if (reasoning && !isReasoningBlockStarted) {
+          isReasoningBlockStarted = true
+          await saveMessagePartToBuffer(newMsgId, { type: 'text', text: '<think>\n' })
+          await checkAndFlushMessagePartBuffer(newMsgId, true)
         }
-      }
 
-      if (textPart) {
-        await saveToTokensBuffer(newMsgId, textPart)
-        await checkAndFlushTokensBuffer(newMsgId)
+        await saveMessagePartToBuffer(newMsgId, { type: 'text', text: textPart })
+        await checkAndFlushMessagePartBuffer(newMsgId)
       }
     }
+
+    if (reasoning && isReasoningBlockStarted) {
+      await saveMessagePartToBuffer(newMsgId, { type: 'text', text: '\n</think>\n' })
+      await checkAndFlushMessagePartBuffer(newMsgId, true)
+    }
+
+    await checkAndFlushMessagePartBuffer(newMsgId, true)
   }
 
   async function generateResponse(
@@ -193,10 +203,11 @@ export const useConversationStore = defineStore('conversation', () => {
     let newMsgId: string
     if (regenerateId) {
       newMsgId = regenerateId
-      await messagesStore.setContent(newMsgId, '')
+      await messagesStore.updateContent(newMsgId, [])
     }
     else {
-      const { id } = await messagesStore.newMessage('', 'assistant', parentId, provider, model, roomId, systemPromptResult.memoryIds)
+      const { id } = (await messagesStore.newMessage([], 'assistant', parentId, provider, model, roomId, systemPromptResult.memoryIds))
+      await messagesStore.retrieveMessages()
       newMsgId = id
     }
 
@@ -210,41 +221,41 @@ export const useConversationStore = defineStore('conversation', () => {
     streamTextAbortControllers.value.set(newMsgId, abortController)
 
     try {
-      const tools = {
-        tools: [
-          ...(await createImageTools({
-            apiKey: settingsStore.imageGeneration.apiKey,
-            baseURL: 'https://api.openai.com/v1',
-            piniaStore: messagesStore,
-            messageId: newMsgId,
-          })),
-          ...(await createMemoryTools({
-            roomId,
-            messageId: newMsgId,
-            piniaStore: messagesStore,
-          })),
-        ],
-      }
+      // const tools = {
+      //   tools: [
+      //     ...(await createImageTools({
+      //       apiKey: settingsStore.imageGeneration.apiKey,
+      //       baseURL: 'https://api.openai.com/v1',
+      //       piniaStore: messagesStore,
+      //       messageId: newMsgId,
+      //     })),
+      //     ...(await createMemoryTools({
+      //       roomId,
+      //       messageId: newMsgId,
+      //       piniaStore: messagesStore,
+      //     })),
+      //   ],
+      // }
 
-      const capabilities: Record<string, boolean> = hasCapabilities(
-        provider as ProviderNames,
-        model as ModelIdsByProvider<ProviderNames>,
-        ['tool-call'] as CapabilitiesByModel<ProviderNames, ModelIdsByProvider<ProviderNames>>,
-      )
-      const isSupportTools = capabilities['tool-call'] // FIXME: JEM catalog needs to be updated
+      // const capabilities: Record<string, boolean> = hasCapabilities(
+      //   provider as ProviderNames,
+      //   model as ModelIdsByProvider<ProviderNames>,
+      //   ['tool-call'] as CapabilitiesByModel<ProviderNames, ModelIdsByProvider<ProviderNames>>,
+      // )
+      // const isSupportTools = capabilities['tool-call'] // FIXME: JEM catalog needs to be updated
 
       const branch = messagesStore.getBranchById(parentId)
       const conversationMessages = branch.messages
         .filter(msg => msg.role !== 'system')
         .map(({ content, role }): BaseMessage => ({ content, role }))
 
-      const allMessages = [{
-        content: systemPromptResult.prompt,
+      const allMessages = JSON.parse(JSON.stringify([{
+        content: [{ type: 'text', text: systemPromptResult.prompt }],
         role: 'system',
-      } satisfies BaseMessage, ...conversationMessages]
+      } satisfies BaseMessage, ...conversationMessages]))
 
-      const { textStream } = await streamText({
-        ...(isSupportTools ? tools : {}),
+      const { textStream, reasoningTextStream } = streamText({
+        // ...(isSupportTools ? tools : {}),
         maxSteps: 10,
         apiKey: currentProvider.value?.apiKey,
         baseURL: currentProvider.value?.baseURL,
@@ -253,6 +264,7 @@ export const useConversationStore = defineStore('conversation', () => {
         abortSignal: abortController.signal,
       })
 
+      await processStream(newMsgId, runId, abortController, reasoningTextStream, true)
       await processStream(newMsgId, runId, abortController, textStream)
 
       return newMsgId
@@ -375,6 +387,7 @@ export const useConversationStore = defineStore('conversation', () => {
   async function sendMessage(
     roomId: string,
     messageText: string,
+    attachments: Attachment[],
     parentId: string | null,
     options?: {
       onUserMessageCreated?: (messageId: string) => void
@@ -397,14 +410,20 @@ export const useConversationStore = defineStore('conversation', () => {
       const initialRoomName = getRoomName(roomId)
       const shouldAutoRename = isFirstUserMessageInRoom && isDefaultRoomName(initialRoomName)
 
-      const { id } = await messagesStore.newMessage(
-        message,
+      const pureAttachments = attachments.map((a) => {
+        const { fileName: _, id: __, ...rest } = a
+        return rest
+      })
+      const content: CommonContentPart[] = [{ type: 'text', text: message }, ...pureAttachments]
+      const { id } = (await messagesStore.newMessage(
+        content,
         'user',
         parentId,
         defaultTextModel.value.provider,
         model ?? defaultTextModel.value.model,
         roomId,
-      )
+        undefined,
+      ))
       await messagesStore.retrieveMessages()
 
       options?.onUserMessageCreated?.(id)
@@ -486,7 +505,7 @@ export const useConversationStore = defineStore('conversation', () => {
     isSending,
     isGeneratingMessage,
     hasGeneratingAncestor,
-    saveToTokensBuffer,
-    checkAndFlushTokensBuffer,
+    saveMessagePartToBuffer,
+    checkAndFlushMessagePartBuffer,
   }
 })
