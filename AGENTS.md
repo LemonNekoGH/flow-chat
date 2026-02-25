@@ -119,3 +119,25 @@ When working on a PR that involves multiple schema changes:
 3. **Update journal**: When deleting migration files, also remove the corresponding entries from `drizzle/meta/_journal.json` that were added for those migrations
 
 This ensures that the PR contains a single, clean migration file that represents all schema changes, making it easier to review and maintain.
+
+## Cursor Cloud specific instructions
+
+### Project Overview
+
+Flow Chat is a fully **client-side** Vue 3 SPA — there is no backend server. The database (PGlite/PostgreSQL in WASM) runs in the browser, and LLM API calls go directly from the browser to user-configured provider endpoints. No environment variables or external databases are needed for development.
+
+### Running Services
+
+- **Dev server**: `pnpm dev` starts Vite on port 3333.
+- **Tests**: `pnpm test -- --run` runs all Vitest tests (54 tests across 7 files).
+- **Lint**: `pnpm lint` runs oxlint then eslint.
+- **Typecheck**: `pnpm typecheck` runs vue-tsc. Note: there are pre-existing type errors in the codebase (e.g., in `src/models/messages.test.ts`, `src/components/SearchView.vue`). These are known and not blocking.
+- See `package.json` scripts for the full list.
+
+### Known Issues
+
+- The `@dagrejs/graphlib` package emits a runtime error in the browser (`Calling 'require' for "@dagrejs/graphlib" in an environment that doesn't expose the 'require' function`). This breaks Vue Router navigation in the dev server and causes the onboarding tutorial dialog to loop without dismissing. This is a pre-existing code issue, not an environment problem.
+
+### Node.js Version
+
+The project requires Node.js 24.x (see `.tool-versions`). Use `nvm install 24 && nvm use 24` to switch. pnpm v10.28.2 is managed via corepack (`corepack enable && corepack prepare pnpm@10.28.2 --activate`).
