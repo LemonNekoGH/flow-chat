@@ -15,13 +15,15 @@ const emit = defineEmits<{
 
 const showModelSelector = defineModel<boolean>('showModelSelector', { required: true })
 
+const WHITESPACE_RE = /\s/g
+
 const settingsStore = useSettingsStore()
 const modelSelectorRef = ref<HTMLDivElement | null>(null)
 const selectedModel = ref('')
 const isLoadingModels = ref(false)
 
 const filteredModels = computed(() => {
-  const searchTerm = props.searchTerm.normalize().replaceAll(/\s/g, '').toLowerCase()
+  const searchTerm = props.searchTerm.normalize().replaceAll(WHITESPACE_RE, '').toLowerCase()
   return settingsStore.models.filter(m => m.id.includes(searchTerm))
 })
 

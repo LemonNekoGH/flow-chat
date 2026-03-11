@@ -14,6 +14,9 @@ onMounted(async () => {
 
   // Initialize rooms
   const room = await roomsStore.initialize()
+  if (!room) {
+    return
+  }
 
   router.replace(`/chat/${room.id}`)
 })

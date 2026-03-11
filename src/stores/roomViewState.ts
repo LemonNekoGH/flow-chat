@@ -47,7 +47,7 @@ function areViewportEqual(
 }
 
 export const useRoomViewStateStore = defineStore('roomViewState', () => {
-  const route = useRoute('/chat/[id]')
+  const route = useRoute()
 
   const dbStore = useDatabaseStore()
 
@@ -70,11 +70,12 @@ export const useRoomViewStateStore = defineStore('roomViewState', () => {
   })
 
   const roomId = computed(() => {
-    if (typeof route.params.id === 'string') {
-      return route.params.id
+    const id = route.params.id
+    if (Array.isArray(id)) {
+      return id[0] ?? null
     }
-    const id = Array.isArray(route.params.id) ? route.params.id[0] : null
-    return id || null
+
+    return id ?? null
   })
 
   const layoutTrigger = ref(0)

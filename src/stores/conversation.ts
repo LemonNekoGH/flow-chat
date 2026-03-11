@@ -16,10 +16,13 @@ import { generateText, streamText } from 'xsai'
 // import { createImageTools, createMemoryTools } from '~/tools'
 import { parseMessage } from '~/utils/chat'
 import { asyncIteratorFromReadableStream } from '~/utils/interator'
+import { getMessageText } from '~/utils/messageContent'
 import { SUMMARY_PROMPT, TOPIC_TITLE_PROMPT, useSystemPrompt } from '~/utils/prompts/prompts'
 import { useMessagesStore } from './messages'
 import { useRoomsStore } from './rooms'
 import { useSettingsStore } from './settings'
+
+const DEFAULT_ROOM_NAME_RE = /^Chat [A-Za-z]{3} \d{1,2} \d{1,2}:\d{2} [AP]M$/
 
 export const useConversationStore = defineStore('conversation', () => {
   const settingsStore = useSettingsStore()
@@ -97,7 +100,7 @@ export const useConversationStore = defineStore('conversation', () => {
 
     // RoomSelector creates: `Chat ${format(new Date(), 'MMM d h:mm a', { locale: enUS })}`
     // Examples: "Chat Jan 6 3:21 PM", "Chat Dec 31 11:59 AM"
-    return /^Chat [A-Za-z]{3} \d{1,2} \d{1,2}:\d{2} [AP]M$/.test(trimmed)
+    return DEFAULT_ROOM_NAME_RE.test(trimmed)
   }
 
   async function generateTopicTitleFromText(text: string) {
@@ -130,8 +133,8 @@ export const useConversationStore = defineStore('conversation', () => {
 
     const assistant = messagesStore.getMessageById(assistantMessageId)
 
-    const assistantContent = assistant?.content || [{ text: '', type: 'text' }]
-    if (!assistantContent[0])
+    const assistantContent = assistant ? getMessageText(assistant.content) : ''
+    if (!assistantContent)
       return
 
     const context = `User:\n${firstUserMessage}\n\nAssistant:\n${assistantContent}`
@@ -325,7 +328,7 @@ export const useConversationStore = defineStore('conversation', () => {
         baseURL: summaryProvider.baseURL,
         model,
         messages: [
-          { role: 'user', content: `${SUMMARY_PROMPT}\n\n${message.content}` },
+          { role: 'user', content: `${SUMMARY_PROMPT}\n\n${getMessageText(message.content)}` },
         ],
         abortSignal: abortController.signal,
       })

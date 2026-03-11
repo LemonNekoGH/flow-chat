@@ -2,6 +2,8 @@ import type { Locale } from 'vue-i18n'
 import type { UserModule } from '~/types'
 import { createI18n } from 'vue-i18n'
 
+const LOCALE_FILE_RE = /([\w-]*)\.yml$/
+
 // Import i18n resources
 // https://vitejs.dev/guide/features.html#glob-import
 //
@@ -14,7 +16,7 @@ const i18n = createI18n({
 
 const localesMap = Object.fromEntries(
   Object.entries(import.meta.glob('../../locales/*.yml'))
-    .map(([path, loadLocale]) => [path.match(/([\w-]*)\.yml$/)?.[1], loadLocale]),
+    .map(([path, loadLocale]) => [path.match(LOCALE_FILE_RE)?.[1], loadLocale]),
 ) as Record<Locale, () => Promise<{ default: Record<string, string> }>>
 
 export const availableLocales = Object.keys(localesMap)

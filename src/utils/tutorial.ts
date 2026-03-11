@@ -1,10 +1,9 @@
 import type { Message } from '~/types/messages'
+import { toTextContentParts } from './messageContent'
 import prompt from './prompts/tutorial.md?raw'
 
 // Define tutorial message tree structure
 export interface TutorialMessage extends Message {
-  id: string
-  content: string
   role: 'system' | 'user' | 'assistant'
   timestamp: number
 }
@@ -25,7 +24,7 @@ function createMessage(
 ): TutorialMessage {
   return {
     id,
-    content,
+    content: toTextContentParts(content),
     role,
     parent_id: parentMessageId,
     timestamp: Date.now(),
@@ -33,7 +32,7 @@ function createMessage(
     model,
     provider,
     summary: null,
-    attachments: [],
+    memory: [],
   }
 }
 

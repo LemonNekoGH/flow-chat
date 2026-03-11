@@ -17,6 +17,7 @@ import { useMessageModel } from '~/models/messages'
 import { useDatabaseStore } from '~/stores/database'
 import { useRoomsStore } from '~/stores/rooms'
 import { useRoomViewStateStore } from '~/stores/roomViewState'
+import { getMessageText } from '~/utils/messageContent'
 import EmbeddingWorker from '~/workers/embedding-worker?worker'
 
 const props = defineProps<{
@@ -91,7 +92,7 @@ async function performSearch() {
 
     // Step 3: Embed unembedded messages if any
     const messagesNotEmbedded = await messageModel.notEmbeddedMessages()
-    const messageContentsNotEmbedded = messagesNotEmbedded.map(m => m.content)
+    const messageContentsNotEmbedded = messagesNotEmbedded.map(message => getMessageText(message.content))
     if (messageContentsNotEmbedded.length > 0) {
       searchState.value = SearchState.EmbeddingMessages
       embeddingProgress.value = { current: 0, total: messageContentsNotEmbedded.length }
@@ -112,7 +113,7 @@ async function performSearch() {
     // Step 4: Perform vector similarity search
     searchState.value = SearchState.Searching
     const results = await messageModel.vectorSimilaritySearch(embeddingToSearch[0], 10)
-    searchResults.value = results as (Message & { similarity: number })[]
+    searchResults.value = results
 
     // Step 5: Complete
     searchState.value = SearchState.Idle
@@ -183,10 +184,11 @@ function getRoomName(roomId: string | null) {
   return room?.name || 'Unknown'
 }
 
-function getMessagePreview(content: string, maxLength = 100) {
-  if (content.length <= maxLength)
-    return content
-  return `${content.substring(0, maxLength)}...`
+function getMessagePreview(content: Message['content'], maxLength = 100) {
+  const text = getMessageText(content)
+  if (text.length <= maxLength)
+    return text
+  return `${text.substring(0, maxLength)}...`
 }
 
 function formatSimilarity(similarity: number): string {
@@ -206,7 +208,11 @@ async function navigateToMessage(message: Message) {
   // Set flag to indicate we're navigating, so we don't clear search results
   isNavigating.value = true
   await roomsStore.setCurrentRoom(message.room_id)
-  await router.push(`/chat/${message.room_id}?messageId=${message.id}`)
+  await router.push({
+    name: '/chat/[id]',
+    params: { id: message.room_id },
+    query: { messageId: message.id },
+  })
 
   roomViewStateStore.selectedMessageId = message.id
   roomViewStateStore.setCenterToNode(message.id)

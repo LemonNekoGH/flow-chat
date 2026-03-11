@@ -3,6 +3,9 @@ interface CommandAccumulator {
   repeat: number
 }
 
+const MODEL_COMMAND_RE = /^model=(\S+)/
+const REPEAT_COMMAND_RE = /^repeat=(\d+)/
+
 export interface ParseMessageResult extends CommandAccumulator {
   message: string
 }
@@ -22,11 +25,11 @@ export function parseMessage(text: string): ParseMessageResult {
     return { message, ...accumulator }
   })(text.trim(), {
     model: {
-      regex: /^model=(\S+)/,
+      regex: MODEL_COMMAND_RE,
       parse: match => ({ model: match[1] }),
     },
     repeat: {
-      regex: /^repeat=(\d+)/,
+      regex: REPEAT_COMMAND_RE,
       parse: match => ({ repeat: Number.parseInt(match[1]) }),
     },
   }, { repeat: 1 })

@@ -5,6 +5,12 @@ import { useDatabaseStore } from '../stores/database'
 import { combineMessagesAndParts, useMessageModel } from './messages'
 import { useRoomModel } from './rooms'
 
+const VECTOR_LENGTH = 1024
+
+function createFilledVector(value: number): number[] {
+  return Array.from({ length: VECTOR_LENGTH }, (_, index) => index).fill(value)
+}
+
 describe('message Model', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -117,7 +123,6 @@ describe('message Model', () => {
         model: 'test-model',
         provider: 'test-provider',
         parent_id: null,
-        content: [],
         role: 'user',
         room_id: room.id,
         summary: null,
@@ -144,7 +149,6 @@ describe('message Model', () => {
         model: 'test',
         provider: 'test',
         parent_id: null,
-        content: [],
         role: 'user',
         room_id: room.id,
         summary: null,
@@ -155,7 +159,6 @@ describe('message Model', () => {
         model: 'test',
         provider: 'test',
         parent_id: null,
-        content: [],
         role: 'assistant',
         room_id: room.id,
         summary: null,
@@ -180,7 +183,6 @@ describe('message Model', () => {
         model: 'test',
         provider: 'test',
         parent_id: null,
-        content: [],
         role: 'user',
         room_id: room1.id,
         summary: null,
@@ -191,7 +193,6 @@ describe('message Model', () => {
         model: 'test',
         provider: 'test',
         parent_id: null,
-        content: [],
         role: 'assistant',
         room_id: room2.id,
         summary: null,
@@ -220,7 +221,6 @@ describe('message Model', () => {
         model: 'test',
         provider: 'test',
         parent_id: null,
-        content: [],
         role: 'user',
         room_id: room.id,
         summary: null,
@@ -229,8 +229,8 @@ describe('message Model', () => {
 
       await messageModel.update(message.id, {
         ...message,
-        model: 'updated-model',
         content: [],
+        model: 'updated-model',
       })
 
       const messages = await messageModel.getByRoomId(room.id)
@@ -250,7 +250,6 @@ describe('message Model', () => {
         model: 'test',
         provider: 'test',
         parent_id: null,
-        content: [],
         role: 'user',
         room_id: room.id,
         summary: null,
@@ -261,7 +260,6 @@ describe('message Model', () => {
         model: 'test',
         provider: 'test',
         parent_id: null,
-        content: [],
         role: 'assistant',
         room_id: room.id,
         summary: null,
@@ -290,7 +288,6 @@ describe('message Model', () => {
         model: 'test',
         provider: 'test',
         parent_id: null,
-        content: [],
         role: 'user',
         room_id: room.id,
         summary: null,
@@ -318,7 +315,6 @@ describe('message Model', () => {
         model: 'test',
         provider: 'test',
         parent_id: null,
-        content: [],
         role: 'user',
         room_id: room.id,
         summary: null,
@@ -353,7 +349,6 @@ describe('message Model', () => {
         model: 'test',
         provider: 'test',
         parent_id: null,
-        content: [],
         role: 'user',
         room_id: room.id,
         summary: null,
@@ -384,7 +379,6 @@ describe('message Model', () => {
         model: 'test',
         provider: 'test',
         parent_id: null,
-        content: [],
         role: 'user',
         room_id: room.id,
         summary: null,
@@ -410,7 +404,6 @@ describe('message Model', () => {
         model: 'test',
         provider: 'test',
         parent_id: null,
-        content: [],
         role: 'user',
         room_id: room.id,
         summary: 'Initial',
@@ -436,7 +429,6 @@ describe('message Model', () => {
         model: 'test',
         provider: 'test',
         parent_id: null,
-        content: [],
         role: 'user',
         room_id: room.id,
         summary: null,
@@ -464,7 +456,6 @@ describe('message Model', () => {
         model: 'test',
         provider: 'test',
         parent_id: null,
-        content: [],
         role: 'user',
         room_id: room.id,
         summary: null,
@@ -475,7 +466,6 @@ describe('message Model', () => {
         model: 'test',
         provider: 'test',
         parent_id: null,
-        content: [],
         role: 'assistant',
         room_id: room.id,
         summary: null,
@@ -504,7 +494,6 @@ describe('message Model', () => {
         model: 'test',
         provider: 'test',
         parent_id: null,
-        content: [],
         role: 'user',
         room_id: room1.id,
         summary: null,
@@ -515,7 +504,6 @@ describe('message Model', () => {
         model: 'test',
         provider: 'test',
         parent_id: null,
-        content: [],
         role: 'user',
         room_id: room2.id,
         summary: null,
@@ -555,13 +543,12 @@ describe('message Model', () => {
         model: 'test',
         provider: 'test',
         parent_id: null,
-        content: [],
         role: 'user',
         room_id: room.id,
         summary: null,
         memory: [],
       })
-      const embeddingContent = Array.from({ length: 1024 }, () => Math.round(Math.random() * 1000) / 1000)
+      const embeddingContent = createFilledVector(Math.round(Math.random() * 1000) / 1000)
       const embedding = await messageModel.updateEmbedding(message.id, embeddingContent)
       expect(embedding.affectedRows).toBe(1)
     })
@@ -578,7 +565,6 @@ describe('message Model', () => {
         model: 'test',
         provider: 'test',
         parent_id: null,
-        content: [],
         role: 'user',
         room_id: room.id,
         summary: null,
@@ -588,7 +574,6 @@ describe('message Model', () => {
         model: 'test',
         provider: 'test',
         parent_id: null,
-        content: [],
         role: 'user',
         room_id: room.id,
         summary: null,
@@ -597,7 +582,7 @@ describe('message Model', () => {
 
       await messageModel.updateEmbedding(
         messageHasEmbedding.id,
-        Array.from({ length: 1024 }, () => Math.round(Math.random() * 1000) / 1000),
+        createFilledVector(Math.round(Math.random() * 1000) / 1000),
       )
       const notEmbeddedMessages = await messageModel.notEmbeddedMessages()
       expect(notEmbeddedMessages.length).toEqual(1)
@@ -617,7 +602,6 @@ describe('message Model', () => {
         model: 'test',
         provider: 'test',
         parent_id: null,
-        content: [],
         role: 'user',
         room_id: room.id,
         summary: null,
@@ -628,7 +612,6 @@ describe('message Model', () => {
         model: 'test',
         provider: 'test',
         parent_id: null,
-        content: [],
         role: 'user',
         room_id: room.id,
         summary: null,
@@ -655,7 +638,7 @@ describe('message Model', () => {
       await dbStore.migrate()
 
       const messageModel = useMessageModel()
-      const searchEmbedding = Array.from({ length: 1024 }, () => 0.5)
+      const searchEmbedding = createFilledVector(0.5)
 
       const results = await messageModel.vectorSimilaritySearch(searchEmbedding, 10)
       expect(results).toHaveLength(0)
@@ -675,17 +658,16 @@ describe('message Model', () => {
           model: 'test',
           provider: 'test',
           parent_id: null,
-          content: [],
           role: 'user',
           room_id: room.id,
           summary: null,
           memory: [],
         })
-        const embedding = Array.from({ length: 1024 }, () => Math.random())
+        const embedding = createFilledVector(Math.random())
         await messageModel.updateEmbedding(message.id, embedding)
       }
 
-      const searchEmbedding = Array.from({ length: 1024 }, () => 0.5)
+      const searchEmbedding = createFilledVector(0.5)
       const results = await messageModel.vectorSimilaritySearch(searchEmbedding, 3)
 
       expect(results.length).toBeLessThanOrEqual(3)

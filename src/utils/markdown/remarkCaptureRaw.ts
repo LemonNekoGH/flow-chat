@@ -3,6 +3,8 @@ import type { Plugin } from 'unified'
 import type { Position } from 'unist'
 import { visit } from 'unist-util-visit'
 
+const LINE_BREAK_RE = /\r?\n/g
+
 interface RemarkCaptureRawOptions {
   source?: string
 }
@@ -24,7 +26,7 @@ function sliceRaw(source: string, position?: Position): string | undefined {
   if (!position?.start || !position?.end)
     return undefined
 
-  const lines = source.split(/\r?\n/g)
+  const lines = source.split(LINE_BREAK_RE)
   const startLine = Math.max(0, (position.start.line ?? 1) - 1)
   const endLine = Math.max(0, (position.end.line ?? position.start.line ?? 1) - 1)
 

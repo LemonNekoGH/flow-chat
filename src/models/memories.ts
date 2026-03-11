@@ -28,11 +28,11 @@ function normalizeTags(tags: unknown): string[] {
     if (trimmed)
       set.add(trimmed)
   }
-  return Array.from(set)
+  return [...set]
 }
 
 function mergeTags(a: string[], b: string[]) {
-  return Array.from(new Set([...a, ...b]))
+  return [...new Set([...a, ...b])]
 }
 
 function toMemory(row: any): Memory {

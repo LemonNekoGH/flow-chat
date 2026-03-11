@@ -4,6 +4,8 @@ import { and, asc, cosineDistance, desc, eq, inArray, isNull, sql } from 'drizzl
 import { useDatabaseStore } from '~/stores/database'
 import * as schema from '../../db/schema'
 
+type CreateMessageInput = Omit<typeof schema.messages.$inferInsert, 'id' | 'created_at' | 'updated_at' | 'embedding' | 'show_summary'>
+
 export function combineMessagesAndParts(messagesAndParts: {
   messages: typeof schema.messages.$inferSelect
   message_parts: typeof schema.message_parts.$inferSelect | null
@@ -24,7 +26,7 @@ export function combineMessagesAndParts(messagesAndParts: {
     }
   }
 
-  return Array.from(messagesMap.values())
+  return [...messagesMap.values()]
 }
 
 export function useMessageModel() {
@@ -51,15 +53,17 @@ export function useMessageModel() {
     })
   }
 
-  async function create(msg: Omit<typeof schema.messages.$inferInsert, 'id' | 'created_at' | 'updated_at' | 'embedding' | 'show_summary'>) {
+  async function create(msg: CreateMessageInput) {
     return await dbStore.withCheckpoint((db) => {
       return db.insert(schema.messages).values(msg).returning()
     })
   }
 
   function update(id: string, msg: Message) {
+    const { content: _content, ...messageData } = msg
+
     return dbStore.withCheckpoint((db) => {
-      return db.update(schema.messages).set(msg).where(eq(schema.messages.id, id))
+      return db.update(schema.messages).set(messageData).where(eq(schema.messages.id, id))
     })
   }
 
@@ -115,7 +119,7 @@ export function useMessageModel() {
     }
 
     return dbStore.withCheckpoint(async (db) => {
-      await db.insert(schema.message_parts).values(parts.map(part => ({ message_id, part_type: part.type, content: part, order: parts.indexOf(part) })))
+      await db.insert(schema.message_parts).values(parts.map((part, index) => ({ message_id, part_type: part.type, content: part, order: index })))
     })
   }
 
@@ -156,8 +160,15 @@ export function useMessageModel() {
     return combineMessagesAndParts(messagesAndParts)
   }
 
-  function notEmbeddedMessages() {
-    return dbStore.db().select().from(schema.messages).where(isNull(schema.messages.embedding))
+  async function notEmbeddedMessages(): Promise<Message[]> {
+    const messagesAndParts = await dbStore.db()
+      .select()
+      .from(schema.messages)
+      .where(isNull(schema.messages.embedding))
+      .leftJoin(schema.message_parts, eq(schema.messages.id, schema.message_parts.message_id))
+      .orderBy(asc(schema.messages.created_at), asc(schema.message_parts.order))
+
+    return combineMessagesAndParts(messagesAndParts)
   }
 
   function updateEmbedding(id: string, embedding: number[]) {
@@ -166,7 +177,7 @@ export function useMessageModel() {
     })
   }
 
-  async function vectorSimilaritySearch(embedding: number[], limit: number = 10) {
+  async function vectorSimilaritySearch(embedding: number[], limit: number = 10): Promise<(Message & { similarity: number })[]> {
     const similarity = sql<number>`1 - (${cosineDistance(schema.messages.embedding, embedding)})`
 
     const topMessages = await dbStore.db()

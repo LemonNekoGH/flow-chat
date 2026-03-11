@@ -33,6 +33,10 @@ import { ChatMode, useModeStore } from '~/stores/mode'
 import { useRoomsStore } from '~/stores/rooms'
 import { useRoomViewStateStore } from '~/stores/roomViewState'
 import { useSettingsStore } from '~/stores/settings'
+import { getMessageText } from '~/utils/messageContent'
+
+const INLINE_MODEL_COMMAND_WHITESPACE_RE = /\s/
+const MODEL_PREFIX_RE = /^model=(\S+)\s+/
 
 const dbStore = useDatabaseStore()
 
@@ -81,7 +85,7 @@ const inlineModelCommandProvider = ref<ProviderNames | null>(null)
 
 watch(inputMessage, (newValue) => {
   // Show only if input starts with 'model=' and does not contain white-spaces
-  if (newValue.startsWith('model=') && !newValue.match(/\s/)) {
+  if (newValue.startsWith('model=') && !INLINE_MODEL_COMMAND_WHITESPACE_RE.test(newValue)) {
     showModelSelector.value = true
     // Fetch models if we haven't already
     if (settingsStore.models.length === 0) {
@@ -190,7 +194,7 @@ async function handleSendButton(messageText?: string) {
   if (parentId && conversationStore.isGeneratingMessage(parentId))
     return
 
-  const modelMatch = messageToSend.match(/^model=(\S+)\s+/)
+  const modelMatch = messageToSend.match(MODEL_PREFIX_RE)
   const modelPrefix = modelMatch ? modelMatch[1] : null
 
   await conversationStore.sendMessage(
@@ -235,7 +239,8 @@ async function handleContextMenuCopy() {
     return
   }
 
-  const text = model && role === 'user' ? `model=${model} ${content}` : content.filter(part => part.type === 'text').map(part => part.text).join('')
+  const textContent = getMessageText(content)
+  const text = model && role === 'user' ? `model=${model} ${textContent}` : textContent
   if (!text) {
     toast.warning('No text to copy')
     return

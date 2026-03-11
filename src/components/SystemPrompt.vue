@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useMessagesStore } from '~/stores/messages'
 import { useRoomsStore } from '~/stores/rooms'
+import { getMessageText, toTextContentParts } from '~/utils/messageContent'
 import MarkdownView from './MarkdownView.vue'
 import Editor from './SystemPromptEdit.vue'
 
@@ -26,6 +27,17 @@ const message = computed(() => {
     return messagesStore.getMessageById(currentRoom.template_id)
   }
 })
+
+const messageText = computed({
+  get: () => message.value ? getMessageText(message.value.content) : '',
+  set: (value: string) => {
+    if (!message.value) {
+      return
+    }
+
+    message.value.content = toTextContentParts(value)
+  },
+})
 </script>
 
 <template>
@@ -33,7 +45,7 @@ const message = computed(() => {
     <div flex items-center justify-between>
       System Prompt
       <div flex items-center gap-2>
-        <Editor v-model="message.content">
+        <Editor v-model="messageText">
           <div i-carbon-edit cursor-pointer title="Edit" />
         </Editor>
 
@@ -47,7 +59,7 @@ const message = computed(() => {
 
     <MarkdownView v-if="expanded" dark:bt-gray-700 :content="message.content" />
     <div v-else line-clamp-3 text-gray-500>
-      {{ message.content }}
+      {{ messageText }}
     </div>
   </div>
 </template>

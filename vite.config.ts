@@ -12,6 +12,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 import VueDevTools from 'vite-plugin-vue-devtools'
 import Layouts from 'vite-plugin-vue-layouts'
 
+const EXTERNAL_LINK_RE = /^https?:\/\//
+
 export default defineConfig({
   resolve: {
     alias: {
@@ -50,7 +52,7 @@ export default defineConfig({
       headEnabled: true,
       async markdownItSetup(md) {
         md.use(LinkAttributes, {
-          matcher: (link: string) => /^https?:\/\//.test(link),
+          matcher: (link: string) => EXTERNAL_LINK_RE.test(link),
           attrs: {
             target: '_blank',
             rel: 'noopener',

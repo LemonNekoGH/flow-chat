@@ -9,6 +9,8 @@ const props = withDefaults(defineProps<{
   rawMarkdown: '',
 })
 
+const NON_BREAKING_SPACE_RE = /\u00A0/g
+
 const tableWrapperRef = ref<HTMLDivElement | null>(null)
 
 const rawMarkdownValue = computed(() => props.rawMarkdown?.trim() ?? '')
@@ -23,7 +25,7 @@ function extractRenderedTable(): string {
     return wrapper.textContent?.trim() ?? ''
 
   const text = table.textContent ?? ''
-  const normalized = text.replace(/\u00A0/g, ' ').trim()
+  const normalized = text.replace(NON_BREAKING_SPACE_RE, ' ').trim()
   return normalized || table.outerHTML || ''
 }
 

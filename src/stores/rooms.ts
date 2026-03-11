@@ -130,7 +130,7 @@ export const useRoomsStore = defineStore('rooms', () => {
       return room
     }
 
-    return rooms.value[rooms.value.length - 1]
+    return rooms.value.at(-1)
   }
 
   interface GroupedRoom {
@@ -248,7 +248,7 @@ export const useRoomsStore = defineStore('rooms', () => {
     const existing = index === -1 ? undefined : rooms.value[index]
     const updatePayload: Partial<Pick<Room, 'focus_node_id' | 'viewport_x' | 'viewport_y' | 'viewport_zoom'>> = {}
 
-    if (Object.prototype.hasOwnProperty.call(patch, 'focusNodeId')) {
+    if (Object.hasOwn(patch, 'focusNodeId')) {
       const nextFocus = patch.focusNodeId ?? null
 
       if (!existing || existing.focus_node_id !== nextFocus) {
@@ -256,7 +256,7 @@ export const useRoomsStore = defineStore('rooms', () => {
       }
     }
 
-    if (Object.prototype.hasOwnProperty.call(patch, 'viewport')) {
+    if (Object.hasOwn(patch, 'viewport')) {
       const targetViewport = patch.viewport ?? null
       const currentViewport = toViewportTransform(existing)
 

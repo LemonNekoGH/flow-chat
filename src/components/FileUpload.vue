@@ -101,7 +101,9 @@ async function processFile(file: File) {
 }
 
 async function handleFiles(files: FileList | File[]) {
-  const fileArray = Array.from(files)
+  const fileArray = Array.isArray(files)
+    ? files
+    : Array.from({ length: files.length }, (_, index) => files.item(index)).filter((file): file is File => file !== null)
 
   // Check max files limit
   if (attachments.value.length + fileArray.length > props.maxFiles) {

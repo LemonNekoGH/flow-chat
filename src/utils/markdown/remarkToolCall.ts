@@ -2,6 +2,8 @@ import type { Root } from 'mdast'
 import type { Plugin } from 'unified'
 import { visit } from 'unist-util-visit'
 
+const TOOL_CALL_RE = /^:::tool-call\s+([a-f0-9-]{36}):::$/i
+
 interface NodeWithData {
   type: string
   value?: string
@@ -27,7 +29,7 @@ export const remarkToolCall: Plugin<[], Root> = () => {
         return
 
       const text = (textNode as { value: string }).value
-      const match = text.match(/^:::tool-call\s+([a-f0-9-]{36}):::$/i)
+      const match = text.match(TOOL_CALL_RE)
 
       if (!match)
         return
