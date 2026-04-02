@@ -22,12 +22,6 @@ export default defineConfig({
   plugins: [
     Vue({
       include: [/\.vue$/, /\.md$/],
-      script: {
-        defineModel: true,
-      },
-      features: {
-        propsDestructure: true,
-      },
     }),
 
     // https://github.com/posva/unplugin-vue-router

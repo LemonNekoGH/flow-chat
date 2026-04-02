@@ -11,3 +11,4 @@ cypress/downloads
 public/assets/fonts
 .cache
 typed-router.d.ts
+.eslintcache
