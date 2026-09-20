@@ -8,6 +8,7 @@ defineProps<{
 defineEmits<{
   (e: 'fork'): void
   (e: 'forkWith'): void
+  (e: 'merge'): void
   (e: 'focusIn'): void
   (e: 'copy'): void
 }>()
@@ -28,6 +29,9 @@ defineEmits<{
     </div>
     <div v-if="role === 'user'" @click="$emit('forkWith')">
       Fork With...
+    </div>
+    <div @click="$emit('merge')">
+      Merge
     </div>
     <div @click="$emit('focusIn')">
       Focus In

@@ -14,6 +14,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{
   (e: 'forkMessage', messageId: string, model?: string): void
+  (e: 'mergeMessage', messageId: string): void
   (e: 'abortMessage', messageId: string): void
   (e: 'regenerateMessage', messageId: string): void
   (e: 'copyMessage', messageId: string): void
@@ -134,6 +135,14 @@ function handleContextMenuFork() {
 function handleContextMenuForkWith() {
   // For now, we just fork with default model
   handleContextMenuFork()
+}
+
+function handleContextMenuMerge() {
+  const messageId = contextMenu.value.messageId
+  closeContextMenu()
+  if (messageId) {
+    emit('mergeMessage', messageId)
+  }
 }
 
 async function handleContextMenuCopy() {
@@ -266,6 +275,7 @@ function getAttachments(message: Message) {
       :role="contextMenu.role"
       @fork="handleContextMenuFork"
       @fork-with="handleContextMenuForkWith"
+      @merge="handleContextMenuMerge"
       @focus-in="handleContextMenuFocusIn"
       @copy="handleContextMenuCopy"
     />
