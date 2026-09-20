@@ -17,3 +17,25 @@ export interface Message extends BaseMessage {
   show_summary?: boolean
   memory?: string[]
 }
+
+export interface ExportedMessage {
+  id: string
+  parent_id: string | null
+  role: MessageRole
+  provider: string
+  model: string
+  summary: string | null
+  show_summary: boolean
+  memory: string[]
+  content: CommonContentPart[]
+}
+
+export interface ExportedRoomMessages {
+  version: 1
+  exported_at: string
+  room: {
+    id: string
+    name: string
+  }
+  messages: ExportedMessage[]
+}

@@ -39,7 +39,7 @@ Alternatively, you can right-click on a message and select "Fork" to let me crea
 ### 🔹 **Additional Notes**
 
 - You can **delete entire branches** if they are no longer needed.
-- The app currently **does not support exporting or importing conversations**, but it may be considered in future updates.
+- You can export or import a chat from the chat list to share or back up conversations.
 - **Shortcut key support is under consideration** to improve usability.
 
 If you find this app useful, consider giving it a ⭐ on [GitHub](https://github.com/LemonNekoGH/flow-chat) or contributing to its development. Your support helps improve the project—thank you! 🚀
